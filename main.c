@@ -153,26 +153,31 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, texture2);
         glBindVertexArray(VAO); // Now valid VAO with vertex + index buffers + layout
 
-        mat4 trans;
-        vec3 rotateAxis = {0.0f, 0.0f, 1.0f};
-        vec3 translateCoords = {0.0f, 0.0f, getCoords()[2]};
-        mat4 view;
+        for (int i = 0; i < 10; i++) {
+            mat4 transform;
+            mat4 view;
+            mat4 projection;
 
-        rotateAxis[0] = 0.3f;
-        rotateAxis[1] = 0.6f;
-        rotateAxis[2] = 0.9f;
+            vec3 rotateAxis = {0.3f, 0.6f, 0.9f};
+            vec3 translateCoords;
+            glm_vec3_make(getCoords(),translateCoords);
+            translateCoords[0] += (float) i * 2.0f;
 
-        glm_mat4_identity(trans);
-        glm_mat4_identity(view);
-        glm_translate(view,translateCoords);
-        glm_rotate(trans, (float) angle, rotateAxis);
+            glm_mat4_identity(transform);
+            glm_mat4_identity(view);
+            glm_mat4_identity(projection);
+            glm_perspective(getCoords()[3], 1920.0f / 1280.0f, 0.1f, 100.0f,projection);
+            glm_translate(view,translateCoords);
+            glm_rotate(transform, (float) angle, rotateAxis);
 
-        setMatrix4fv(&shader,"transform",trans[0]);
-        setMatrix4fv(&shader,"view",view[0]);
-        // float mixValue = (float) sin(glfwGetTime() * 10);
-        // mixValue = mixValue * 0.5f  + 0.5f;
-        setFloat(&shader, "mixValue", mixValue);
-        glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, 0);
+            setMatrix4fv(&shader,"transform",transform[0]);
+            setMatrix4fv(&shader,"view",view[0]);
+            setMatrix4fv(&shader,"projection",projection[0]);
+            // float mixValue = (float) sin(glfwGetTime() * 10);
+            // mixValue = mixValue * 0.5f  + 0.5f;
+            setFloat(&shader, "mixValue", mixValue);
+            glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, 0);
+        }
 
         handleKeysPressed(window);
         glfwSwapBuffers(window);
