@@ -166,7 +166,7 @@ int main() {
             glm_mat4_identity(transform);
             glm_mat4_identity(view);
             glm_mat4_identity(projection);
-            glm_perspective(getCoords()[3], 1920.0f / 1280.0f, 0.1f, 100.0f,projection);
+            glm_perspective(glm_rad(45.0f), 1920.0f / 1280.0f, 0.01f, 100.0f,projection);
             glm_translate(view,translateCoords);
             glm_rotate(transform, (float) angle, rotateAxis);
 
