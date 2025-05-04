@@ -8,9 +8,9 @@
 void addToZ(float delta);
 void addToX(float delta);
 void addToY(float delta);
-void addToW(float delta);
+void addToMouse(float deltaX,float deltaY);
 
-void initCoords(float x, float y, float z, float w);
+void initCoords(const float x, const float y, const float z, const float mX, const float mY);
 
 float* getCoords();
 
