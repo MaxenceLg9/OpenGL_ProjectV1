@@ -56,11 +56,35 @@ void handleKeysPressed(GLFWwindow *w) {
             }
 
             if (key == GLFW_KEY_W) {
-                addToZ(0.1f);
+                addToZ(1.0f);
             }
 
             if (key == GLFW_KEY_S) {
-                addToZ(-0.1f);
+                addToZ(-1.0f);
+            }
+
+            if (key == GLFW_KEY_A) {
+                addToX(0.1f);
+            }
+
+            if (key == GLFW_KEY_D) {
+                addToX(-0.1f);
+            }
+
+            if (key == GLFW_KEY_SPACE) {
+                addToY(-0.1f);
+            }
+
+            if (key == GLFW_KEY_LEFT_CONTROL) {
+                addToY(0.1f);
+            }
+
+            if (key == GLFW_KEY_Z) {
+                addToMouse(-0.1f,0.0f);
+            }
+
+            if (key == GLFW_KEY_X) {
+                addToMouse(0.1f,0.0f);
             }
 
             if (key == GLFW_KEY_ESCAPE) {
