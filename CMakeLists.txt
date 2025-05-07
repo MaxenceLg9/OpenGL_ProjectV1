@@ -17,6 +17,12 @@ set(SOURCE_FILES main.c
         world/player.h
         window/window.c
         window/window.h
+        math/math.c
+        math/math.h
+        world/chunk.c
+        world/chunk.h
+        world/block.c
+        world/block.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)
