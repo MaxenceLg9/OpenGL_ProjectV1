@@ -7,6 +7,7 @@
 #include "libs/special_callback.h"
 #include <cglm/cglm.h>
 
+#include "world/chunk.h"
 #include "world/player.h"
 
 
@@ -84,6 +85,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+
     // Create window
     GLFWwindow *window = glfwCreateWindow(1920, 1080, "Triangle", glfwGetPrimaryMonitor(), NULL);
     if (!window) {
@@ -92,8 +94,11 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSetFramebufferSizeCallback(window, framebuffercallback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
     // Load OpenGL functions
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         fprintf(stderr, "Failed to initialize GLAD\n");
@@ -137,50 +142,64 @@ int main() {
     use(&shader);
     setInt(&shader, "texture1", 0);
     setInt(&shader, "texture2", 1);
-    int n = sizeof(indices) / sizeof(unsigned int);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texture2);
+
+    const int n = sizeof(indices) / sizeof(unsigned int);
+
+    PLAYER player;
+    initCoords(0.0f,0.0f,0.0f,&player);
+    glfwSetWindowUserPointer(window, &player);
+    CHUNK chunk;
+    const float chunkPos[3] = {0.0f, 0.0f, 0.0f};
+    glm_vec3_make(chunkPos, chunk.position);
+    int changed = 0;
     while (!glfwWindowShouldClose(window)) {
 
+
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
         use(&shader);
-        // setVec4(&shader, "color", 0.5f, 0.0f, 0.5f, 1.0f);
-        // setVec2(&shader,"textCoords",1.0f,1.0f);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
+
+        // camera/view transformation
+        mat4 view, rollMatrix;
+        vec3 cameraPos, cameraTarget, rotatedUp;
+        vec3 baseUp = {0.0f, 1.0f, 0.0f};
+
+        glm_vec3_make(getCoords(&player), cameraPos);
+
+        // cameraTarget = cameraPos + direction
+        glm_vec3_add(cameraPos, player.direction, cameraTarget);
+
+        // rotatedUp = rotate(baseUp, roll, around direction)
+        glm_mat4_identity(rollMatrix);
+        glm_rotate(rollMatrix, glm_rad(player.roll), player.direction);
+        glm_mat4_mulv3(rollMatrix, baseUp, 0.0f, rotatedUp);
+
+        // build view matrix
+        glm_lookat(cameraPos, cameraTarget, rotatedUp, view);
+
+        setMatrix4fv(&shader,"view",view[0]);
+
+        mat4 projection;
+
+        glm_perspective(glm_rad(fov), 1920.0f / 1280.0f, 0.01f, 1000.0f,projection);
+        setMatrix4fv(&shader,"projection",projection[0]);
+
         glBindVertexArray(VAO); // Now valid VAO with vertex + index buffers + layout
-
-        for (int i = 0; i < 10; i++) {
-            mat4 transform;
-            mat4 view;
-            mat4 projection;
-
-            vec3 rotateAxis = {0.3f, 0.6f, 0.9f};
-            vec3 translateCoords;
-            glm_vec3_make(getCoords(),translateCoords);
-            translateCoords[0] += (float) i * 2.0f;
-
-            glm_mat4_identity(transform);
-            glm_mat4_identity(view);
-            glm_mat4_identity(projection);
-            glm_perspective(glm_rad(45.0f), 1920.0f / 1280.0f, 0.01f, 100.0f,projection);
-            glm_translate(view,translateCoords);
-            glm_rotate(transform, (float) angle, rotateAxis);
-
-            setMatrix4fv(&shader,"transform",transform[0]);
-            setMatrix4fv(&shader,"view",view[0]);
-            setMatrix4fv(&shader,"projection",projection[0]);
-            // float mixValue = (float) sin(glfwGetTime() * 10);
-            // mixValue = mixValue * 0.5f  + 0.5f;
-            setFloat(&shader, "mixValue", mixValue);
-            glDrawElements(GL_TRIANGLES, n, GL_UNSIGNED_INT, 0);
+        if (!changed) {
+            renderChunk(&chunk,n, &shader);
+            changed = 1;
         }
 
-        handleKeysPressed(window);
+        handleKeysPressed(window,&player);
         glfwSwapBuffers(window);
+        glfwSwapInterval(1);
         glfwPollEvents();
     }
     glfwTerminate();
