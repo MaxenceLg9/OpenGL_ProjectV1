@@ -4,14 +4,24 @@
 
 #ifndef PLAYER_H
 #define PLAYER_H
+#include <cglm/cglm.h>
 
-void addToZ(float delta);
-void addToX(float delta);
-void addToY(float delta);
-void addToMouse(float deltaX,float deltaY);
+typedef struct {
+    vec3 pos;
+    vec3 direction;
+    float yaw;
+    float pitch;
+    float roll;
+} PLAYER;
 
-void initCoords(const float x, const float y, const float z, const float mX, const float mY);
 
-float* getCoords();
+void moveForward(float delta, PLAYER *player);
+void moveRight(float delta, PLAYER *player);
+
+void initCoords(float x, float y, float z, PLAYER *player);
+
+void addToY(const float delta, PLAYER *player);
+
+float* getCoords(PLAYER *player);
 
 #endif //PLAYER_H
