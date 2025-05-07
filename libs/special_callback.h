@@ -5,8 +5,12 @@
 #ifndef SPECIAL_CALLBACK_H
 #define SPECIAL_CALLBACK_H
 
+#include "../world/player.h"
+#include <GLFW/glfw3.h>
+
 extern float mixValue;
 extern double angle;
+extern float fov;
 
 enum KEY_STATUS{
     PRESSED = 1,
@@ -20,9 +24,12 @@ typedef struct  {
 } KEYS;
 
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
-void handleKeysPressed(GLFWwindow *w);
+void handleKeysPressed(GLFWwindow *w, PLAYER *player);
 
 #endif //SPECIAL_CALLBACK_H
