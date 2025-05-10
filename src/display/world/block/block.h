@@ -5,7 +5,8 @@
 #ifndef CUBE_H
 #define CUBE_H
 
-typedef struct {
-} BLOCK;
+class Block{
+
+};
 
 #endif //CUBE_H
