@@ -1,0 +1,8 @@
+//
+// Created by Sinis on 08/05/2025.
+//
+
+#ifndef OPENGL_PROJECTV1_CURSOR_H
+#define OPENGL_PROJECTV1_CURSOR_H
+
+#endif //OPENGL_PROJECTV1_CURSOR_H
