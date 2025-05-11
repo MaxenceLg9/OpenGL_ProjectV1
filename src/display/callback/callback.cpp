@@ -41,7 +41,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     static float lastY = 540.0f;
     static int firstMouse = 1;
 
-    Player player = *(Player *) glfwGetWindowUserPointer(window);
+    Player *player = (Player *) glfwGetWindowUserPointer(window);
 
     if (firstMouse) {
         lastX = (float)xpos;
@@ -54,11 +54,11 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = (float)xpos;
     lastY = (float)ypos;
 
-    float sensitivity = 0.0012f;  // much smaller for fine rotation
+    float sensitivity = 0.12f;  // much smaller for fine rotation
     xoffset *= -sensitivity;
     yoffset *= -sensitivity;
 
-    player.moveCamera(xoffset, yoffset);
+    player->moveCamera(xoffset, yoffset);
 }
 
 
@@ -93,36 +93,43 @@ void handleKeysPressed(GLFWwindow *w, Player *player) {
             }
 
             if (key == GLFW_KEY_W) {
-                player->moveForward(0.1f);
+                player->moveForward(1.f);
             }
             if (key == GLFW_KEY_S) {
-                player->moveForward(-0.1f);
+                player->moveForward(-1.f);
             }
             if (key == GLFW_KEY_D) {
-                player->moveRight(0.1f);
+                player->moveRight(1.f);
             }
             if (key == GLFW_KEY_A) {
-                player->moveRight(-0.1f);
+                player->moveRight(-1.f);
             }
 
             if (key == GLFW_KEY_SPACE) {
-                player->moveUp(0.1f);
+                player->moveUp(1.f);
             }
 
             if (key == GLFW_KEY_LEFT_CONTROL) {
-                player->moveUp(-0.1f);
+                player->moveUp(-1.f);
             }
             if (key == GLFW_KEY_Z) {
-                printf("Z : %f\n", player->getRoll());
-                player->makeRoll(1.0f);  // roll left
+                player->makeRoll(-1.0f);  // roll left
             }
             if (key == GLFW_KEY_X) {
-                printf("X : %f\n", player->getRoll());
-                player->makeRoll(-1.0f);  // roll right
+                player->makeRoll(1.0f);  // roll right
+            }
+
+            if(key == GLFW_KEY_LEFT_SHIFT){
+                player->addSpeedMultiplier(GLFW_KEY_LEFT_SHIFT,100);
             }
 
             if (key == GLFW_KEY_ESCAPE) {
                 glfwSetWindowShouldClose(w, GLFW_TRUE);
+            }
+        }
+        if (keys[i].status == RELEASED) {
+            if (i == GLFW_KEY_LEFT_SHIFT) {
+                player->removeSpeedMultiplier(GLFW_KEY_LEFT_SHIFT);
             }
         }
     }
