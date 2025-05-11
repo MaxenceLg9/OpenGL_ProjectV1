@@ -26,6 +26,8 @@ set(SOURCE_FILES
         src/display/model/mesh/mesh.h
         src/display/model/model.cpp
         src/display/model/mesh/mesh.cpp
+        src/display/window/cursor/cursor.cpp
+        src/display/window/cursor/cursor.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)
