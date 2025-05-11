@@ -12,6 +12,7 @@
 #include "display/world/player/player.h"
 #include "display/model/mesh/mesh.h"
 #include "math/math.h"
+#include "display/window/cursor/cursor.h"
 
 
 WINDOW window;
@@ -165,9 +166,12 @@ int main() {
         }
     }
     int changed = 0;
+    Cursor cursor;
+    double deltaTime = 0.0f,lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window.GLFWwindow)) {
-
-
+        double currentFrame = glfwGetTime();
+        player.setDeltaTime(currentFrame - lastFrame);
+        lastFrame = currentFrame;
         glClearColor(0.15f, 0.65f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -183,10 +187,8 @@ int main() {
         cameraTarget = cameraPos + player.getDirection();
 
         // rotatedUp = rotate(baseUp, roll, around direction)
-        rollMatrix = glm::rotate(rollMatrix, glm::radians(player.getRoll()), player.getDirection());
-        rotatedUp = rollMatrix * glm::vec4(baseUp, 0.0f);
         // build view matrix
-        view = glm::lookAt(cameraPos, cameraTarget, rotatedUp);
+        view = glm::lookAt(cameraPos, cameraTarget, player.getUp());
 
         shader.setMatrix4fv("view",glm::value_ptr(view));
 
@@ -196,12 +198,14 @@ int main() {
         shader.setMatrix4fv("projection",glm::value_ptr(projection));
 
 //        mesh.draw(shader);
+
+        glDepthFunc(GL_LESS);
         for (auto & i : chunk) {
 //            for (auto & j : i) {
                 renderChunk(&i[0],mesh,shader);
 //            }
         }
-//        player.makeRoll((float) (sin(glfwGetTime()) + 1.0) * pow(360,14) + 1.0f);
+        cursor.drawCursor();
         handleKeysPressed(window.GLFWwindow,&player);
         glfwSwapBuffers(window.GLFWwindow);
         glfwPollEvents();
