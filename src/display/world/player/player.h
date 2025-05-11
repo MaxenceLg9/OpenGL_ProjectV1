@@ -4,6 +4,9 @@
 
 #ifndef PLAYER_H
 #define PLAYER_H
+
+#include <vector>
+#include <map>
 #include "glm.hpp"
 #include "vec3.hpp"
 
@@ -19,18 +22,31 @@ public:
 
     glm::vec3 getCoords();
 
-    glm::vec3 getDirection();
+    glm::vec3 getDirection() const;
 
-    float getRoll() const;
+    glm::vec3 getUp() const;
 
     void makeRoll(float angle);
 
     void moveCamera(float xoffset, float yoffset);
 
-private:
-    glm::vec3 pos, direction;
-    float roll;
+    void setDeltaTime(double delta);
 
+    void addSpeedMultiplier(int key,double multi);
+
+    void removeSpeedMultiplier(int key);
+
+private:
+    glm::vec3 pos, direction,up;
+    double deltaTime;
+    float roll;
+    std::map<int,double> speedMultiplier;
+
+    float getSpeed() const;
+
+    void computeUp();
+
+    void computeUp(float angle);
 };
 
 

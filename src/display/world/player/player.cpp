@@ -3,48 +3,51 @@
 //
 
 #include "player.h"
-#include "cglm/cglm.h"
+#include <cstdio>
 
 #include "../../../math/math.h"
 
 void Player::moveForward(const float delta) {
     //add the offset to the player position : move
-    this->pos += this->direction * delta;
-    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
+    printf("Moving forward: %f\n", glm::length(this->direction));
+    this->pos += this->direction * delta * 3.5f * getSpeed();
+//    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
 }
 
 void Player::moveRight(const float delta) {
-    glm::vec3 right, up(0.0f,1.0f,0.0f), front(direction.x,0.0f,direction.z);
-    up = glm::rotate(glm::mat4(1.0f), glm::radians(this->getRoll()), front) * glm::vec4(up,0.0f);
-    right = glm::cross(this->direction, up);
-    right = right * delta;
+    glm::vec3 right = glm::cross(this->direction, this->up);
     printf("Moving right: %f\n", glm::length(right));
-    this->pos = this->pos + right;
-    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
+    this->pos = this->pos + right * delta * 3.5f * getSpeed();
+
+//    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
 }
 
 void Player::moveUp(const float delta) {
-    glm::vec3 front(this->direction.x, 0.0f, this->direction.z);
-    glm::vec3 baseUp(0.0f, 1.0f, 0.0f);
 
     // Rotate baseUp around front vector (XZ plane) by roll angle to get the rolled-up vector
-    glm::vec3 rolledUp = glm::rotate(glm::mat4(1.0f), glm::radians(this->getRoll()), front) * glm::vec4(baseUp, 0.0f);
-
-    // Compute the right vector
-    glm::vec3 right = glm::normalize(glm::cross(this->direction, rolledUp));
-
-    // Compute final local-up vector (cross of right and direction)
-    glm::vec3 localUp = glm::normalize(glm::cross(right, this->direction));
-
+    printf("Length rolledUp: %f\n", glm::length(this->up));
     // Move along local-up
-    this->pos += localUp * delta;
+    this->pos += this->up * delta * 2.5f * getSpeed();
+}
+
+float Player::getSpeed() const{
+    double speed = deltaTime;
+    for(const auto& [key, i] : speedMultiplier) {
+        speed *= i;
+    }
+    return (float) speed;
 }
 
 
 Player::Player(const float x, const float y, const float z) {
     this->direction = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
     this->pos = glm::vec3(x, y, z);
-    this->roll = 90.0f;
+    this->up = glm::vec3(0.0f, 1.0f, 0.0f);
+    this->roll = 0.0f;
+}
+
+void Player::setDeltaTime(double delta) {
+    this->deltaTime = delta;
 }
 
 
@@ -52,37 +55,48 @@ glm::vec3 Player::getCoords() {
     return this->pos;
 }
 
-glm::vec3 Player::getDirection() {
+glm::vec3 Player::getDirection() const {
     return this->direction;
 }
 
 void Player::makeRoll(float angle) {
-    this->roll = this->roll + angle;
-    printf("roll: %f\n", getRoll());
-
+    roll += angle;
+    this->computeUp(angle);
 }
 
-float Player::getRoll() const {
-    return roll - 90.0f;
+glm::vec3 Player::getUp() const {
+    return this->up;
 }
 
 void Player::moveCamera(float xoffset, float yoffset) {
     // Create rotation matrices
-    glm::mat4 yawMat(1.0f), pitchMat(1.0f);
+    glm::vec3 front(this->direction.x, 0.0f, this->direction.z);
+    glm::vec3 baseUp(0.0f, 1.0f, 0.0f);
 
-    // Rotate around local up (roll-aware) for yaw
-    glm::vec3 up;
-    glm::vec3 baseUp = {0.0f, 1.0f, 0.0f};
-    glm::mat4 rollMat(1.0f);
-    rollMat = glm::rotate(rollMat, glm::radians(this->getRoll()),this->getDirection());
-    up = rollMat * glm::vec4(baseUp,0.0f);
-    yawMat = glm::rotate(yawMat, xoffset, up);
+    // Rotate baseUp around front vector (XZ plane) by roll angle to get the rolled-up vector
+    this->direction = glm::rotate(glm::mat4(1.0f), glm::radians(xoffset), this->up) * glm::vec4(this->direction, 0.0f);
+    // Compute the right vector
+    this->direction = glm::rotate(glm::mat4(1.0f), glm::radians(-yoffset), glm::cross(this->direction,this->up)) * glm::vec4(this->direction, 0.0f);
+    // Re compute the up vector
+    this->computeUp();
+}
 
-    // Rotate around local right vector for pitch
-    glm::vec3 right;
-    right = glm::normalize(glm::cross(up, this->getDirection()));
-    pitchMat = glm::rotate(pitchMat, yoffset, glm::normalize(glm::cross(up, this->getDirection())));
+void Player::computeUp(){
+    this->up = glm::normalize(glm::rotate(glm::mat4(1.0f), glm::radians(roll), this->direction) * glm::vec4(glm::vec3(0.0f,1.0f,0.0f) ,0.0f));
+}
+void Player::computeUp(float angle){
+    this->up = glm::rotate(glm::mat4(1.0f), glm::radians(angle), this->direction) * glm::vec4(this->up,1.f);
+    this->up = glm::normalize(this->up);
+//    printf("up: %f %f %f\n", this->up.x, this->up.y, this->up.z);
+}
 
-    // Apply both rotations to direction
-    this->direction = glm::normalize(yawMat * pitchMat * glm::vec4(this->getDirection(),0.0f));
+
+
+void Player::addSpeedMultiplier(int key,double multi) {
+    this->speedMultiplier.try_emplace(key,multi);
+}
+
+
+void Player::removeSpeedMultiplier(int key) {
+    this->speedMultiplier.erase(key);
 }
