@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdio>
 #include <string>
+#include "glad/glad.h"
 
 Mesh::Mesh(std::vector<VERTEX> vertices, std::vector<unsigned int> indices, std::vector<TEXTURE> textures) {
     this->vertices = std::move(vertices);
@@ -19,32 +20,35 @@ Mesh::Mesh(std::vector<VERTEX> vertices, std::vector<unsigned int> indices, std:
 }
 
 void Mesh::setupMesh() {
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    glCreateBuffers(1, &VBO);
+    // glNamedBufferStorage(VBO,vertices.size() * sizeof(VERTEX), &vertices[0], GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferData(VBO,vertices.size() * sizeof(VERTEX), &vertices[0],GL_STATIC_DRAW);
 
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glCreateBuffers(1, &EBO);
+    // glNamedBufferStorage(EBO, indices.size() * sizeof(unsigned int),&indices[0], GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferData(EBO, indices.size() * sizeof(unsigned int),&indices[0],GL_STATIC_DRAW);
 
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VERTEX), &vertices[0], GL_STATIC_DRAW);
+    glCreateVertexArrays(1, &VAO);
+    glVertexArrayVertexBuffer(VAO, 0, VBO, 0, sizeof(VERTEX));
+    glVertexArrayElementBuffer(VAO, EBO);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),&indices[0], GL_STATIC_DRAW);
+    //Enable vertex attributes (location = ?)
+    glEnableVertexArrayAttrib(VAO, 0);
+    glEnableVertexArrayAttrib(VAO, 1);
+    glEnableVertexArrayAttrib(VAO, 2);
 
-    // vertex positions
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), (void*)0);
-    // vertex normals
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), (void*)offsetof(VERTEX, Normal));
-    // vertex texture coords
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VERTEX), (void*)offsetof(VERTEX, TexCoords));
+    glVertexArrayAttribFormat(VAO,0,3,GL_FLOAT, GL_FALSE,0);
+    glVertexArrayAttribFormat(VAO,1,3,GL_FLOAT, GL_FALSE,offsetof(VERTEX, Normal));
+    glVertexArrayAttribFormat(VAO,2,2,GL_FLOAT, GL_FALSE,offsetof(VERTEX, TexCoords));
 
-    glBindVertexArray(0);
+    glVertexArrayAttribBinding(VAO,0,0);
+    glVertexArrayAttribBinding(VAO,1,0);
+    glVertexArrayAttribBinding(VAO,2,0);
+
+    printf("VBO: %u, EBO: %u, VAO: %u\n", VBO, EBO, VAO);
 }
 
-void Mesh::draw(Shader shader) {     // render the mesh
+void Mesh::draw(const Shader& shader) {     // render the mesh
     // bind appropriate textures
     unsigned int diffuseNr  = 1;
     unsigned int specularNr = 1;
@@ -78,12 +82,11 @@ void Mesh::draw(Shader shader) {     // render the mesh
 
     // always good practice to set everything back to defaults once configured.
     glActiveTexture(GL_TEXTURE0);
-
 }
 
-int Mesh::loadTextures(const char* filename, unsigned int tCode,const char *name){
+int Mesh::loadTextures(const char* filename, unsigned int tCode,const std::string& name){
     TEXTURE texture;
-    texture.type = (char*) name;
+    texture.type = name;
     texture.code = (int) tCode;
     glGenTextures(1, &texture.id);
     glActiveTexture(tCode);
@@ -93,24 +96,24 @@ int Mesh::loadTextures(const char* filename, unsigned int tCode,const char *name
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(1);
     unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
-    printf("Loaded image, Width: %d Height: %d Channels: %d\n", width, height, nrChannels);
-    if (data)
-    {
+    // printf("Loaded image, Width: %d Height: %d Channels: %d\n", width, height, nrChannels);
+    if (data) {
         GLint format = GL_RGB;
         if (nrChannels == 4)
             format = GL_RGBA;
-        else if (nrChannels == 1)
+        else if (nrChannels == 1) {
             format = GL_RED;
-
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        }
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
+        stbi_image_free(data);
+    } else {
         printf("Failed to load texture\n");
         return -1;
     }
-    stbi_image_free(data);
     this->textures.push_back(texture);
     return 0;
 }
@@ -123,7 +126,7 @@ void Mesh::initTextures() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 }
 
-void Mesh::freeMesh() {
+Mesh::~Mesh() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
