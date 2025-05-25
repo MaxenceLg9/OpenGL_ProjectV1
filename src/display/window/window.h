@@ -11,16 +11,17 @@ typedef struct {
     int width;
     int height;
     const char *title;
-    GLFWwindow *GLFWwindow;
+    GLFWwindow *window;
 } WINDOW;
 
 class Window{
 public:
+    Window();
 private:
     int width;
     int height;
     const char *title;
-    GLFWwindow *GLFWwindow;
+    GLFWwindow *window;
 };
 
 #endif //WINDOW_H
