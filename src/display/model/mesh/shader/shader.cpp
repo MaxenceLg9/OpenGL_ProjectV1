@@ -3,6 +3,7 @@
 //
 
 #include "shader.h"
+#include <glad/glad.h>
 #include <cstdio>
 #include <cstdlib>
 
@@ -37,6 +38,10 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     glDeleteShader(fragment);
 }
 
+Shader::~Shader() {
+    glDeleteProgram(this->id);
+}
+
 void Shader::readFile(char **buffer, const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -54,7 +59,7 @@ void Shader::readFile(char **buffer, const char *filename) {
     }
     fread(*buffer, 1, size, file);
     (*buffer)[size] = '\0';
-    printf("File %s loaded successfully\n", *buffer);
+    // printf("File %s loaded successfully\n", *buffer);
     fclose(file);
 }
 
@@ -72,11 +77,6 @@ void Shader::compileShader(unsigned int *shader, const char **code, const int ty
     }
 }
 
-void Shader::freeShader() const {
-    glDeleteProgram(this->id);
-
-}
-
 // use/activate the shader
 void Shader::use() const {
     glUseProgram(this->id);
@@ -92,6 +92,10 @@ void Shader::setFloat(const char *name, const float value) const {
 
 void Shader::setVec2(const char *name, const float v1,const float v2) const {
     glUniform2f(glGetUniformLocation(this->id, name),v1, v2);
+}
+
+void Shader::setVec3(const char *name, float v1, float v2,float v3) const {
+    glUniform3f(glGetUniformLocation(this->id, name),v1, v2,v3);
 }
 
 void Shader::setVec4(const char *name, const float v1,const float v2, const float v3, const float v4) const {
