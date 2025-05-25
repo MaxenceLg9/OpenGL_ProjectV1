@@ -2,10 +2,10 @@
 
 out vec4 FragColor;
 
-in vec2 TexCoord;
+in vec3 ourColor;
 
 
 void main()
 {
-    FragColor = vec4(0.0f,0.0f, 0.0f, 1.0f); // Set the fragment color to black
+    FragColor = vec4(ourColor, 1.0f); // Set the fragment color to black
 }
