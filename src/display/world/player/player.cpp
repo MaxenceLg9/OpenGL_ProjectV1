@@ -7,23 +7,26 @@
 
 #include "../../../math/math.h"
 
+Player::~Player() {
+    printf("Destroying player\n");
+}
+
+
 void Player::moveForward(const float delta) {
     //add the offset to the player position : move
-    printf("Moving forward: %f\n", glm::length(this->direction));
+    // printf("Moving forward: %f\n", glm::length(this->direction));
     this->pos += this->direction * delta * 3.5f * getSpeed();
-//    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
+    printf("Pos : %f,%f,%f\n", this->pos.x, this->pos.y, this->pos.z);
 }
 
 void Player::moveRight(const float delta) {
-    glm::vec3 right = glm::cross(this->direction, this->up);
-    printf("Moving right: %f\n", glm::length(right));
+    glm::vec3 right = glm::normalize(glm::cross(this->direction, this->up));
+    // printf("Moving right: %f\n", glm::length(right));
     this->pos = this->pos + right * delta * 3.5f * getSpeed();
-
-//    printf("pos: %f %f %f\n", this->pos.x, this->pos.y, this->pos.z);
+    printf("Pos : %f,%f,%f\n", this->pos.x, this->pos.y, this->pos.z);
 }
 
 void Player::moveUp(const float delta) {
-
     // Rotate baseUp around front vector (XZ plane) by roll angle to get the rolled-up vector
     printf("Length rolledUp: %f\n", glm::length(this->up));
     // Move along local-up
@@ -38,12 +41,22 @@ float Player::getSpeed() const{
     return (float) speed;
 }
 
+void Player::setFov(float fov) {
+    this->fov = fov;
+    if (fov < 30.0f) {
+        this->fov = 30.0f;
+    } else if (fov > 140.0f) {
+        this->fov = 140.0f;
+    }
+}
 
-Player::Player(const float x, const float y, const float z) {
-    this->direction = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
-    this->pos = glm::vec3(x, y, z);
-    this->up = glm::vec3(0.0f, 1.0f, 0.0f);
-    this->roll = 0.0f;
+float Player::getFov() const {
+    return this->fov;
+}
+
+
+Player::Player(const float x, const float y, const float z): deltaTime(0), fov(140.0f), pos(x,y,z), roll(0.0f), direction(glm::vec3(0.0f, 0.0f, -1.0f)), up(0.0f,1.0f,0.0f) {
+    printf("Creating player at %f,%f,%f\n", x, y, z);
 }
 
 void Player::setDeltaTime(double delta) {
@@ -51,7 +64,7 @@ void Player::setDeltaTime(double delta) {
 }
 
 
-glm::vec3 Player::getCoords() {
+glm::vec3 Player::getCoords() const {
     return this->pos;
 }
 

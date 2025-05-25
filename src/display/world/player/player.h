@@ -17,10 +17,11 @@ public:
     void moveRight(float delta);
 
     Player(float x, float y, float z);
+    ~Player();
 
     void moveUp(float delta);
 
-    glm::vec3 getCoords();
+    glm::vec3 getCoords() const;
 
     glm::vec3 getDirection() const;
 
@@ -36,11 +37,16 @@ public:
 
     void removeSpeedMultiplier(int key);
 
+    void setFov(float fov);
+
+    float getFov() const;
+
 private:
     glm::vec3 pos, direction,up;
     double deltaTime;
     float roll;
     std::map<int,double> speedMultiplier;
+    float fov;
 
     float getSpeed() const;
 
