@@ -3,69 +3,63 @@
 //
 
 #include "cursor.h"
+
+
+#include "../window.h"
 #include "../../model/mesh/shader/shader.h"
+#include <ext.hpp>
 
-float vertices[] = {
-        //coords                //texture coords
-        //front 0
-        -0.1f, 0.5f, 0.0f,
-        0.1f, 0.5f, 0.0f,
-        0.1f, -0.5f, 0.0f,
-        -0.1f, -0.5f, 0.0f,
-
-        //back 4
-        0.5f, 0.1f, -0.0f,
-        -0.5f, 0.1f, -0.0f,
-        0.5f, -0.1f, -0.0f,
-        -0.5f, -0.1f, -0.0f
-};
-
-unsigned int indices[] = {
-        // note that we start from 0!
-        //front
-        0, 1, 2, // first triangle
-        0, 3, 2, // second triangle
-        //back
-        4, 6, 7, // third triangle
-        4, 5, 7, // fourth triangle
-};
-
-
-
-std::vector<TEXTURE> texturesArray;
-
-std::vector<VERTEX> verticesFromArray(){
-    std::vector<VERTEX> verticesArray;
-    for(int i = 0; i < sizeof(vertices)/sizeof(vertices[0]); i += 3) {
-        VERTEX vertex;
-        vertex.Position[0] = vertices[i];
-        vertex.Position[1] = vertices[i + 1];
-        vertex.Position[2] = vertices[i + 2];
-        vertex.TexCoords[0] = 0.0f;
-        vertex.TexCoords[1] = 0.0f;
-        vertex.Normal[0] = 1.0f;
-        vertex.Normal[1] = 1.0f;
-        vertex.Normal[2] = 1.0f;
-        verticesArray.push_back(vertex);
-    }
-    return verticesArray;
-}
-
-std::vector<unsigned int> indicesFromArray(){
-    std::vector<unsigned int> indicesArray;
-    for(unsigned int indice : indices) {
-        indicesArray.push_back(indice);
-    }
-    return indicesArray;
-}
 
 
 Cursor::Cursor() : shader("assets/shaders/cursor/vertex.ls", "assets/shaders/cursor/fragment.ls"),
-                   mesh(verticesFromArray(),indicesFromArray(),texturesArray)
+                   mesh(Cursor::vertices(),indices(),std::vector<TEXTURE>())
                    {
 }
 
-void Cursor::drawCursor(){
+std::vector<VERTEX> Cursor::vertices() {
+    std::vector<VERTEX> vertices;
+    //vertical
+    vertices.push_back(VERTEX(glm::vec3(-0.003f, 0.02f, 0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(0.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.003f, 0.02f, 0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.003f, -0.02f, 0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(1.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.003f, -0.02f, 0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 0.0f)));
+
+    //horizontal
+    vertices.push_back(VERTEX(glm::vec3(-0.02f, 0.003f, -0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3( 0.02f, 0.003f, -0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.02f, -0.003f, -0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.02f, -0.003f, -0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 0.0f)));
+
+    return vertices;
+}
+
+std::vector<unsigned int> Cursor::indices() {
+    std::vector<unsigned int> indices;
+
+    //vertical
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(2);
+    indices.push_back(0);
+    indices.push_back(2);
+    indices.push_back(3);
+
+    //horizontal
+    indices.push_back(4);
+    indices.push_back(5);
+    indices.push_back(6);
+    indices.push_back(4);
+    indices.push_back(6);
+    indices.push_back(7);
+
+    return indices;
+}
+
+
+void Cursor::drawCursor(WINDOW w){
+    this->shader.use();
+    float aspect = (float)w.width / (float)w.height;
+    this->shader.setMatrix4fv("projection",glm::value_ptr(glm::ortho(-1.0f, 1.0f, -1.0f / aspect, 1.0f / aspect, -1.0f, 1.0f)));
     glDepthFunc(GL_ALWAYS); // Always pass the depth test (same effect as glDisable(GL_DEPTH_TEST))
     mesh.draw(shader);
 }
