@@ -18,9 +18,7 @@ enum KEY_STATUS{
 };
 
 typedef struct  {
-    enum KEY_STATUS status;
-    void (* function)();
-    int fnNumber;
+   KEY_STATUS status;
 } KEYS;
 
 

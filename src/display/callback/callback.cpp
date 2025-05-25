@@ -13,7 +13,7 @@ float mixValue = 0.5f;
 double angle = 0.0f;
 
 KEYS keys[GLFW_KEY_LAST + 1] = {
-    {RELEASED, NULL, 0},
+    {RELEASED},
 };
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -26,14 +26,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         keys[key].status = RELEASED;
     }
 }
-float fov = 100.0f;
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    fov -= (float)yoffset*10;
-    if (fov < 1.0f)
-        fov = 1.0f;
-    if (fov > 140.0f)
-        fov = 140.0f;
+    Player *player = (Player *) glfwGetWindowUserPointer(window);
+    player->setFov((float)yoffset*10);
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
