@@ -8,24 +8,28 @@
 # define CHUNK_SIZE 64
 
 #include "glm.hpp"
-#include <memory>
+
+#include "../World.h"
 #include "../../model/mesh/shader/shader.h"
-#include "../block/block.h"
 #include "../../model/mesh/mesh.h"
 
+class World;
 
 class Chunk {
 public:
-    Chunk();
+    explicit Chunk(const World &world);
+
     ~Chunk();
 
     void render(const Shader& shader, const glm::mat4 & p_v, glm::vec3 pos) const;
 
     static int addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indices, VERTEX *v, int index);
 
-    void build_mesh(const uint8_t blocks[]);
+    void build_mesh(const uint8_t blocks[], const World& world);
 
-    static bool isVoid(glm::vec3 pos, const uint8_t blocks[]);
+    static bool isVoid(glm::vec3 pos, const uint8_t blocks[], const World& world);
+
+    int getBlockAt(glm::vec3 pos) const;
 
 private:
     uint8_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];

@@ -4,18 +4,15 @@
 
 #include "chunk.h"
 
-#include <detail/_noise.hpp>
-#include <detail/_noise.hpp>
-#include <gtc/bitfield.hpp>
-#include <gtc/bitfield.hpp>
 #include <gtc/noise.hpp>
 
+#include "../World.h"
 #include "../../../math/math.h"
 #include "../../callback/callback.h"
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"
 
-Chunk::Chunk() {
+Chunk::Chunk(const World &world) {
     blocks[0] = 0;
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -24,11 +21,11 @@ Chunk::Chunk() {
                     blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
                 else
                     blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 0;
-                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
+                // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
             }
         }
     }
-    build_mesh(blocks);
+    build_mesh(blocks, world);
     mesh = new Mesh(vertexdata, indices, std::vector<TEXTURE>());
     mesh->loadTextures("assets/textures/blocks/ikrine_ore.png", GL_TEXTURE0, "texture1");
     mesh->loadTextures("assets/textures/blocks/stone.png", GL_TEXTURE1, "texture2");
@@ -49,6 +46,13 @@ void Chunk::render(const Shader& shader, const glm::mat4 &p_v, const glm::vec3 p
     mesh->draw(shader);
 }
 
+int Chunk::getBlockAt(const glm::vec3 pos) const {
+    if (pos.x < 0 || pos.x >= CHUNK_SIZE || pos.y < 0 || pos.y >= CHUNK_SIZE || pos.z < 0 || pos.z >= CHUNK_SIZE) {
+        return -1; // out of bounds
+    }
+    return blocks[(int)pos.x * CHUNK_SIZE * CHUNK_SIZE + (int)pos.y * CHUNK_SIZE + (int)pos.z];
+}
+
 
 int Chunk::addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indices, VERTEX *v, int index) {
     vertex.push_back(v[0]);
@@ -66,7 +70,7 @@ int Chunk::addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indic
     return index + 4;
 }
 
-void Chunk::build_mesh(const uint8_t blocks[]) {
+void Chunk::build_mesh(const uint8_t blocks[], const World& world) {
     int index = 0;
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -76,7 +80,7 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                 if (voxel_id == 0) continue; // skip empty blocks
                 VERTEX v[4];
                 //front face
-                if (isVoid(glm::vec3(x, y, z + 1), blocks)) {
+                if (isVoid(glm::vec3(x, y, z + 1), blocks, world)) {
                     v[0].Position = glm::vec3(x, y, z + 1);
                     v[1].Position = glm::vec3(x, y + 1, z + 1);
                     v[2].Position = glm::vec3(x + 1, y + 1, z + 1);
@@ -88,17 +92,9 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[3].TexCoords = glm::vec2(1.0f, 0.0f);
 
                     index = addData(vertexdata, indices, v, index);
-
-
-                    /*pack_data(v0, x, y, z + 1, voxel_id, 5);
-                    pack_data(v1, x, y + 1, z + 1, voxel_id,5);
-                    pack_data(v2, x + 1, y + 1, z + 1, voxel_id,5);
-                    pack_data(v3, x + 1, y, z + 1, voxel_id, 5);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
                 // back face
-                if (isVoid(glm::vec3(x, y, z - 1), blocks)) {
+                if (isVoid(glm::vec3(x, y, z - 1), blocks, world)) {
                     v[0].Position = glm::vec3(x, y, z);
                     v[1].Position = glm::vec3(x + 1, y, z);
                     v[2].Position = glm::vec3(x + 1, y + 1, z);
@@ -110,15 +106,9 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[3].TexCoords = glm::vec2(1.0f, 1.0f);
 
                     index = addData(vertexdata, indices, v, index);
-                    /*pack_data(v0, x, y, z, voxel_id, 4);
-                    pack_data(v1, x, y + 1, z, voxel_id,4);
-                    pack_data(v2, x + 1, y + 1, z, voxel_id,4);
-                    pack_data(v3, x + 1, y, z, voxel_id, 4);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
                 //top face
-                if (isVoid(glm::vec3(x, y + 1, z), blocks)) {
+                if (isVoid(glm::vec3(x, y + 1, z), blocks, world)) {
                     // format: x, y, z, voxel_id, face_id, ao_id,
                     v[0].Position = glm::vec3(x, y + 1, z);
                     v[1].Position = glm::vec3(x + 1, y + 1, z);
@@ -132,15 +122,9 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[3].TexCoords = glm::vec2(1.0f, 1.0f);
 
                     index = addData(vertexdata, indices, v, index);
-                    /*pack_data(v0, x, y + 1, z, voxel_id, 0);
-                    pack_data(v1, x + 1, y + 1, z, voxel_id, 0);
-                    pack_data(v2, x + 1, y + 1, z + 1, voxel_id, 0);
-                    pack_data(v3, x, y + 1, z + 1, voxel_id, 0);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
                 // bottom face
-                if (isVoid(glm::vec3(x, y - 1, z), blocks)) {
+                if (isVoid(glm::vec3(x, y - 1, z), blocks, world)) {
                     v[0].Position = glm::vec3(x, y, z);
                     v[3].Position = glm::vec3(x + 1, y, z);
                     v[2].Position = glm::vec3(x + 1, y, z + 1);
@@ -152,16 +136,10 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[1].TexCoords = glm::vec2(1.0f, 1.0f);
 
                     index = addData(vertexdata, indices, v, index);
-                    /*pack_data(v0, x, y, z, voxel_id, 1);
-                    pack_data(v1, x + 1, y, z, voxel_id, 1);
-                    pack_data(v2, x + 1, y, z + 1, voxel_id, 1);
-                    pack_data(v3, x, y, z + 1, voxel_id, 1);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
 
                 // right face
-                if (isVoid(glm::vec3(x + 1, y, z), blocks)) {
+                if (isVoid(glm::vec3(x + 1, y, z), blocks, world)) {
                     v[0].Position = glm::vec3(x + 1, y, z);
                     v[3].Position = glm::vec3(x + 1, y + 1, z);
                     v[2].Position = glm::vec3(x + 1, y + 1, z + 1);
@@ -173,16 +151,10 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[1].TexCoords = glm::vec2(0.0f, 0.0f);
 
                     index = addData(vertexdata, indices, v, index);
-                    /*pack_data(v0, x + 1, y, z, voxel_id, 2);
-                    pack_data(v1, x + 1, y + 1, z, voxel_id, 2);
-                    pack_data(v2, x + 1, y + 1, z + 1, voxel_id, 2);
-                    pack_data(v3, x + 1, y, z + 1, voxel_id, 2);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
 
                 // left face
-                if (isVoid(glm::vec3(x - 1, y, z), blocks)) {
+                if (isVoid(glm::vec3(x - 1, y, z), blocks, world)) {
                     v[0].Position = glm::vec3(x, y, z);
                     v[1].Position = glm::vec3(x, y + 1, z);
                     v[2].Position = glm::vec3(x, y + 1, z + 1);
@@ -194,23 +166,17 @@ void Chunk::build_mesh(const uint8_t blocks[]) {
                     v[3].TexCoords = glm::vec2(1.0f, 0.0f);
 
                     index = addData(vertexdata, indices, v, index);
-                    /*pack_data(v0, x, y, z, voxel_id, 3);
-                    pack_data(v1, x, y + 1, z, voxel_id, 3);
-                    pack_data(v2, x, y + 1, z + 1, voxel_id,3);
-                    pack_data(v3, x, y, z + 1, voxel_id, 3);*/
-
-                    // index = add_data(vertexdata, index, v1, v0, v3, v1, v3, v2);
                 }
             }
         }
     }
 }
 
-bool Chunk::isVoid(glm::vec3 pos, const uint8_t blocks[]) {
+bool Chunk::isVoid(glm::vec3 pos, const uint8_t blocks[], const World& world) {
     if (pos.x < 0 || pos.x >= CHUNK_SIZE ||
         pos.y < 0 || pos.y >= CHUNK_SIZE ||
         pos.z < 0 || pos.z >= CHUNK_SIZE) {
-        return true;
+        return world.getBlockAt(pos) == 0;
     }
     return blocks[(int) pos.x * CHUNK_SIZE * CHUNK_SIZE + (int) pos.y * CHUNK_SIZE + (int) pos.z] == 0;
 }

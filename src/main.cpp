@@ -72,7 +72,6 @@ int main() {
     Player player(0.0f, 0.0f, 0.0f);
     glfwSetWindowUserPointer(window.window, &player);
     World world;
-    Chunk chunk;
     Cursor cursor;
     // glfwDestroyWindow(window.window);
     // glfwTerminate();
