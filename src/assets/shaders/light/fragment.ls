@@ -10,5 +10,5 @@ uniform float mixValue;
 
 void main()
 {
-    FragColor = lightColor;
+    FragColor = vec4(lightColor,1.0f);
 }

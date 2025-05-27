@@ -13,6 +13,7 @@
 #include "math/math.h"
 #include "display/window/cursor/cursor.h"
 #include "display/world/World.h"
+#include "display/world/light/light.h"
 
 
 WINDOW window;
@@ -72,6 +73,7 @@ int main() {
     Player player(0.0f, 0.0f, 0.0f);
     glfwSetWindowUserPointer(window.window, &player);
     World world;
+    Light light;
     Cursor cursor;
     // glfwDestroyWindow(window.window);
     // glfwTerminate();
@@ -104,6 +106,7 @@ int main() {
         }
 
 
+        light.render(pro_view,player.getCoords() + glm::vec3(0.0f, 100.0f, 0.0f));
         cursor.drawCursor(window);
         handleKeysPressed(window.window, &player);
         glfwSwapBuffers(window.window);
