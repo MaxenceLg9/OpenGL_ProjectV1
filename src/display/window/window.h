@@ -11,7 +11,7 @@ typedef struct {
     int width;
     int height;
     const char *title;
-    GLFWwindow *window;
+    GLFWwindow *OGLwindow;
 } WINDOW;
 
 class Window{
