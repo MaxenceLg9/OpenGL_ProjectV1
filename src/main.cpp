@@ -38,19 +38,19 @@ int main() {
     printf("Mode Refresh rate %d\n", mode->refreshRate);
 
     // Create window
-    window.window = glfwCreateWindow(window.width, window.height, "Triangle", NULL, NULL);
-    if (!window.window) {
+    window.OGLwindow = glfwCreateWindow(window.width, window.height, "Triangle", NULL, NULL);
+    if (!window.OGLwindow) {
         glfwTerminate();
         return -1;
     }
 
-    glfwSetWindowMonitor(window.window, NULL, 0, 0, window.width, window.height, mode->refreshRate);
-    glfwMakeContextCurrent(window.window);
-    glfwSetKeyCallback(window.window, key_callback);
-    glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window.window, mouse_callback);
-    glfwSetScrollCallback(window.window, scroll_callback);
-    glfwSetFramebufferSizeCallback(window.window, framebuffercallback);
+    glfwSetWindowMonitor(window.OGLwindow, NULL, 0, 0, window.width, window.height, mode->refreshRate);
+    glfwMakeContextCurrent(window.OGLwindow);
+    glfwSetKeyCallback(window.OGLwindow, key_callback);
+    glfwSetInputMode(window.OGLwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window.OGLwindow, mouse_callback);
+    glfwSetScrollCallback(window.OGLwindow, scroll_callback);
+    glfwSetFramebufferSizeCallback(window.OGLwindow, framebuffercallback);
 
     // Load OpenGL functions
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
@@ -70,52 +70,37 @@ int main() {
 
 
     // Player *player = new Player(0.0f, 0.0f, 0.0f);
-    Player player(0.0f, 0.0f, 0.0f);
-    glfwSetWindowUserPointer(window.window, &player);
-    World world;
-    Light light;
+
+    World world(&window);
     Cursor cursor;
     // glfwDestroyWindow(window.window);
     // glfwTerminate();
     // return 0;
     double deltaTime(0.0f), lastFrame(0.0f); // Time of last frame
-    while (!glfwWindowShouldClose(window.window)) {
+    while (!glfwWindowShouldClose(window.OGLwindow)) {
         double currentFrame = glfwGetTime();
-        player.setDeltaTime(currentFrame - lastFrame);
+
+        world.tick(currentFrame - lastFrame);
         lastFrame = currentFrame;
         glClearColor(0.15f, 0.65f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-
-        glm::vec3 cameraPos(player.getCoords());
-        glm::vec3 cameraTarget = cameraPos + player.getDirection();
-
-        // build view matrix
-        glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, player.getUp());
-        glm::mat4 projection = glm::perspective(glm_rad(player.getFov()), (float) window.width / (float) window.height, 0.01f, 1000.0f);
-        glm::mat4 pro_view = projection * view;
-
         glDepthFunc(GL_LESS);
-        world.render(pro_view);
-        // chunk.render(shader, pro_view, glm::vec3(0.0f, 0.0f, 0.0f));
 
+        world.render();
         GLenum err;
         while ((err = glGetError()) != GL_NO_ERROR) {
             printf("OpenGL error: %x\n", err);
         }
-
-
-        light.render(pro_view,player.getCoords() + glm::vec3(0.0f, 100.0f, 0.0f));
         cursor.drawCursor(window);
-        handleKeysPressed(window.window, &player);
-        glfwSwapBuffers(window.window);
+
+        glfwSwapBuffers(window.OGLwindow);
         glfwPollEvents();
     }
 
     printf("End\n");
-    glfwSetWindowUserPointer(window.window,nullptr);
-    glfwDestroyWindow(window.window);
+    glfwSetWindowUserPointer(window.OGLwindow,nullptr);
+    glfwDestroyWindow(window.OGLwindow);
     glfwTerminate();
     return 0;
 }
