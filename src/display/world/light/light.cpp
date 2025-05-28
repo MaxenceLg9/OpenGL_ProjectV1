@@ -10,11 +10,15 @@
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"
 
-Light::Light() : shader("assets/shaders/light/vertex.ls", "assets/shaders/light/fragment.ls") {
+Light::Light() : color(1.0f, 1.0f, 1.0f), shader("assets/shaders/light/vertex.ls", "assets/shaders/light/fragment.ls") {
     std::vector<VERTEX> vertices;
     std::vector<unsigned int> indices;
     build_mesh(vertices,indices);
     mesh = new Mesh(vertices, indices, std::vector<TEXTURE>());
+}
+
+glm::vec3 Light::getColor() const {
+    return color;
 }
 
 Light::~Light() {
@@ -22,9 +26,9 @@ Light::~Light() {
     delete mesh;
 }
 
-void Light::render(const glm::mat4 &p_v, const glm::vec3 pos) const {
+void Light::render(const glm::mat4 &p_v, const glm::vec3 playerPos) const {
     glm::mat4 model(1.0f);
-    model = glm::translate(model, pos);
+    model = glm::translate(model, playerPos);
     // printf("Rendering chunk at %f,%f,%f\n", pos.x, pos.y, pos.z);
     shader.use();
 
@@ -48,6 +52,13 @@ int Light::addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indic
     indices.push_back(index + 3);
 
     return index + 4;
+}
+
+void Light::setColor(double deltaTime) {
+    float speed = 2.0f; // Speed of oscillation
+    color.r = (sin(deltaTime * speed) + 1.0f) / 2.0f; // Red oscillates between 0 and 1
+    color.g = (sin(deltaTime * speed + glm::pi<float>() / 2) + 1.0f) / 2.0f; // Green offset by 90 degrees
+    color.b = (sin(deltaTime * speed + glm::pi<float>()) + 1.0f) / 2.0f; // Blue offset by 180 degrees
 }
 
 void Light::build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices) {

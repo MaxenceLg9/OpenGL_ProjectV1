@@ -13,12 +13,18 @@ class Light {
 public:
     Light();
     ~Light();
-    void render(const glm::mat4 & p_v, const glm::vec3 pos) const;
+    void render(const glm::mat4 & p_v, const glm::vec3 playerPos) const;
+
+    glm::vec3 getColor() const;
+    void setColor(double deltaTime);
+
 private:
     void build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices);
 
     static int addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indices, VERTEX *v, int index);
+
     Mesh *mesh;
+    glm::vec3 color;
     Shader shader;
 };
 
