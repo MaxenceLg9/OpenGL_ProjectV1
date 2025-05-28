@@ -17,6 +17,7 @@ void Player::moveForward(const float delta) {
     // printf("Moving forward: %f\n", glm::length(this->direction));
     this->pos += this->direction * delta * 3.5f * getSpeed();
     printf("Pos : %f,%f,%f\n", this->pos.x, this->pos.y, this->pos.z);
+    printf("Direction : %f,%f,%f\n", this->direction.x, this->direction.y, this->direction.z);
 }
 
 void Player::moveRight(const float delta) {
@@ -41,11 +42,11 @@ float Player::getSpeed() const{
     return (float) speed;
 }
 
-void Player::setFov(float fov) {
-    this->fov = fov;
-    if (fov < 30.0f) {
+void Player::addFov(float fov) {
+    this->fov -=fov;
+    if (this->fov < 30.0f) {
         this->fov = 30.0f;
-    } else if (fov > 140.0f) {
+    } else if (this->fov > 140.0f) {
         this->fov = 140.0f;
     }
 }

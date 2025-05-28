@@ -37,7 +37,7 @@ public:
 
     void removeSpeedMultiplier(int key);
 
-    void setFov(float fov);
+    void addFov(float fov);
 
     float getFov() const;
 
