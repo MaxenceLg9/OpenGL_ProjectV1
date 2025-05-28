@@ -10,6 +10,9 @@
 #include "chunk/chunk.h"
 #include "player/player.h"
 #include "../model/mesh/shader/shader.h"
+#include "light/light.h"
+#include "../../display/window/window.h"
+#include "../../display/callback/callback.h"
 
 class Chunk;
 
@@ -24,17 +27,22 @@ struct IVec3Compare {
 
 class World {
 public:
-    World();
+    explicit World(WINDOW *window);
 
     ~World();
 
-    void render(glm::mat4 pro_view) const;
+    void render() const;
 
-    int getBlockAt(glm::vec3 pos) const;
+    int getBlockAt(glm::ivec3 ipos) const;
+
+    void tick(double deltaTime);
 
 private:
     std::map<glm::ivec3,std::unique_ptr<Chunk>,IVec3Compare> world;
     Shader chunkShader;
+    Light light;
+    Player player;
+    WINDOW *window;
 };
 
 
