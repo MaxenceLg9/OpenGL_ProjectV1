@@ -29,7 +29,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     Player *player = (Player *) glfwGetWindowUserPointer(window);
-    player->setFov((float)yoffset*10);
+    player->addFov((float)yoffset*10);
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
