@@ -16,10 +16,10 @@
 
 World::World(WINDOW *window) : chunkShader("assets/shaders/chunk/vertex.ls", "assets/shaders/chunk/fragment.ls"), player(1.0f, 0.0f, 1.0f), window(window) {
     glfwSetWindowUserPointer(window->OGLwindow, &player);
-    for (int i = 0; i < 1; i++) {
-        for (int j = 0; j < 10; j++) {
-            for (int k = 0; k < 10; k++) {
-                world.emplace(glm::ivec3(0,0,k),std::make_unique<Chunk>(*this, glm::ivec3(0,0,k)));
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 5; j++) {
+            for (int k = 0; k < 3; k++) {
+                world.emplace(glm::ivec3(i,j,k),std::make_unique<Chunk>(*this, glm::ivec3(i,j,k)));
             }
         }
     }
@@ -51,9 +51,9 @@ void World::render() const {
     glm::vec3 color = light.getColor();
     chunkShader.setVec3("color", color.x,color.y,color.z);
     int n = 0;
-    for (int i = 0; i < 1; i++) {
-        for (int j = 0; j < 10; j++) {
-            for (int k = 0; k < 10; k++) {
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 5; j++) {
+            for (int k = 0; k < 3; k++) {
                 if (!world.contains(glm::ivec3(i,j, k)))
                     continue;
                 // printf("Rendering chunk at %d,%d,%d\n", i, 0, j);
@@ -78,8 +78,8 @@ int World::getBlockAt(const glm::ivec3 ipos) const {
     if (!world.contains(chunkPos)) {
         return 0; // Return 0 for empty space
     }
-    if (blockPos.z == 1 && world.at(chunkPos)->getBlockAt(blockPos) == 0) {
-        printf("Warning: Block position %d,%d,%d is out of bounds in chunk %d,%d,%d\n", ipos.x, ipos.y, ipos.z, chunkPos.x, chunkPos.y, chunkPos.z);
+    if (blockPos.z == 0) {
+        printf("Warning: Block position %d,%d,%d is out of bounds in chunk %d,%d,%d\n Block %d==0\n", ipos.x, ipos.y, ipos.z, chunkPos.x, chunkPos.y, chunkPos.z, world.at(chunkPos)->getBlockAt(blockPos) == 0);
     }
     // Retrieve the block from the chunk
     return world.at(chunkPos)->getBlockAt(blockPos);
