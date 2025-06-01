@@ -21,11 +21,9 @@ Mesh::Mesh(std::vector<VERTEX> vertices, std::vector<unsigned int> indices, std:
 
 void Mesh::setupMesh() {
     glCreateBuffers(1, &VBO);
-    // glNamedBufferStorage(VBO,vertices.size() * sizeof(VERTEX), &vertices[0], GL_DYNAMIC_STORAGE_BIT);
-    glNamedBufferData(VBO,vertices.size() * sizeof(VERTEX), &vertices[0],GL_STATIC_DRAW);
+    glNamedBufferData(VBO,vertices.size() * sizeof(VERTEX), &vertices[0], GL_STATIC_DRAW);
 
     glCreateBuffers(1, &EBO);
-    // glNamedBufferStorage(EBO, indices.size() * sizeof(unsigned int),&indices[0], GL_DYNAMIC_STORAGE_BIT);
     glNamedBufferData(EBO, indices.size() * sizeof(unsigned int),&indices[0],GL_STATIC_DRAW);
 
     glCreateVertexArrays(1, &VAO);
@@ -37,7 +35,7 @@ void Mesh::setupMesh() {
     glEnableVertexArrayAttrib(VAO, 1);
     glEnableVertexArrayAttrib(VAO, 2);
 
-    glVertexArrayAttribFormat(VAO,0,3,GL_FLOAT, GL_FALSE,0);
+    glVertexArrayAttribFormat(VAO,0,3,GL_FLOAT, GL_FALSE, offsetof(VERTEX, Position));
     glVertexArrayAttribFormat(VAO,1,3,GL_FLOAT, GL_FALSE,offsetof(VERTEX, Normal));
     glVertexArrayAttribFormat(VAO,2,2,GL_FLOAT, GL_FALSE,offsetof(VERTEX, TexCoords));
 
@@ -77,8 +75,9 @@ void Mesh::draw(const Shader& shader) {     // render the mesh
 
     // draw mesh
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, (int) indices.size(), GL_UNSIGNED_INT, (void *) 0);
+    glDrawElementsBaseVertex(GL_TRIANGLES, (int) indices.size(), GL_UNSIGNED_INT, (void *) 0, 0);
     glBindVertexArray(0);
+
 
     // always good practice to set everything back to defaults once configured.
     glActiveTexture(GL_TEXTURE0);
@@ -133,5 +132,4 @@ Mesh::~Mesh() {
     for(auto & texture : textures){
         glDeleteTextures(1, &texture.id);
     }
-
 }
