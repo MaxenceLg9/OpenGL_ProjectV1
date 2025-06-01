@@ -6,11 +6,9 @@
 
 #include "../World.h"
 #include "../../../math/math.h"
-#include "../../callback/callback.h"
-#include "../../model/mesh/shader/shader.h"
-#include "../../model/mesh/mesh.h"
+#include "../../../logs/Logs.h"
 
-Light::Light() : color(1.0f, 1.0f, 1.0f), shader("assets/shaders/light/vertex.ls", "assets/shaders/light/fragment.ls") {
+Light::Light() : color(1.0f, 1.0f, 1.0f), shader("assets/shaders/light/vertex.vert", "assets/shaders/light/fragment.frag") {
     std::vector<VERTEX> vertices;
     std::vector<unsigned int> indices;
     build_mesh(vertices,indices);
@@ -33,7 +31,7 @@ void Light::render(const glm::mat4 &p_v, const glm::vec3 playerPos) const {
     shader.use();
 
     shader.setMatrix4fv("p_v_m", glm::value_ptr(p_v * model));
-    shader.setVec3("color", 1.0f, 1.0f, 1.0f); // Set light color to white
+    shader.setVec3("color", color.x, color.y, color.z); // Set light color to white
     mesh->draw(shader);
 }
 
@@ -55,10 +53,10 @@ int Light::addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indic
 }
 
 void Light::setColor(double deltaTime) {
-    float speed = 2.0f; // Speed of oscillation
-    color.r = (sin(deltaTime * speed) + 1.0f) / 2.0f; // Red oscillates between 0 and 1
-    color.g = (sin(deltaTime * speed + glm::pi<float>() / 2) + 1.0f) / 2.0f; // Green offset by 90 degrees
-    color.b = (sin(deltaTime * speed + glm::pi<float>()) + 1.0f) / 2.0f; // Blue offset by 180 degrees
+    double speed = 2.0; // Speed of oscillation
+    color.r = (float) (sin(deltaTime * speed) + 1.0) / 2.0f; // Red oscillates between 0 and 1
+    color.g = (float) (sin(deltaTime * speed + glm::pi<double>() / 2) + 1.0) / 2.0f; // Green offset by 90 degrees
+    color.b = (float) (sin(deltaTime * speed + glm::pi<double>()) + 1.0) / 2.0f; // Blue offset by 180 degrees
 }
 
 void Light::build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices) {
@@ -116,6 +114,6 @@ void Light::build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int
     addData(vertexdata, indices, v, index);
 
     for (auto &vertex : vertexdata) {
-        printf("Vertex: %f, %f, %f\n", vertex.Position.x, vertex.Position.y, vertex.Position.z);
+        Logs::log("INFO", "Vertex position: " + std::to_string(vertex.Position.x) + ", " + std::to_string(vertex.Position.y) + ", " + std::to_string(vertex.Position.z));
     }
 }

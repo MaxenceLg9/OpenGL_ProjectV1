@@ -19,7 +19,7 @@ public:
     void setColor(double deltaTime);
 
 private:
-    void build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices);
+    static void build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices);
 
     static int addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indices, VERTEX *v, int index);
 
