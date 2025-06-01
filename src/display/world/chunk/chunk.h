@@ -9,7 +9,7 @@
 
 #include <glm.hpp>
 
-#include "GLAD/glad.h"
+#include "glad/glad.h"
 #include "../World.h"
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"

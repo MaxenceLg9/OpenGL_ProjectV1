@@ -56,7 +56,12 @@ aux_source_directory("../../Dependencies/GLAD/src/" glad_src)
 
 add_executable(main ${SOURCE_FILES} ${glad_src})
 
-target_link_libraries(main glfw3 m)
+target_link_libraries(main m)
+if(WIN32)
+    target_link_libraries(main glfw3)
+else()
+    target_link_libraries(main glfw)
+endif()
 target_link_directories(main PUBLIC "../../Dependencies/STB_IMAGE")
 target_link_directories(main PUBLIC "../../Dependencies/GLFW/lib/")
 target_link_directories(main PUBLIC "../../Dependencies/GLM/glm/")

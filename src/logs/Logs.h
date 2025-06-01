@@ -7,17 +7,18 @@
 
 #define WORLD_SIZE 1
 
-
 #include <cstdio>
-#include <ctime>
-#include <string>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <windows.h>
 #include <cstdint>
-#include <cstdio>
+#include <unistd.h>
+#include <string>
+#include <ctime>
+#include <sys/stat.h>
 
+uint64_t get_time_ns();
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
 
 
 class Logs {
