@@ -12,13 +12,13 @@ uint64_t Vertex::packData(int id, glm::ivec3 pos, glm::vec3 normal, const unsign
     if(normal.x < -1.0f || normal.x > 1.0f || normal.y < -1.0f || normal.y > 1.0f || normal.z < -1.0f || normal.z > 1.0f)
         throw std::runtime_error("Vertex normal exceeds range of -1.0 to 1.0");
     uint64_t packed = 0;
-    packed |= ((uint64_t)(id) & 0x7FF) << 53; // ID (11 bits)
-    packed |= ((uint64_t)(pos.x) & 0x7F) << 46; // Position X (7 bits)
-    packed |= ((uint64_t)(pos.y) & 0x7F) << 39; // Position Y (7 bits)
-    packed |= ((uint64_t)(pos.z) & 0x7F) << 32; // Position Z (7 bits)
-    packed |= ((uint64_t)(std::round((normal.x + 1.0f) * 511.5f)) & 0x3FF) << 22; // Normal X (10 bits)
-    packed |= ((uint64_t)(std::round((normal.y + 1.0f) * 511.5f)) & 0x3FF) << 12; // Normal X (10 bits)
-    packed |= ((uint64_t)(std::round((normal.z + 1.0f) * 511.5f)) & 0x3FF) << 2; // Normal X (10 bits)
+    packed |= ((uint64_t)(id) & 0x3FFFF) << 46; // ID (18 bits)
+    packed |= ((uint64_t)(pos.x) & 0x7F) << 39; // Position X (7 bits)
+    packed |= ((uint64_t)(pos.y) & 0x7F) << 32; // Position Y (7 bits)
+    packed |= ((uint64_t)(pos.z) & 0x7F) << 25; // Position Z (7 bits)
+    packed |= ((uint64_t)(std::round((normal.x + 1.0f) * 511.5f)) & 0xFF) << 18; // Normal X (8 bits)
+    packed |= ((uint64_t)(std::round((normal.y + 1.0f) * 511.5f)) & 0xFF) << 10; // Normal X (8 bits)
+    packed |= ((uint64_t)(std::round((normal.z + 1.0f) * 511.5f)) & 0xFF) << 2; // Normal X (8 bits)
     packed |= (uint64_t)((texCoords >> 1 & 0x1) << 1); // TexCoord X (1 bit)
     packed |= (uint64_t)(texCoords & 0x1); // TexCoord Y (1 bit)
     return packed;
