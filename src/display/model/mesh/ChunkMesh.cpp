@@ -22,8 +22,8 @@ void ChunkMesh::setupMesh() {
     glEnableVertexArrayAttrib(VAO, 0);
     glEnableVertexArrayAttrib(VAO, 1);
 
-    glVertexArrayAttribFormat(VAO,0,1,GL_UNSIGNED_INT, GL_FALSE, 0);
-    glVertexArrayAttribFormat(VAO,1,1,GL_UNSIGNED_INT, GL_FALSE, 4);
+    glVertexArrayAttribIFormat(VAO, 0, 1, GL_UNSIGNED_INT, 0);
+    glVertexArrayAttribIFormat(VAO, 1, 1, GL_UNSIGNED_INT, 4);
 
     glVertexArrayAttribBinding(VAO,0,0);
     glVertexArrayAttribBinding(VAO,1,0);
