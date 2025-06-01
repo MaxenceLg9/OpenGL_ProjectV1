@@ -11,24 +11,23 @@
 
 
 
-Cursor::Cursor() : shader("assets/shaders/cursor/vertex.ls", "assets/shaders/cursor/fragment.ls"),
-                   mesh(Cursor::vertices(),indices(),std::vector<TEXTURE>())
-                   {
+Cursor::Cursor() : shader("assets/shaders/cursor/vertex.vert", "assets/shaders/cursor/fragment.frag"),
+                   mesh(Cursor::vertices(),indices(),std::vector<TEXTURE>()) {
 }
 
 std::vector<VERTEX> Cursor::vertices() {
     std::vector<VERTEX> vertices;
     //vertical
-    vertices.push_back(VERTEX(glm::vec3(-0.003f, 0.02f, 0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(0.0f, 1.0f)));
-    vertices.push_back(VERTEX(glm::vec3(0.003f, 0.02f, 0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 1.0f)));
-    vertices.push_back(VERTEX(glm::vec3(0.003f, -0.02f, 0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(1.0f, 0.0f)));
-    vertices.push_back(VERTEX(glm::vec3(-0.003f, -0.02f, 0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.003f, 0.02f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::ivec2(0.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.003f, 0.02f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::ivec2(1.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.003f, -0.02f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::ivec2(1.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.003f, -0.02f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::ivec2(0.0f, 0.0f)));
 
     //horizontal
-    vertices.push_back(VERTEX(glm::vec3(-0.02f, 0.003f, -0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 1.0f)));
-    vertices.push_back(VERTEX(glm::vec3( 0.02f, 0.003f, -0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 1.0f)));
-    vertices.push_back(VERTEX(glm::vec3(0.02f, -0.003f, -0.0f),glm::vec3(1.0f, 1.0f, 1.0f),glm::vec2(1.0f, 0.0f)));
-    vertices.push_back(VERTEX(glm::vec3(-0.02f, -0.003f, -0.0f),glm::vec3(0.0f, 0.0f, 0.0f),glm::vec2(0.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.02f, 0.003f, -0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::ivec2(0.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.02f, 0.003f, -0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::ivec2(1.0f, 1.0f)));
+    vertices.push_back(VERTEX(glm::vec3(0.02f, -0.003f, -0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::ivec2(1.0f, 0.0f)));
+    vertices.push_back(VERTEX(glm::vec3(-0.02f, -0.003f, -0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::ivec2(0.0f, 0.0f)));
 
     return vertices;
 }
