@@ -43,6 +43,7 @@ private:
     Light light;
     Player player;
     WINDOW *window;
+    mutable std::string logMessage;
 };
 
 
