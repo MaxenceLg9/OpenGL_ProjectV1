@@ -7,35 +7,34 @@
 
 # define CHUNK_SIZE 64
 
-#include "glm.hpp"
+#include <glm.hpp>
 
+#include "GLAD/glad.h"
 #include "../World.h"
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"
+#include "../../model/mesh/ChunkMesh.h"
+
 
 class World;
 
+class ChunkMesh;
+
 class Chunk {
 public:
-    explicit Chunk(const World &world, glm::ivec3 chunkPos);
+    Chunk();
 
     ~Chunk();
 
-    void render(const Shader& shader, const glm::mat4 & p_v, glm::vec3 playerPos) const;
+    void render() const;
 
-    static int addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indices, VERTEX *v, int index);
+    void build_mesh(const World& world, glm::ivec3 chunkPos);
 
-    void build_mesh(const uint8_t blocks[], const World& world, glm::ivec3 chunkPos);
-
-    static bool isVoid(glm::ivec3 blockPos, const uint8_t blocks[], const World& world, glm::ivec3 chunkPos);
-
-    int getBlockAt(glm::ivec3 pos) const;
+    int getBlockAt(glm::ivec3 blockPos) const;
 
 private:
-    uint8_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
-    std::vector<VERTEX> vertexdata;
-    std::vector<unsigned int> indices;
-    Mesh *mesh;
+    uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+    ChunkMesh *mesh;
 };
 
 #endif //CHUNK_H
