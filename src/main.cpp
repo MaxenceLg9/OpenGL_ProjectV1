@@ -1,19 +1,15 @@
-#include "cglm/cglm.h"
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
-#include <vector>
-#include <cmath>
 #include <cstdio>
 
 #include "display/callback/callback.h"
 #include "display/window/window.h"
 #include "display/world/chunk/chunk.h"
-#include "display/world/player/player.h"
-#include "math/math.h"
 #include "display/window/cursor/cursor.h"
 #include "display/world/World.h"
 #include "display/world/light/light.h"
+#include "logs/Logs.h"
 
 
 WINDOW window;
@@ -25,11 +21,14 @@ void framebuffercallback(GLFWwindow *w, const int width, const int height) {
 }
 
 int main() {
+    Logs::init();
     // Init GLFW
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    Logs::log("INFO", "Initializing GLFW");
 
     const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
@@ -43,6 +42,8 @@ int main() {
         glfwTerminate();
         return -1;
     }
+
+    Logs::log("INFO", "Window created successfully");
 
     glfwSetWindowMonitor(window.OGLwindow, NULL, 0, 0, window.width, window.height, mode->refreshRate);
     glfwMakeContextCurrent(window.OGLwindow);
@@ -59,7 +60,7 @@ int main() {
     }
 
 
-    // Shader shader("assets/shaders/chunk/vertex.ls", "assets/shaders/chunk/fragment.ls");
+    // Shader shader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag");
 
 
     glEnable(GL_DEPTH_TEST);
@@ -68,15 +69,10 @@ int main() {
     glFrontFace(GL_CW); // Counter-clockwise is front
     glCullFace(GL_BACK); // Cull back faces
 
-
-    // Player *player = new Player(0.0f, 0.0f, 0.0f);
-
     World world(&window);
     Cursor cursor;
-    // glfwDestroyWindow(window.window);
-    // glfwTerminate();
-    // return 0;
-    double deltaTime(0.0f), lastFrame(0.0f); // Time of last frame
+
+    double lastFrame(glfwGetTime()); // Time of last frame
     while (!glfwWindowShouldClose(window.OGLwindow)) {
         double currentFrame = glfwGetTime();
 
@@ -84,8 +80,6 @@ int main() {
         lastFrame = currentFrame;
         glClearColor(0.15f, 0.65f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glDepthFunc(GL_LESS);
 
         world.render();
         GLenum err;
@@ -102,5 +96,6 @@ int main() {
     glfwSetWindowUserPointer(window.OGLwindow,nullptr);
     glfwDestroyWindow(window.OGLwindow);
     glfwTerminate();
+    Logs::close();
     return 0;
 }
