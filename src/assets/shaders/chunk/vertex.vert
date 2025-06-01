@@ -27,6 +27,7 @@ void unpack64(int d1, int d2) {
 
 void main() {
     unpack64(packOne,packTwo);
+    uint debug = packTwo; // force the driver to keep it
     lightColor = color;
     gl_Position = p_v_m * vec4(x, y, z, 1.0f);
 }

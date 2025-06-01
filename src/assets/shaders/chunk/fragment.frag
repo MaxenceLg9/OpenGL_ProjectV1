@@ -14,6 +14,6 @@ void main()
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
 //    FragColor = texture(texture2, TexCoord) * vec4(ambient * lightColor,1.0);
-    FragColor = vec4(vec3(float(voxel_id) / 64.0), 1.0);
+    FragColor = vec4(vec3(TexCoord,voxel_id), 1.0);
 
 }
