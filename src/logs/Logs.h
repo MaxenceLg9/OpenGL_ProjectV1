@@ -5,8 +5,6 @@
 #ifndef LOGS_H
 #define LOGS_H
 
-#define WORLD_SIZE 1
-
 #include <cstdio>
 #include <cstdint>
 #include <unistd.h>

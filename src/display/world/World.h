@@ -4,6 +4,10 @@
 
 #ifndef WORLD_H
 #define WORLD_H
+
+#define WORLD_SIZE 2
+
+
 #include <memory>
 #include <vector>
 
