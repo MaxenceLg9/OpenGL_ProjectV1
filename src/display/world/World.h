@@ -5,7 +5,7 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#define WORLD_SIZE 2
+#define WORLD_SIZE 10
 
 
 #include <memory>
