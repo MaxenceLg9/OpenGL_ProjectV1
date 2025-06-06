@@ -5,8 +5,8 @@
 #include "Vertex.h"
 
 uint64_t Vertex::packData(int id, glm::ivec3 pos, glm::vec3 normal, const unsigned char texCoords) {
-    if(id >= pow(2,14))
-        throw std::runtime_error("Vertex ID exceeds maximum value of 2^14 - 1");
+    if(id >= pow(2,18))
+        throw std::runtime_error("Vertex ID exceeds maximum value of 2^18 - 1");
     if(pos.x >= pow(2,7) || pos.y >= pow(2,7) || pos.z >= pow(2,7))
         throw std::runtime_error("Vertex position exceeds maximum value of 2^7 - 1");
     if(normal.x < -1.0f || normal.x > 1.0f || normal.y < -1.0f || normal.y > 1.0f || normal.z < -1.0f || normal.z > 1.0f)
