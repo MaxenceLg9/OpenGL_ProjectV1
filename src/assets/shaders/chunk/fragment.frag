@@ -4,16 +4,16 @@ out vec4 FragColor;
 
 in vec2 TexCoord;
 in vec3 lightColor;
+in vec3 blockColor;
 flat in uint voxel_id;
 
 uniform sampler2D texture1;
-uniform sampler2D texture2;
 
 void main()
 {
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
 //    FragColor = texture(texture2, TexCoord) * vec4(ambient * lightColor,1.0);
-    FragColor = vec4(vec3(sin(voxel_id), cos(voxel_id), tan(voxel_id)), 1.0);
+    FragColor = vec4(blockColor, 1.0);
 
 }
