@@ -10,6 +10,7 @@ uniform vec3 color;
 
 out vec2 TexCoord;
 out vec3 lightColor;
+out vec3 blockColor;
 flat out uint voxel_id;
 
 // Utility to reassemble uvec2 into uint64_t
@@ -29,5 +30,6 @@ void main() {
     unpack64(packOne,packTwo);
     uint debug = packTwo; // force the driver to keep it
     lightColor = color;
+    blockColor = vec3(sin(x), cos(y), sin(z));
     gl_Position = p_v_m * vec4(x, y, z, 1.0f);
 }
