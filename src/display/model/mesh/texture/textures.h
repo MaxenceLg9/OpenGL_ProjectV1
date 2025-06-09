@@ -23,7 +23,7 @@ public:
 private:
     std::string type;
     int code;
-    uint id;
+    uint32_t id;
 };
 
 #endif //TEXTURES_H

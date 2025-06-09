@@ -38,6 +38,8 @@ set(SOURCE_FILES
         src/display/model/mesh/vertex/Vertex.cpp
         src/display/model/mesh/ChunkMesh.cpp
         src/display/model/mesh/ChunkMesh.h
+        src/configs/Configs.cpp
+        src/configs/Configs.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)

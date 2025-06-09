@@ -48,6 +48,8 @@ private:
     Player player;
     WINDOW *window;
     mutable std::string logMessage;
+
+    void create_chunks();
 };
 
 

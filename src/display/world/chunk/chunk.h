@@ -30,11 +30,13 @@ public:
 
     void build_mesh(const World& world, glm::ivec3 chunkPos);
 
-    int getBlockAt(glm::ivec3 blockPos) const;
+    uint16_t getBlockAt(glm::ivec3 blockPos) const;
 
 private:
     uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
     ChunkMesh *mesh;
+
+    void generate_chunk();
 };
 
 #endif //CHUNK_H

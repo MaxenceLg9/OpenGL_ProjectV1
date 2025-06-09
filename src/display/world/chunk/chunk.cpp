@@ -9,9 +9,19 @@
 #include "../../model/mesh/vertex/Vertex.h"
 
 #include <gtc/noise.hpp>
+#include <thread>
 
 
 Chunk::Chunk() {
+    std::thread(&Chunk::generate_chunk, this).detach();
+}
+
+Chunk::~Chunk() {
+    printf("Releasing Mesh %p\n",mesh);
+    delete mesh;
+}
+
+void Chunk::generate_chunk(){
     time_t t = time(nullptr);
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -20,7 +30,7 @@ Chunk::Chunk() {
 //                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
 //                else
 //                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 0;
-                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (int) glm::simplex(glm::vec3(x,y,z) * 0.1f) + 0.9;
+                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (uint16_t) (glm::simplex(glm::vec3(x,y,z) * 0.1f) + 0.9);
                 // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
             }
         }
@@ -28,16 +38,11 @@ Chunk::Chunk() {
     printf("Chunk created in %lld seconds\n", time(nullptr) - t);
 }
 
-Chunk::~Chunk() {
-    printf("Releasing Mesh %p\n",mesh);
-    delete mesh;
-}
-
 void Chunk::render() const {
     mesh->draw();
 }
 
-int Chunk::getBlockAt(const glm::ivec3 blockPos) const {
+uint16_t Chunk::getBlockAt(const glm::ivec3 blockPos) const {
     if (blockPos.x < 0 || blockPos.x >= CHUNK_SIZE || blockPos.y < 0 || blockPos.y >= CHUNK_SIZE || blockPos.z < 0 || blockPos.z >= CHUNK_SIZE) {
         return 0; // out of bounds
     }

@@ -17,6 +17,14 @@
 
 World::World(WINDOW *window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"), player(1.0f, 0.0f, 1.0f), window(window), logMessage("Creating world\n") {
     glfwSetWindowUserPointer(window->OGLwindow, &player);
+    create_chunks();
+    Logs::log("INFO", logMessage);
+    chunkShader.use();
+    chunkShader.setInt("texture1", 0);
+    chunkShader.setInt("texture2", 1);
+}
+
+void World::create_chunks(){
     printf("Creating World\n");
     time_t t = time(nullptr);
     logMessage.append("World size: " + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "\n");
@@ -34,10 +42,6 @@ World::World(WINDOW *window) : chunkShader("assets/shaders/chunk/vertex.vert", "
         chunk->build_mesh(*this, pos);
     }
     printf("World & Mesh created in %lld\n", time(nullptr) - t);
-    Logs::log("INFO", logMessage);
-    chunkShader.use();
-    chunkShader.setInt("texture1", 0);
-    chunkShader.setInt("texture2", 1);
 }
 
 World::~World(){
