@@ -6,11 +6,11 @@
 
 #include <glm.hpp>
 #include <cglm/util.h>
+#include <thread>
 #include <ext/matrix_clip_space.hpp>
 #include <ext/matrix_transform.hpp>
 
 #include <GLFW/glfw3.h>
-#include <gtc/type_ptr.inl>
 
 #include "player/player.h"
 #include "../../logs/Logs.h"
@@ -28,14 +28,17 @@ void World::create_chunks(){
     printf("Creating World\n");
     time_t t = time(nullptr);
     logMessage.append("World size: " + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "\n");
+    std::mutex lock;
     for (int i = 0; i < WORLD_SIZE; i++) {
         for (int j = 0; j < WORLD_SIZE; j++) {
             for (int k = 0; k < WORLD_SIZE; k++) {
                 logMessage.append("Creating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k) + "\n");
-                world.emplace(glm::ivec3(i,j,k),std::make_unique<Chunk>());
+                new Chunk(glm::ivec3(i,j,k),&world, &lock);
+//                world.emplace(glm::ivec3(i,j,k),std::make_unique<Chunk>());
             }
         }
     }
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     printf("World created in %lld seconds\nCreating Meshs for each chunks\n", time(nullptr) - t);
     for(auto &[pos, chunk] : world) {
         logMessage.append("Chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
@@ -46,6 +49,9 @@ void World::create_chunks(){
 
 World::~World(){
     printf("Destroying world\n");
+    for (auto &[pos, chunk] : world) {
+        delete chunk; // Free the ChunkMesh
+    }
     window = nullptr;
 }
 

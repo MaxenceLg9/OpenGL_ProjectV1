@@ -9,11 +9,18 @@
 
 #include <glm.hpp>
 
-#include "glad/glad.h"
 #include "../World.h"
+#include "../../../math/math.h"
+#include "glad/glad.h"
+#include <map>
+#include <memory>
+#include <vector>
+#include <mutex>    // for std::mutex
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"
 #include "../../model/mesh/ChunkMesh.h"
+
+
 
 
 class World;
@@ -22,7 +29,7 @@ class ChunkMesh;
 
 class Chunk {
 public:
-    Chunk();
+    Chunk(glm::ivec3 vec, std::map<glm::ivec3, Chunk *,IVec3Compare> *map, std::mutex *lock);
 
     ~Chunk();
 
@@ -36,7 +43,7 @@ private:
     uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
     ChunkMesh *mesh;
 
-    void generate_chunk();
+    void generate_chunk(glm::ivec3 vec, std::map<glm::ivec3, Chunk *, IVec3Compare> *map, std::mutex *lock);
 };
 
 #endif //CHUNK_H

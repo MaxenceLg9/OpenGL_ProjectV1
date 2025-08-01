@@ -12,8 +12,8 @@
 #include <thread>
 
 
-Chunk::Chunk() {
-    std::thread(&Chunk::generate_chunk, this).detach();
+Chunk::Chunk(const glm::ivec3 vec, std::map<glm::ivec3, Chunk *, IVec3Compare> *map, std::mutex *lock) {
+    std::thread(&Chunk::generate_chunk, this, vec, map, lock).detach();
 }
 
 Chunk::~Chunk() {
@@ -21,7 +21,7 @@ Chunk::~Chunk() {
     delete mesh;
 }
 
-void Chunk::generate_chunk(){
+void Chunk::generate_chunk(const glm::ivec3 vec, std::map<glm::ivec3, Chunk *, IVec3Compare> *map, std::mutex *lock){
     time_t t = time(nullptr);
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -31,10 +31,14 @@ void Chunk::generate_chunk(){
 //                else
 //                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 0;
                 blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (uint16_t) (glm::simplex(glm::vec3(x,y,z) * 0.1f) + 0.9);
-                // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
             }
         }
     }
+    printf("Locking lock and adding the chunk to the map\n");
+    lock->lock();
+    map->emplace(vec, this);
+    lock->unlock();
+    printf("Unlocking lock\n");
     printf("Chunk created in %lld seconds\n", time(nullptr) - t);
 }
 
