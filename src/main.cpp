@@ -71,7 +71,7 @@ int main() {
     glCullFace(GL_BACK); // Cull back faces
 
     World world(&window);
-    Cursor cursor;
+    auto *cursor = new Cursor();
 
     double lastFrame(glfwGetTime()); // Time of last frame
     while (!glfwWindowShouldClose(window.OGLwindow)) {
@@ -82,12 +82,13 @@ int main() {
         glClearColor(0.15f, 0.65f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        world.build_chunk_mesh(); // Build chunks that are ready
         world.render();
         GLenum err;
         while ((err = glGetError()) != GL_NO_ERROR) {
             printf("OpenGL error: %x\n", err);
         }
-        cursor.drawCursor(window);
+        cursor->drawCursor(window);
 
         glfwSwapBuffers(window.OGLwindow);
         glfwPollEvents();
@@ -97,6 +98,7 @@ int main() {
     glfwSetWindowUserPointer(window.OGLwindow,nullptr);
     glfwDestroyWindow(window.OGLwindow);
     glfwTerminate();
+    delete cursor;
     Logs::close();
     return 0;
 }

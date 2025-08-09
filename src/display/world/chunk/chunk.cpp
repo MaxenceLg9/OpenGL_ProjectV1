@@ -22,23 +22,19 @@ Chunk::~Chunk() {
 }
 
 void Chunk::generate_chunk(const glm::ivec3 vec, std::map<glm::ivec3, Chunk *, IVec3Compare> *map, std::mutex *lock){
-    time_t t = time(nullptr);
+    const time_t t = time(nullptr);
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
-//                if (glm::simplex(glm::vec3(x,y,z) * 0.1f) > 0.2f)
-//                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 1;
-//                else
-//                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = 0;
                 blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (uint16_t) (glm::simplex(glm::vec3(x,y,z) * 0.1f) + 0.9);
             }
         }
     }
-    printf("Locking lock and adding the chunk to the map\n");
+    // printf("Locking lock and adding the chunk to the map\n");
     lock->lock();
     map->emplace(vec, this);
     lock->unlock();
-    printf("Unlocking lock\n");
+    // printf("Unlocking lock\n");
     printf("Chunk created in %lld seconds\n", time(nullptr) - t);
 }
 

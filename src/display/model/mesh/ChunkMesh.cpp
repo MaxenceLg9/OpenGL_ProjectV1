@@ -117,6 +117,10 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
         }
     }
     this->nbIndices = indices.size();
+    if (nbIndices == 0) {
+        Logs::debug("No vertices to draw");
+        return;
+    }
     printf("Size %llu : %llu\n", vertices.size(), indices.size());
     bindData(vertices, indices);
 }

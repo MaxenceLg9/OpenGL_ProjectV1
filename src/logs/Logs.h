@@ -24,6 +24,7 @@ public:
     static void init();
 
     static void log(const std::string &type, const std::string &message);
+    static void debug(const std::string& message);
 
     static void close();
 private:
