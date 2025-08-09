@@ -30,6 +30,7 @@ void main() {
     unpack64(packOne,packTwo);
     uint debug = packTwo; // force the driver to keep it
     lightColor = color;
-    blockColor = vec3(sin(x), cos(y), sin(z));
+//    blockColor = vec3(sin(x), cos(y), sin(z));
+    blockColor = vec3(sin(voxel_id * x * y * z));
     gl_Position = p_v_m * vec4(x, y, z, 1.0f);
 }
