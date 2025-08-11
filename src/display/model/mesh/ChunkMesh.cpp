@@ -29,20 +29,20 @@ void ChunkMesh::setupMesh() {
     glVertexArrayAttribBinding(VAO,1,0);
 
 
-    printf("VBO: %u, EBO: %u, VAO: %u\n", VBO, EBO, VAO);
+    Logs::debug("VBO: " + std::to_string(VBO) + " EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
     Logs::log("INFO", "ChunkMesh created with VBO: " + std::to_string(VBO) + ", EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
 }
 
-void ChunkMesh::bindData(std::vector<uint32_t> &vertices, std::vector<unsigned int> &indices) const{
-    glNamedBufferData(VBO,vertices.size() * sizeof(uint32_t), &vertices[0], GL_STATIC_DRAW);
-    glNamedBufferData(EBO, indices.size() * sizeof(unsigned int),&indices[0],GL_STATIC_DRAW);
+void ChunkMesh::bindData(std::vector<uint32_t> *vertices, std::vector<unsigned int> *indices) const{
+    glNamedBufferData(VBO,vertices->size() * sizeof(uint32_t), vertices->data(), GL_STATIC_DRAW);
+    glNamedBufferData(EBO, indices->size() * sizeof(unsigned int),indices->data(),GL_STATIC_DRAW);
 }
 
 void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_t *blocks) {
-    std::vector<uint32_t> vertices;
-    vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-    std::vector<unsigned int> indices;
-    indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
+    auto* vertices = new std::vector<uint32_t>();
+    vertices->reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
+    auto* indices = new std::vector<unsigned int>();
+    indices->reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
     int index = 0;
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -116,13 +116,16 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
             }
         }
     }
-    this->nbIndices = indices.size();
+    this->nbIndices = indices->size();
     if (nbIndices == 0) {
         Logs::debug("No vertices to draw");
         return;
     }
-    printf("Size %llu : %llu\n", vertices.size(), indices.size());
+    Logs::debug("Size " + std::to_string(vertices->size()) + " : " + std::to_string(indices->size()));
     bindData(vertices, indices);
+    Logs::debug("Data bound to VBO and EBO");
+    delete vertices;
+    delete indices;
 }
 
 bool ChunkMesh::isVoid(glm::ivec3 blockPos, const uint16_t *blocks, const World &world, glm::ivec3 chunkPos) {
@@ -140,19 +143,19 @@ void ChunkMesh::draw() const {
     glBindVertexArray(0);
 }
 
-int ChunkMesh::addData(std::vector<uint32_t> &vertex, std::vector<unsigned int> &indices, uint64_t *v, int index) {
+int ChunkMesh::addData(std::vector<uint32_t> *vertex, std::vector<unsigned int> *indices, uint64_t *v, int index) {
 
     for (int i = 0; i < 4; ++i) {
-        vertex.push_back((uint32_t)(v[i] >> 32));        // High 32 bits
-        vertex.push_back((uint32_t)(v[i] & 0xFFFFFFFF)); // Low 32 bits
+        vertex->push_back((uint32_t)(v[i] >> 32));        // High 32 bits
+        vertex->push_back((uint32_t)(v[i] & 0xFFFFFFFF)); // Low 32 bits
     }
 
-    indices.push_back(index);
-    indices.push_back(index + 1);
-    indices.push_back(index + 2);
-    indices.push_back(index);
-    indices.push_back(index + 2);
-    indices.push_back(index + 3);
+    indices->push_back(index);
+    indices->push_back(index + 1);
+    indices->push_back(index + 2);
+    indices->push_back(index);
+    indices->push_back(index + 2);
+    indices->push_back(index + 3);
 
     return index + 4;
 }

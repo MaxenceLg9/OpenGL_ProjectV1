@@ -22,9 +22,9 @@ public:
 private:
     unsigned int VAO, VBO, EBO, nbIndices;
 
-    static int addData(std::vector<uint32_t> &vertex, std::vector<unsigned int> &indices, uint64_t *v, int index);
+    static int addData(std::vector<uint32_t> *vertex, std::vector<unsigned int> *indices, uint64_t *v, int index);
 
-    void bindData(std::vector<uint32_t> &vertices, std::vector<unsigned int> &indices) const;
+    void bindData(std::vector<uint32_t> *vertices, std::vector<unsigned int> *indices) const;
 
     void setupMesh();
 
