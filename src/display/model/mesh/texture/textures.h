@@ -19,7 +19,9 @@ class Texture {
 public:
     Texture(const char* filename, unsigned int tCode,const std::string& name);
     ~Texture();
-    void use_textures(const Shader &shader);
+
+    void use_textures(const Shader &shader) const;
+
 private:
     std::string type;
     int code;

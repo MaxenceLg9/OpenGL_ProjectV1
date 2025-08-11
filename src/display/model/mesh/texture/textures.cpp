@@ -42,10 +42,9 @@ Texture::~Texture() {
     glDeleteTextures(1, &this->id);
 }
 
-void Texture::use_textures(const Shader &shader) {
-    glActiveTexture(this->code); // active proper texture unit before binding
-    // now set the sampler to the correct texture unit
-    shader.setInt((this->type).c_str(), GL_TEXTURE0 - this->code);
-    // and finally bind the texture
+void Texture::use_textures(const Shader &shader) const {
+    glActiveTexture(GL_TEXTURE0 + this->code); // Activate texture unit N
+    shader.setInt(this->type.c_str(), this->code); // Set sampler to texture unit index N
     glBindTexture(GL_TEXTURE_2D, this->id);
+
 }
