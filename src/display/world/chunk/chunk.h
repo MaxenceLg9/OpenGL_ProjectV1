@@ -29,21 +29,27 @@ class ChunkMesh;
 
 class Chunk {
 public:
-    Chunk(glm::ivec3 vec, std::map<glm::ivec3, Chunk *,IVec3Compare> *map, std::mutex *lock);
+    Chunk(glm::ivec3 chunkPos, World *world);
 
     ~Chunk();
 
     void render() const;
 
-    void build_mesh(const World& world, glm::ivec3 chunkPos);
+    void build_mesh();
 
     uint16_t getBlockAt(glm::ivec3 blockPos) const;
 
 private:
     uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
     ChunkMesh *mesh;
+    World *world;
+    glm::ivec3 chunkPos;
 
-    void generate_chunk(glm::ivec3 vec, std::map<glm::ivec3, Chunk *, IVec3Compare> *map, std::mutex *lock);
+    void generate_chunk();
+
+    int generate_block(glm::ivec3 blockPos);
+
+    glm::ivec3 getChunkPos() const;
 };
 
 #endif //CHUNK_H

@@ -5,7 +5,8 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#define WORLD_SIZE 4
+#define WORLD_SIZE 6
+#define WORLD_THREADS 8
 
 
 #include <memory>
@@ -32,6 +33,8 @@ public:
 
     int getBlockAt(glm::ivec3 ipos) const;
 
+    void generate_chunks(short part);
+
     void build_chunk_mesh();
 
     void tick(double deltaTime);
@@ -39,6 +42,9 @@ public:
 private:
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunks;
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToBuild;
+
+    Texture texture;
+
     Shader chunkShader;
     Light light;
     Player player;

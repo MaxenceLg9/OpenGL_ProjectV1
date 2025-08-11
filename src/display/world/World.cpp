@@ -17,7 +17,7 @@
 #include "../../logs/Logs.h"
 
 World::World(WINDOW* window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"),
-                               player(1.0f, 0.0f, 1.0f), window(window), logMessage("Creating world\n")
+                               player(1.0f, 0.0f, 1.0f), window(window), logMessage("Creating world\n"), texture("assets/textures/blocks/ikrine_ore.png", 0, "texture1")
 {
     glfwSetWindowUserPointer(window->OGLwindow, &player);
     create_chunks();
@@ -35,27 +35,47 @@ void World::create_chunks()
         "World size: " + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "x" +
         std::to_string(WORLD_SIZE) + "\n");
     Logs::debug("Render distance : " + std::to_string(WORLD_SIZE) + " chunks");
-    for (int i = 0; i < WORLD_SIZE; i++)
-    {
-        for (int j = 0; j < WORLD_SIZE; j++)
-        {
-            for (int k = 0; k < WORLD_SIZE; k++)
-            {
-                logMessage.append("Creating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k) + "\n");
-                new Chunk(glm::ivec3(i, j, k), &chunksToBuild, &lock);
-                //                world.emplace(glm::ivec3(i,j,k),std::make_unique<Chunk>());
-            }
-        }
+    for (short i  = 0; i < WORLD_THREADS; i++) {
+        std::thread(&World::generate_chunks, this, i).detach();
     }
+
 }
+
+void World::generate_chunks(short part) {
+    int totalChunks = WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
+    int chunkPerThread = totalChunks / WORLD_THREADS;
+    std::map<glm::ivec3, Chunk *, IVec3Compare> localChunks;
+
+    int startIndex = part * chunkPerThread;
+    int endIndex   = startIndex + chunkPerThread;
+
+    for (int index = startIndex; index < endIndex; index++) {
+        int i = index / (WORLD_SIZE * WORLD_SIZE);
+        int j = (index / WORLD_SIZE) % WORLD_SIZE;
+        int k = index % WORLD_SIZE;
+
+        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
+        localChunks.emplace(glm::ivec3(i, j, k), new Chunk(glm::ivec3(i, j, k), this));
+    }
+    lock.lock();
+    for (const auto& [pos, chunk] : localChunks) {
+        chunksToBuild.emplace(pos, chunk);
+    }
+    lock.unlock();
+    Logs::debug("Thread " + std::to_string(part + 1) + " finished generating chunks");
+}
+
 
 void World::build_chunk_mesh()
 {
+    if (chunksToBuild.empty())
+        return;
+
     std::vector<glm::ivec3> toErase;
-    Logs::debug(std::to_string(chunksToBuild.size()) + " chunks to build");
+//    Logs::debug(std::to_string(chunksToBuild.size()) + " chunks to build");
 
     for (auto& [pos, chunk] : chunksToBuild) {
-        logMessage.append("Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
+//        logMessage.append("Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
         glm::ivec3 xNeg(pos.x - 1, pos.y, pos.z);
         glm::ivec3 xPos(pos.x + 1, pos.y, pos.z);
         glm::ivec3 yNeg(pos.x, pos.y - 1, pos.z);
@@ -74,17 +94,17 @@ void World::build_chunk_mesh()
             Logs::debug(
                 "Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," +
                 std::to_string(pos.z));
-            chunk->build_mesh(*this, pos);
-            Logs::debug("Adding the chunk in the vector");
+            chunk->build_mesh();
+//            Logs::debug("Adding the chunk in the vector");
             chunks.emplace(pos, chunk);
             Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
             toErase.push_back(pos);
-            Logs::debug("Releasing the lock");
+//            Logs::debug("Releasing the lock");
             break;
         }
         // Logs::debug("Skipping chunk mesh building for the chunk at pos : " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
     }
-    Logs::debug("Locking the mutex to remove the chunk from chunksToBuild");
+//    Logs::debug("Locking the mutex to remove the chunk from chunksToBuild");
     if (toErase.empty())
         return;
     lock.lock();
@@ -98,7 +118,7 @@ void World::build_chunk_mesh()
 
 World::~World()
 {
-    printf("Destroying world\n");
+    Logs::debug("Destroying world and releasing chunks");
     for (const auto& chunk : chunks | std::views::values)
     {
         delete chunk; // Free the ChunkMesh
@@ -108,22 +128,23 @@ World::~World()
 
 void World::render() const
 {
-    Logs::debug("Rendering world");
+//    Logs::debug("Rendering world");
     glm::vec3 cameraPos(player.getCoords());
     glm::vec3 cameraTarget = cameraPos + player.getDirection();
 
     // build view matrix
     glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, player.getUp());
-    glm::mat4 projection = glm::perspective(glm_rad(player.getFov()), (float)window->width / (float)window->height,
-                                            0.01f, 1000.0f);
+    glm::mat4 projection = glm::perspective(glm_rad(player.getFov()), (float)window->width / (float)window->height,0.01f, 1000.0f);
     glm::mat4 pro_view = projection * view;
 
     glDepthFunc(GL_LESS);
     light.render(pro_view, player.getCoords() + glm::vec3(0.0f, 100.0f, 0.0f));
 
     chunkShader.use();
+    texture.use_textures(chunkShader);
     // camera/view transformation
-    glm::vec3 color = light.getColor();
+//    glm::vec3 color = light.getColor();
+    glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); // Default color for debugging
     chunkShader.setVec3("color", color.x, color.y, color.z);
     int n = 0;
     for (int i = 0; i < WORLD_SIZE; i++)
@@ -164,6 +185,7 @@ int World::getBlockAt(const glm::ivec3 ipos) const
 void World::tick(const double deltaTime)
 {
     player.setDeltaTime(deltaTime);
-    light.setColor(glfwGetTime());
+//    light.setColor(glfwGetTime());
+    light.setColor(100);
     handleKeysPressed(window->OGLwindow, &player);
 }
