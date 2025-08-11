@@ -3,6 +3,7 @@
 //
 
 #include "Logs.h"
+#include <thread>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -53,7 +54,7 @@ void Logs::debug(const std::string &message)
     // printf with date at format dd/mm/yyyy hh:mm:ss
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    printf("[%d-%02d-%02d %02d:%02d:%02d] : %s\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, message.c_str());
+    printf("[%d-%02d-%02d %02d:%02d:%02d], from thread %llu : %s,\n" ,tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, pthread_self(), message.c_str());
 }
 
 void Logs::close()  {
