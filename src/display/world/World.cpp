@@ -17,14 +17,12 @@
 #include "../../logs/Logs.h"
 
 World::World(WINDOW* window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"),
-                               player(1.0f, 0.0f, 1.0f), window(window), logMessage("Creating world\n"), texture("assets/textures/blocks/ikrine_ore.png", 0, "texture1")
+                               player(-1.0f, 0.0f, -1.0f), window(window), logMessage("Creating world\n"), texture("assets/textures/blocks/ikrine_ore.png", 0, "texture1")
 {
     glfwSetWindowUserPointer(window->OGLwindow, &player);
     create_chunks();
     Logs::log("INFO", logMessage);
     chunkShader.use();
-    chunkShader.setInt("texture1", 0);
-    chunkShader.setInt("texture2", 1);
 }
 
 void World::create_chunks()
@@ -42,27 +40,24 @@ void World::create_chunks()
 }
 
 void World::generate_chunks(short part) {
+    time_t t = time(nullptr);
     int totalChunks = WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
-    int chunkPerThread = totalChunks / WORLD_THREADS;
+    int chunkPerThread = (totalChunks + WORLD_THREADS - 1) / WORLD_THREADS;
     std::map<glm::ivec3, Chunk *, IVec3Compare> localChunks;
 
     int startIndex = part * chunkPerThread;
-    int endIndex   = startIndex + chunkPerThread;
-
+    int endIndex   = startIndex + chunkPerThread > totalChunks ? totalChunks : startIndex + chunkPerThread;
     for (int index = startIndex; index < endIndex; index++) {
         int i = index / (WORLD_SIZE * WORLD_SIZE);
         int j = (index / WORLD_SIZE) % WORLD_SIZE;
         int k = index % WORLD_SIZE;
 
-        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
+//        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
         localChunks.emplace(glm::ivec3(i, j, k), new Chunk(glm::ivec3(i, j, k), this));
     }
-    lock.lock();
-    for (const auto& [pos, chunk] : localChunks) {
-        chunksToBuild.emplace(pos, chunk);
-    }
-    lock.unlock();
-    Logs::debug("Thread " + std::to_string(part + 1) + " finished generating chunks");
+    addChunksToBuild(&localChunks);
+    Logs::debug("Thread " + std::to_string(part + 1) + " finished generating chunks in " + std::to_string(time(nullptr) - t) + " seconds\n" +
+                        " generated from " + std::to_string(startIndex) + " to " + std::to_string(endIndex) + " chunks");
 }
 
 
@@ -97,7 +92,7 @@ void World::build_chunk_mesh()
             chunk->build_mesh();
 //            Logs::debug("Adding the chunk in the vector");
             chunks.emplace(pos, chunk);
-            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
+//            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
             toErase.push_back(pos);
 //            Logs::debug("Releasing the lock");
             break;
@@ -113,11 +108,28 @@ void World::build_chunk_mesh()
         chunksToBuild.erase(pos);
     }
     lock.unlock();
-    Logs::debug("Finished building chunk meshes");
+//    Logs::debug("Finished building chunk meshes");
 }
 
-World::~World()
-{
+void World::addChunkToBuild(const glm::ivec3& pos, Chunk * chunk) {
+    if (chunksToBuild.contains(pos) || chunks.contains(pos))
+        Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
+    lock.lock();
+    chunksToBuild.emplace(pos, chunk);
+    lock.unlock();
+}
+
+void World::addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks) {
+    lock.lock();
+    for (const auto& [pos, chunk] : *localChunks) {
+        if (chunksToBuild.contains(pos) || chunks.contains(pos))
+            Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
+        chunksToBuild.emplace(pos, chunk);
+    }
+    lock.unlock();
+}
+
+World::~World() {
     Logs::debug("Destroying world and releasing chunks");
     for (const auto& chunk : chunks | std::views::values)
     {
@@ -126,8 +138,7 @@ World::~World()
     window = nullptr;
 }
 
-void World::render() const
-{
+void World::render() const {
 //    Logs::debug("Rendering world");
     glm::vec3 cameraPos(player.getCoords());
     glm::vec3 cameraTarget = cameraPos + player.getDirection();

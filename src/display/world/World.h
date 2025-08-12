@@ -5,8 +5,8 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#define WORLD_SIZE 6
-#define WORLD_THREADS 8
+#define WORLD_SIZE 5
+#define WORLD_THREADS 16
 
 
 #include <memory>
@@ -39,7 +39,13 @@ public:
 
     void tick(double deltaTime);
 
+    void addChunkToBuild(const glm::ivec3 &pos, Chunk *chunk);
+
+    void addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks);
 private:
+
+    void create_chunks();
+
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunks;
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToBuild;
 
@@ -52,7 +58,7 @@ private:
     mutable std::string logMessage;
     std::mutex lock;
 
-    void create_chunks();
+
 };
 
 
