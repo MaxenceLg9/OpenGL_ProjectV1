@@ -36,19 +36,25 @@ void Chunk::generate_chunk(){
     }
     // printf("Locking lock and adding the chunk to the map\n");
     // printf("Unlocking lock\n");
-    Logs::debug("Chunk created in " + std::to_string(time(nullptr) - t) + "seconds");
+//    Logs::debug("Chunk created in " + std::to_string(time(nullptr) - t) + "seconds");
 }
 
 int Chunk::generate_block(glm::ivec3 blockPos) {
-    const float amplitude = 50.0f;
+    const float amplitude = 100.0f;
     float ret = 0.0;
     float frequency = 0.01f;
-    for (int i = 0; i < 2; i++) {
-        ret += Utils::alpha(ret, i) * glm::perlin(glm::vec3((float) blockPos.x * frequency, (float) blockPos.z * frequency, 0.0));
+    for (int i = 0; i < 4; i++) {
+        ret += (float) Utils::alpha(ret, i) * glm::perlin(glm::vec3((float) blockPos.x * frequency, (float) blockPos.z * frequency, 0.0));
         frequency *= 2.0;
     }
-    int block = (blockPos.y < amplitude * ret + 100.0f) ? 1 : 0;
-    return block; // Scale and offset the noise to fit in the range of 0-20
+    if (blockPos.y > amplitude * ret + 150.0f)
+        return 0; // Air
+    if (blockPos.y < 100)
+        return 2; // No blocks below y=0
+    if (blockPos.y < 200)
+        return 3; // Stone
+    else
+        return 1; // Dirt;
 }
 
 glm::ivec3 Chunk::getChunkPos() const {
