@@ -43,8 +43,8 @@ void Chunk::generate_chunk(){
             }
         }
     }
-    // printf("Locking lock and adding the chunk to the map\n");
-    // printf("Unlocking lock\n");
+    // printf("Locking buildLock and adding the chunk to the map\n");
+    // printf("Unlocking buildLock\n");
 //    Logs::debug("Chunk created in " + std::to_string(time(nullptr) - t) + "seconds");
 }
 
