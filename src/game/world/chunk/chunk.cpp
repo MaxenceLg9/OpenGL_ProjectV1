@@ -6,9 +6,11 @@
 #include "ext/matrix_transform.hpp"
 #include "gtc/type_ptr.hpp"
 #include "../../../logs/Logs.h"
-#include "../../model/mesh/vertex/Vertex.h"
+#include "../../../display/model/mesh/vertex/Vertex.h"
+#include "../block/block.h"
 
-#include <gtc/noise.hpp>
+#include <cmath>
+#include "gtc/noise.hpp"
 #include <thread>
 
 
@@ -28,9 +30,16 @@ Chunk::~Chunk() {
 void Chunk::generate_chunk(){
     const time_t t = time(nullptr);
     for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int y = 0; y < CHUNK_SIZE; y++) {
-            for (int z = 0; z < CHUNK_SIZE; z++) {
-                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (uint16_t) generate_block(glm::ivec3(x, y, z) + chunkPos * CHUNK_SIZE);
+        for (int z = 0; z < CHUNK_SIZE; z++) {
+            int blockX = x + chunkPos.x * CHUNK_SIZE, blockZ = z + chunkPos.z * CHUNK_SIZE;
+            int maxH = Utils::noised_terrain_default(blockX,blockZ) * 200.f + 200.f;
+            int localMaxHeight = maxH - chunkPos.y * CHUNK_SIZE;
+//            Logs::debug("MaxH: " + std::to_string(maxH));
+            for (int y = 0; y < localMaxHeight && y < CHUNK_SIZE; y++) {
+                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = (uint16_t) generate_block(y + chunkPos.y * CHUNK_SIZE);
+            }
+            for (int y = Utils::max(localMaxHeight,0) ; y < CHUNK_SIZE; y++) {
+                blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = AIR;
             }
         }
     }
@@ -39,22 +48,13 @@ void Chunk::generate_chunk(){
 //    Logs::debug("Chunk created in " + std::to_string(time(nullptr) - t) + "seconds");
 }
 
-int Chunk::generate_block(glm::ivec3 blockPos) {
-    const float amplitude = 100.0f;
-    float ret = 0.0;
-    float frequency = 0.01f;
-    for (int i = 0; i < 4; i++) {
-        ret += (float) Utils::alpha(ret, i) * glm::perlin(glm::vec3((float) blockPos.x * frequency, (float) blockPos.z * frequency, 0.0));
-        frequency *= 2.0;
-    }
-    if (blockPos.y > amplitude * ret + 150.0f)
-        return 0; // Air
-    if (blockPos.y < 100)
-        return 2; // No blocks below y=0
-    if (blockPos.y < 200)
-        return 3; // Stone
+int Chunk::generate_block(int y) {
+    if (y < 100)
+        return DEEPSLATE; // Deepslate
+    if (y < 200 || y > 400)
+        return STONE; // Stone
     else
-        return 1; // Dirt;
+        return DIRT; // Dirt;
 }
 
 glm::ivec3 Chunk::getChunkPos() const {
@@ -74,4 +74,11 @@ uint16_t Chunk::getBlockAt(const glm::ivec3 blockPos) const {
 
 void Chunk::build_mesh() {
     mesh = new ChunkMesh(*world, chunkPos, blocks);
+}
+
+void Chunk::link_mesh(){
+    if(mesh == nullptr) {
+        Logs::debug("Mesh is null, building mesh");
+    }
+    mesh->link();
 }

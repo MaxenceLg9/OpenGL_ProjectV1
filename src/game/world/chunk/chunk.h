@@ -7,18 +7,18 @@
 
 # define CHUNK_SIZE 64
 
-#include <glm.hpp>
+#include "glm.hpp"
 
 #include "../World.h"
 #include "../../../math/math.h"
-#include "glad/glad.h"
+#include "GLAD/glad.h"
 #include <map>
 #include <memory>
 #include <vector>
 #include <mutex>    // for std::mutex
-#include "../../model/mesh/shader/shader.h"
-#include "../../model/mesh/mesh.h"
-#include "../../model/mesh/ChunkMesh.h"
+#include "../../../display/model/mesh/shader/shader.h"
+#include "../../../display/model/mesh/mesh.h"
+#include "../../../display/model/mesh/ChunkMesh.h"
 
 
 
@@ -39,6 +39,8 @@ public:
 
     uint16_t getBlockAt(glm::ivec3 blockPos) const;
 
+    void link_mesh();
+
 private:
     uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
     ChunkMesh *mesh;
@@ -47,7 +49,7 @@ private:
 
     void generate_chunk();
 
-    int generate_block(glm::ivec3 blockPos);
+    int generate_block(int y);
 
     glm::ivec3 getChunkPos() const;
 };
