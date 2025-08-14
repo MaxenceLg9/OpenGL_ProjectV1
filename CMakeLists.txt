@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.13)
 project(OpenGL_ProjectV1)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -12,26 +12,26 @@ set(SOURCE_FILES
         src/display/model/mesh/texture/textures.h
         src/display/callback/callback.cpp
         src/display/callback/callback.h
-        src/display/world/player/player.cpp
-        src/display/world/player/player.h
+        src/game/world/player/player.cpp
+        src/game/world/player/player.h
         src/display/window/window.cpp
         src/display/window/window.h
         src/math/math.cpp
         src/math/math.h
-        src/display/world/chunk/chunk.cpp
-        src/display/world/chunk/chunk.h
-        src/display/world/block/block.cpp
-        src/display/world/block/block.h
+        src/game/world/chunk/chunk.cpp
+        src/game/world/chunk/chunk.h
+        src/game/world/block/block.cpp
+        src/game/world/block/block.h
         src/display/model/model.h
         src/display/model/mesh/mesh.h
         src/display/model/model.cpp
         src/display/model/mesh/mesh.cpp
         src/display/window/cursor/cursor.cpp
         src/display/window/cursor/cursor.h
-        src/display/world/light/light.cpp
-        src/display/world/light/light.h
-        src/display/world/World.cpp
-        src/display/world/World.h
+        src/game/world/light/light.cpp
+        src/game/world/light/light.h
+        src/game/world/World.cpp
+        src/game/world/World.h
         src/logs/Logs.cpp
         src/logs/Logs.h
         src/display/model/mesh/vertex/Vertex.h
@@ -40,6 +40,8 @@ set(SOURCE_FILES
         src/display/model/mesh/ChunkMesh.h
         src/configs/Configs.cpp
         src/configs/Configs.h
+        src/display/model/mesh/texture/TextureArray.cpp
+        src/display/model/mesh/texture/TextureArray.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)
@@ -49,7 +51,7 @@ find_package(OpenGL REQUIRED)
 #find_package(Vulkan REQUIRED)
 
 include_directories("../../Dependencies/STB_IMAGE")
-include_directories("../../Dependencies/GLFW/glfw-3.4/include/")
+include_directories("../../Dependencies/GLFW/include/")
 include_directories("../../Dependencies/GLAD/include/")
 include_directories("../../Dependencies/CGLM/include/")
 include_directories("../../Dependencies/GLM/glm/")
@@ -62,9 +64,12 @@ target_link_libraries(main m)
 if(WIN32)
     target_link_libraries(main glfw3)
 else()
-    target_link_libraries(main glfw3)
+    target_link_libraries(main glfw)
 endif()
 target_link_directories(main PUBLIC "../../Dependencies/STB_IMAGE")
-target_link_directories(main PUBLIC "../../Dependencies/GLFW/glfw-3.4/lib/")
+target_link_directories(main PUBLIC "../../Dependencies/GLFW/lib/")
 target_link_directories(main PUBLIC "../../Dependencies/GLM/glm/")
-#target_link_directories(main PUBLIC "../../Dependencies/CGLM/src")
+#target_link_directories(main PUBLIC "../../Dependencies/CGLM/src")add_executable(terrain_test src/test_terraingen.cpp)
+
+
+add_executable(test_terraingen src/test_terraingen.cpp src/math/math.cpp src/math/math.h)
