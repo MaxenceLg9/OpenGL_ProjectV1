@@ -104,10 +104,12 @@ void World::thread_chunk_mesh(){
 
             chunk->build_mesh();
 //            Logs::debug("Adding the chunk in the vector");
+            linkLock.lock();
             chunksToLink.emplace(pos, chunk);
+            linkLock.unlock();
 //            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
             toErase.push_back(pos);
-//            Logs::debug("Releasing the lock");
+//            Logs::debug("Releasing the buildLock");
             break;
         }
         // Logs::debug("Skipping chunk mesh building for the chunk at pos : " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
@@ -115,12 +117,12 @@ void World::thread_chunk_mesh(){
 //    Logs::debug("Locking the mutex to remove the chunk from chunksToBuild");
     if (toErase.empty())
         return;
-    lock.lock();
+    buildLock.lock();
     for (auto& pos : toErase)
     {
         chunksToBuild.erase(pos);
     }
-    lock.unlock();
+    buildLock.unlock();
 //    Logs::debug("Finished building chunk meshes");
 }
 
@@ -128,33 +130,36 @@ void World::link_chunk_meshes(){
     std::vector<glm::ivec3> toErase;
     if (chunksToLink.empty())
         return;
+    Logs::debug("Linking meshes");
     for (auto& [pos, chunk] : chunksToLink) {
         chunk->link_mesh();
         chunks.emplace(pos,chunk);
         toErase.push_back(pos);
     }
-    for (auto& pos : toErase)
-    {
+    Logs::debug("Removing chunks");
+    linkLock.lock();
+    for (auto& pos : toErase) {
         chunksToLink.erase(pos);
     }
+    linkLock.unlock();
 }
 
 void World::addChunkToBuild(const glm::ivec3& pos, Chunk * chunk) {
     if (chunksToBuild.contains(pos) || chunks.contains(pos))
         Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
-    lock.lock();
+    buildLock.lock();
     chunksToBuild.emplace(pos, chunk);
-    lock.unlock();
+    buildLock.unlock();
 }
 
 void World::addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks) {
-    lock.lock();
+    buildLock.lock();
     for (const auto& [pos, chunk] : *localChunks) {
         if (chunksToBuild.contains(pos) || chunks.contains(pos))
             Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
         chunksToBuild.emplace(pos, chunk);
     }
-    lock.unlock();
+    buildLock.unlock();
 }
 
 World::~World() {

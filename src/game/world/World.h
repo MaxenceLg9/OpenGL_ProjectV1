@@ -68,7 +68,9 @@ private:
     Player player;
     WINDOW *window;
     mutable std::string logMessage;
-    std::mutex lock;
+
+    std::mutex buildLock;
+    std::mutex linkLock;
 
     void thread_chunk_mesh();
 };
