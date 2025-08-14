@@ -5,10 +5,10 @@
 
 #include "display/callback/callback.h"
 #include "display/window/window.h"
-#include "display/world/chunk/chunk.h"
+#include "game/world/chunk/chunk.h"
 #include "display/window/cursor/cursor.h"
-#include "display/world/World.h"
-#include "display/world/light/light.h"
+#include "game/world/World.h"
+#include "game/world/light/light.h"
 #include "logs/Logs.h"
 
 
@@ -35,15 +35,14 @@ int main() {
 
     window.width = mode->width;
     window.height = mode->height;
-    printf("Mode Refresh rate %d\n", mode->refreshRate);
 
     // Create window
-    window.OGLwindow = glfwCreateWindow(window.width, window.height, "Triangle", NULL, NULL);
+    window.OGLwindow = glfwCreateWindow(window.width, window.height, "MeinKraft", glfwGetPrimaryMonitor(), NULL);
     if (!window.OGLwindow) {
         glfwTerminate();
         return -1;
     }
-
+    Logs::debug("Initializing OpenGL window with size: " + std::to_string(window.width) + "/" + std::to_string(window.height) + " and framerate " + std::to_string(mode->refreshRate));
     Logs::log("INFO", "Window created successfully");
 
     glfwSetWindowMonitor(window.OGLwindow, NULL, 0, 0, window.width, window.height, mode->refreshRate);
@@ -83,6 +82,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         world.build_chunk_mesh(); // Build chunks that are ready
+        world.link_chunk_meshes();
         world.render();
         GLenum err;
         while ((err = glGetError()) != GL_NO_ERROR) {

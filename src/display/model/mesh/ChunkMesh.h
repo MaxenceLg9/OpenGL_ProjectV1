@@ -5,7 +5,7 @@
 #ifndef CHUNKMESH_H
 #define CHUNKMESH_H
 
-#include "../../world/World.h"
+#include "../../../game/world/World.h"
 
 class World;
 
@@ -19,16 +19,21 @@ public:
 
     void draw() const;
 
+    void link();
+
 private:
-    unsigned int VAO, VBO, EBO, nbIndices;
 
-    static int addData(std::vector<uint32_t> *vertex, std::vector<unsigned int> *indices, uint64_t *v, int index);
+    int addData(uint64_t *v, int index);
 
-    void bindData(std::vector<uint32_t> *vertices, std::vector<unsigned int> *indices) const;
+    void bindData() const;
 
     void setupMesh();
 
     static bool isVoid(glm::ivec3 blockPos, const uint16_t *blocks, const World &world, glm::ivec3 chunkPos);
+
+    unsigned int VAO, VBO, EBO, nbIndices;
+    std::vector<uint32_t> *vertices;
+    std::vector<unsigned int> *indices;
 };
 
 #endif //CHUNKMESH_H

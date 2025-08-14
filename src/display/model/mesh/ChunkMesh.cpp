@@ -7,8 +7,12 @@
 #include "../../../logs/Logs.h"
 
 ChunkMesh::ChunkMesh(const World &world, glm::ivec3 chunkPos, uint16_t *blocks) {
-    setupMesh();
     buildMesh(world, chunkPos, blocks);
+}
+
+void ChunkMesh::link() {
+    setupMesh();
+    bindData();
 }
 
 void ChunkMesh::setupMesh() {
@@ -28,20 +32,18 @@ void ChunkMesh::setupMesh() {
     glVertexArrayAttribBinding(VAO,0,0);
     glVertexArrayAttribBinding(VAO,1,0);
 
-
-    Logs::debug("VBO: " + std::to_string(VBO) + " EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
     Logs::log("INFO", "ChunkMesh created with VBO: " + std::to_string(VBO) + ", EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
 }
 
-void ChunkMesh::bindData(std::vector<uint32_t> *vertices, std::vector<unsigned int> *indices) const{
+void ChunkMesh::bindData() const{
     glNamedBufferData(VBO,vertices->size() * sizeof(uint32_t), vertices->data(), GL_STATIC_DRAW);
     glNamedBufferData(EBO, indices->size() * sizeof(unsigned int),indices->data(),GL_STATIC_DRAW);
 }
 
 void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_t *blocks) {
-    auto* vertices = new std::vector<uint32_t>();
+    vertices = new std::vector<uint32_t>();
     vertices->reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-    auto* indices = new std::vector<unsigned int>();
+    indices = new std::vector<unsigned int>();
     indices->reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
     int index = 0;
     for (int x = 0; x < CHUNK_SIZE; x++) {
@@ -59,7 +61,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 3);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x + 1, y, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 2);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
                 // back face
                 if (isVoid(glm::vec3(x, y, z - 1), blocks, world, chunkPos)) {
@@ -69,7 +71,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x + 1, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 1);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 3);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
                 //top face
                 if (isVoid(glm::vec3(x, y + 1, z), blocks, world, chunkPos)) {
@@ -79,7 +81,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 1);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 3);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
                 // bottom face
                 if (isVoid(glm::vec3(x, y - 1, z), blocks, world, chunkPos)) {
@@ -89,7 +91,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x + 1, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 2);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x + 1, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 0);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
 
                 // right face
@@ -100,7 +102,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 1);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x + 1, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 3);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
 
                 // left face
@@ -111,19 +113,18 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                     v[2] = Vertex::packData(voxel_id, glm::vec3(x, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 3);
                     v[3] = Vertex::packData(voxel_id, glm::vec3(x, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 2);
 
-                    index = addData(vertices, indices, v, index);
+                    index = addData(v, index);
                 }
             }
         }
     }
     this->nbIndices = indices->size();
     if (nbIndices == 0) {
-        Logs::debug("No vertices to draw");
+//        Logs::debug("No vertices to draw");
         return;
     }
-    Logs::debug("Size " + std::to_string(vertices->size()) + " : " + std::to_string(indices->size()));
-    bindData(vertices, indices);
-    Logs::debug("Data bound to VBO and EBO");
+//    Logs::debug("Size " + std::to_string(vertices->size()) + " : " + std::to_string(indices->size()));
+//    Logs::debug("Data bound to VBO and EBO");
     delete vertices;
     delete indices;
 }
@@ -143,11 +144,11 @@ void ChunkMesh::draw() const {
     glBindVertexArray(0);
 }
 
-int ChunkMesh::addData(std::vector<uint32_t> *vertex, std::vector<unsigned int> *indices, uint64_t *v, int index) {
+int ChunkMesh::addData(uint64_t *v, int index) {
 
     for (int i = 0; i < 4; ++i) {
-        vertex->push_back((uint32_t)(v[i] >> 32));        // High 32 bits
-        vertex->push_back((uint32_t)(v[i] & 0xFFFFFFFF)); // Low 32 bits
+        vertices->push_back((uint32_t)(v[i] >> 32));        // High 32 bits
+        vertices->push_back((uint32_t)(v[i] & 0xFFFFFFFF)); // Low 32 bits
     }
 
     indices->push_back(index);
