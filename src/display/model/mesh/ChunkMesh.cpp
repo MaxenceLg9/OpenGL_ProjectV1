@@ -13,6 +13,8 @@ ChunkMesh::ChunkMesh(const World &world, glm::ivec3 chunkPos, uint16_t *blocks) 
 void ChunkMesh::link() {
     setupMesh();
     bindData();
+    delete vertices;
+    delete indices;
 }
 
 void ChunkMesh::setupMesh() {
@@ -125,8 +127,6 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
     }
 //    Logs::debug("Size " + std::to_string(vertices->size()) + " : " + std::to_string(indices->size()));
 //    Logs::debug("Data bound to VBO and EBO");
-    delete vertices;
-    delete indices;
 }
 
 bool ChunkMesh::isVoid(glm::ivec3 blockPos, const uint16_t *blocks, const World &world, glm::ivec3 chunkPos) {
