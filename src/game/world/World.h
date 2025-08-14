@@ -5,20 +5,22 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#define WORLD_SIZE 5
+#define WORLD_SIZE 8
 #define WORLD_THREADS 16
 
 
 #include <memory>
 #include <vector>
+#include <atomic>
 
 #include "chunk/chunk.h"
 #include "../../math/math.h"
 #include "player/player.h"
-#include "../model/mesh/shader/shader.h"
+#include "../../display/model/mesh/shader/shader.h"
 #include "light/light.h"
 #include "../../display/window/window.h"
 #include "../../display/callback/callback.h"
+#include "../../display/model/mesh/texture/TextureArray.h"
 
 class Chunk;
 
@@ -42,14 +44,24 @@ public:
     void addChunkToBuild(const glm::ivec3 &pos, Chunk *chunk);
 
     void addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks);
+
+    /**
+     * After building the chunk mesh asynchronously, needs to be linked with openGL from main thread
+     * Links all chunk meshes that are ready to be linked.
+     */
+    void link_chunk_meshes();
+
 private:
 
     void create_chunks();
 
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunks;
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToBuild;
+    std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToLink;
 
-    Texture texture;
+    std::atomic<bool> isBuilding = false;
+
+    TextureArray texture;
 
     Shader chunkShader;
     Light light;
@@ -58,7 +70,7 @@ private:
     mutable std::string logMessage;
     std::mutex lock;
 
-
+    void thread_chunk_mesh();
 };
 
 

@@ -4,21 +4,28 @@
 
 #include "World.h"
 
-#include <glm.hpp>
+#include "glm.hpp"
 #include <ranges>
-#include <cglm/util.h>
+#include "cglm/util.h"
 #include <thread>
-#include <ext/matrix_clip_space.hpp>
-#include <ext/matrix_transform.hpp>
+#include "ext/matrix_clip_space.hpp"
+#include "ext/matrix_transform.hpp"
 
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 #include "player/player.h"
 #include "../../logs/Logs.h"
+#include "block/block.h"
 
 World::World(WINDOW* window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"),
-                               player(-1.0f, 0.0f, -1.0f), window(window), logMessage("Creating world\n"), texture("assets/textures/blocks/ikrine_ore.png", 0, "texture1")
-{
+                               player(-1.0f, 0.0f, -1.0f), window(window), logMessage("Creating world\n"), texture("textures") {
+//    texture.addTexture("assets/textures/blocks/ikrine_block.png",10);
+//    texture.addTexture("assets/textures/blocks/ikrine_ore.png",11);
+    texture.addTexture("assets/textures/blocks/stone.png",BlockType::STONE - 1);
+    texture.addTexture("assets/textures/blocks/dirt.png",BlockType::DIRT - 1);
+    texture.addTexture("assets/textures/blocks/deepslate.png",BlockType::DEEPSLATE - 1);
+//    texture.addTexture("assets/textures/blocks/platinum_ore.png",12);
+//    texture.addTexture("assets/textures/blocks/stone_bricks.png",20);
     glfwSetWindowUserPointer(window->OGLwindow, &player);
     create_chunks();
     Logs::log("INFO", logMessage);
@@ -61,11 +68,19 @@ void World::generate_chunks(short part) {
 }
 
 
-void World::build_chunk_mesh()
-{
+void World::build_chunk_mesh() {
     if (chunksToBuild.empty())
         return;
+    if(isBuilding)
+        return;
+    isBuilding = true;
+    std::thread([this]() {
+        thread_chunk_mesh();
+        isBuilding = false;
+    }).detach();
+}
 
+void World::thread_chunk_mesh(){
     std::vector<glm::ivec3> toErase;
 //    Logs::debug(std::to_string(chunksToBuild.size()) + " chunks to build");
 
@@ -79,19 +94,17 @@ void World::build_chunk_mesh()
         glm::ivec3 zPos(pos.x, pos.y, pos.z + 1);
 
         if (
-            (chunksToBuild.contains(xNeg) || chunks.contains(xNeg) || pos.x == 0) &&
-            (chunksToBuild.contains(xPos) || chunks.contains(xPos) || pos.x == WORLD_SIZE - 1) &&
-            (chunksToBuild.contains(yNeg) || chunks.contains(yNeg) || pos.y == 0) &&
-            (chunksToBuild.contains(yPos) || chunks.contains(yPos) || pos.y == WORLD_SIZE - 1) &&
-            (chunksToBuild.contains(zNeg) || chunks.contains(zNeg) || pos.z == 0) &&
-            (chunksToBuild.contains(zPos) || chunks.contains(zPos) || pos.z == WORLD_SIZE - 1)
-        ) {
-            Logs::debug(
-                "Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," +
-                std::to_string(pos.z));
+                (chunksToBuild.contains(xNeg) || chunks.contains(xNeg) || pos.x == 0) &&
+                (chunksToBuild.contains(xPos) || chunks.contains(xPos) || pos.x == WORLD_SIZE - 1) &&
+                (chunksToBuild.contains(yNeg) || chunks.contains(yNeg) || pos.y == 0) &&
+                (chunksToBuild.contains(yPos) || chunks.contains(yPos) || pos.y == WORLD_SIZE - 1) &&
+                (chunksToBuild.contains(zNeg) || chunks.contains(zNeg) || pos.z == 0) &&
+                (chunksToBuild.contains(zPos) || chunks.contains(zPos) || pos.z == WORLD_SIZE - 1)
+                ) {
+
             chunk->build_mesh();
 //            Logs::debug("Adding the chunk in the vector");
-            chunks.emplace(pos, chunk);
+            chunksToLink.emplace(pos, chunk);
 //            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
             toErase.push_back(pos);
 //            Logs::debug("Releasing the lock");
@@ -109,6 +122,21 @@ void World::build_chunk_mesh()
     }
     lock.unlock();
 //    Logs::debug("Finished building chunk meshes");
+}
+
+void World::link_chunk_meshes(){
+    std::vector<glm::ivec3> toErase;
+    if (chunksToLink.empty())
+        return;
+    for (auto& [pos, chunk] : chunksToLink) {
+        chunk->link_mesh();
+        chunks.emplace(pos,chunk);
+        toErase.push_back(pos);
+    }
+    for (auto& pos : toErase)
+    {
+        chunksToLink.erase(pos);
+    }
 }
 
 void World::addChunkToBuild(const glm::ivec3& pos, Chunk * chunk) {
