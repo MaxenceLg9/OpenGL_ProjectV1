@@ -5,9 +5,9 @@
 #ifndef LIGHT_H
 #define LIGHT_H
 
-#include "../../model/mesh/shader/shader.h"
-#include "../../model/mesh/mesh.h"
-#include <glm.hpp>
+#include "../../../display/model/mesh/shader/shader.h"
+#include "../../../display/model/mesh/mesh.h"
+#include "glm.hpp"
 
 class Light {
 public:

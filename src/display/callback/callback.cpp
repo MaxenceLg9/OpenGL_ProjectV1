@@ -1,13 +1,6 @@
-#include <pthread.h>
-#include <unistd.h>
 #include "GLFW/glfw3.h"
 #include <cstdio>
 #include "callback.h"
-
-#include "../../math/math.h"
-
-#include "../world/player/player.h"
-#include "cglm/cglm.h"
 
 float mixValue = 0.5f;
 double angle = 0.0f;
