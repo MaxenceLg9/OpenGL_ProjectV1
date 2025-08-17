@@ -5,7 +5,7 @@
 #ifndef CHUNKMESH_H
 #define CHUNKMESH_H
 
-#include "../../../game/world/World.h"
+#include "../../world/World.h"
 
 class World;
 

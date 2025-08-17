@@ -14,7 +14,7 @@
 #include "GLFW/glfw3.h"
 
 #include "player/player.h"
-#include "../../logs/Logs.h"
+#include "../../../logs/Logs.h"
 #include "block/block.h"
 
 World::World(WINDOW* window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"),

@@ -5,7 +5,7 @@
 #include "player.h"
 #include <cstdio>
 
-#include "../../../math/math.h"
+#include "../../../../math/math.h"
 
 Player::~Player() {
     printf("Destroying player\n");

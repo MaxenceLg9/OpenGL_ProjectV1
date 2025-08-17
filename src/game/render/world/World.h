@@ -14,13 +14,13 @@
 #include <atomic>
 
 #include "chunk/chunk.h"
-#include "../../math/math.h"
+#include "../../../math/math.h"
 #include "player/player.h"
-#include "../../display/model/mesh/shader/shader.h"
+#include "../../render/model/mesh/shader/shader.h"
 #include "light/light.h"
-#include "../../display/window/window.h"
-#include "../../display/callback/callback.h"
-#include "../../display/model/mesh/texture/TextureArray.h"
+#include "../window.h"
+#include "../../render/callback/callback.h"
+#include "../../render/model/mesh/texture/TextureArray.h"
 
 class Chunk;
 

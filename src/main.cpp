@@ -3,12 +3,12 @@
 
 #include <cstdio>
 
-#include "display/callback/callback.h"
-#include "display/window/window.h"
-#include "game/world/chunk/chunk.h"
-#include "display/window/cursor/cursor.h"
-#include "game/world/World.h"
-#include "game/world/light/light.h"
+#include "game/render/callback/callback.h"
+#include "game/render/window.h"
+#include "game/render/world/chunk/chunk.h"
+#include "game/render/gui/cursor/cursor.h"
+#include "game/render/world/World.h"
+#include "game/render/world/light/light.h"
 #include "logs/Logs.h"
 
 
@@ -86,7 +86,7 @@ int main() {
         world.render();
         GLenum err;
         while ((err = glGetError()) != GL_NO_ERROR) {
-            printf("OpenGL error: %x\n", err);
+            Logs::debug("OpenGL error: " + std::to_string(err));
         }
         cursor->drawCursor(window);
 

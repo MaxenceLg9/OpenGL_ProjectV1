@@ -10,15 +10,14 @@
 #include "glm.hpp"
 
 #include "../World.h"
-#include "../../../math/math.h"
 #include "GLAD/glad.h"
 #include <map>
 #include <memory>
 #include <vector>
 #include <mutex>    // for std::mutex
-#include "../../../display/model/mesh/shader/shader.h"
-#include "../../../display/model/mesh/mesh.h"
-#include "../../../display/model/mesh/ChunkMesh.h"
+#include "../../../render/model/mesh/shader/shader.h"
+#include "../../../render/model/mesh/mesh.h"
+#include "../../../render/model/mesh/ChunkMesh.h"
 
 
 

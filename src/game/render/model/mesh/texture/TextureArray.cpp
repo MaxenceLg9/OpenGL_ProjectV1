@@ -6,7 +6,7 @@
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize2.h"
-#include "../../../../logs/Logs.h"
+#include "../../../../../logs/Logs.h"
 #include <string>
 
 TextureArray::TextureArray(const std::string &type) : type(type), texture(0) {

@@ -5,8 +5,8 @@
 #include "chunk.h"
 #include "ext/matrix_transform.hpp"
 #include "gtc/type_ptr.hpp"
-#include "../../../logs/Logs.h"
-#include "../../../display/model/mesh/vertex/Vertex.h"
+#include "../../../../logs/Logs.h"
+#include "../../../render/model/mesh/vertex/Vertex.h"
 #include "../block/block.h"
 
 #include <cmath>

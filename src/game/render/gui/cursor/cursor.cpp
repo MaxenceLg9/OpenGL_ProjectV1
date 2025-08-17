@@ -5,7 +5,7 @@
 #include "cursor.h"
 
 
-#include "../window.h"
+#include "../../window.h"
 #include "../../model/mesh/shader/shader.h"
 #include <ext.hpp>
 

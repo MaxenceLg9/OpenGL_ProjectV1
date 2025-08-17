@@ -6,7 +6,7 @@
 #define CURSOR_H
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
-#include "../window.h"
+#include "../../window.h"
 #include "../../model/mesh/shader/shader.h"
 #include "../../model/mesh/mesh.h"
 

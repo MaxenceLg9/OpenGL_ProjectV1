@@ -5,7 +5,7 @@
 #ifndef CALLBACK_H
 #define CALLBACK_H
 
-#include "../../game/world/player/player.h"
+#include "../world/player/player.h"
 #include "GLFW/glfw3.h"
 
 extern float mixValue;
