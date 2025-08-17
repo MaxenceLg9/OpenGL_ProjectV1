@@ -5,8 +5,8 @@
 #include "light.h"
 
 #include "../World.h"
-#include "../../../math/math.h"
-#include "../../../logs/Logs.h"
+#include "../../../../math/math.h"
+#include "../../../../logs/Logs.h"
 
 Light::Light() : color(1.0f, 1.0f, 1.0f), shader("assets/shaders/light/vertex.vert", "assets/shaders/light/fragment.frag") {
     std::vector<VERTEX> vertices;

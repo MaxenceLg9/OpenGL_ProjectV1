@@ -4,7 +4,7 @@
 
 #include "ChunkMesh.h"
 #include "vertex/Vertex.h"
-#include "../../../logs/Logs.h"
+#include "../../../../logs/Logs.h"
 
 ChunkMesh::ChunkMesh(const World &world, glm::ivec3 chunkPos, uint16_t *blocks) {
     buildMesh(world, chunkPos, blocks);
