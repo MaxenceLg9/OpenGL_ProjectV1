@@ -28,7 +28,7 @@ public:
 
     static void close();
 private:
-    static FILE** file;
+    static FILE* file;
 };
 
 

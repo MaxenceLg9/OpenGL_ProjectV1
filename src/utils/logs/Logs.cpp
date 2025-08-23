@@ -26,7 +26,7 @@ uint64_t get_time_ns() {
 #endif
 
 
-FILE** Logs::file = new FILE*{nullptr};
+FILE* Logs::file = fopen("logs/logs.txt", "w");
 
 void Logs::init() {
     struct stat st{};
@@ -36,16 +36,16 @@ void Logs::init() {
 #else
             mkdir("logs", 755);
 #endif
-    *file = fopen("logs/logs.txt", "w");
-    if (!*file) {
+    file = fopen("logs/logs.txt", "w");
+    if (!file) {
         printf("Failed to open log file\n");
     }
 }
 
 void Logs::log(const std::string &type, const std::string &message)  {
-    if (*file) {
-        fprintf(*file, "%s at %llu : %s\n",type.c_str(), get_time_ns(),message.c_str());
-        fflush(*file);
+    if (file) {
+        fprintf(file, "%s at %llu : %s\n",type.c_str(), get_time_ns(),message.c_str());
+        fflush(file);
     }
 }
 
@@ -54,12 +54,12 @@ void Logs::debug(const std::string &message)
     // printf with date at format dd/mm/yyyy hh:mm:ss
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    printf("[%d-%02d-%02d %02d:%02d:%02d], from thread %llu : %s,\n" ,tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, pthread_self(), message.c_str());
+    printf("[%d-%02d-%02d %02d:%02d:%02d], from thread %llu : %s\n" ,tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, pthread_self(), message.c_str());
 }
 
 void Logs::close()  {
-    if (*file) {
-        fclose(*file);
-        *file = nullptr;
+    if (file) {
+        fclose(file);
+        file = nullptr;
     }
 }
