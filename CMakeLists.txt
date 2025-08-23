@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED  ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../src/)
 set(SOURCE_FILES
         src/main.cpp
-        src/game/render/model/mesh/shader/shader.cpp
-        src/game/render/model/mesh/shader/shader.h
-        src/game/render/model/mesh/texture/textures.cpp
-        src/game/render/model/mesh/texture/textures.h
+        src/game/render/mesh/shader/shader.cpp
+        src/game/render/mesh/shader/shader.h
+        src/game/render/mesh/texture/textures.cpp
+        src/game/render/mesh/texture/textures.h
         src/game/render/callback/callback.cpp
         src/game/render/callback/callback.h
         src/game/render/world/player/player.cpp
@@ -22,26 +22,26 @@ set(SOURCE_FILES
         src/game/render/world/chunk/chunk.h
         src/game/render/world/block/block.cpp
         src/game/render/world/block/block.h
-        src/game/render/model/model.h
-        src/game/render/model/mesh/mesh.h
-        src/game/render/model/model.cpp
-        src/game/render/model/mesh/mesh.cpp
+        src/game/render/mesh/mesh.h
+        src/game/render/mesh/mesh.cpp
         src/game/render/gui/cursor/cursor.cpp
         src/game/render/gui/cursor/cursor.h
         src/game/render/world/light/light.cpp
         src/game/render/world/light/light.h
         src/game/render/world/World.cpp
         src/game/render/world/World.h
-        src/logs/Logs.cpp
-        src/logs/Logs.h
-        src/game/render/model/mesh/vertex/Vertex.h
-        src/game/render/model/mesh/vertex/Vertex.cpp
-        src/game/render/model/mesh/ChunkMesh.cpp
-        src/game/render/model/mesh/ChunkMesh.h
+        src/utils/logs/Logs.cpp
+        src/utils/logs/Logs.h
+        src/game/render/mesh/vertex/Vertex.h
+        src/game/render/mesh/vertex/Vertex.cpp
+        src/game/render/mesh/ChunkMesh.cpp
+        src/game/render/mesh/ChunkMesh.h
         src/configs/Configs.cpp
         src/configs/Configs.h
-        src/game/render/model/mesh/texture/TextureArray.cpp
-        src/game/render/model/mesh/texture/TextureArray.h
+        src/game/render/mesh/texture/TextureArray.cpp
+        src/game/render/mesh/texture/TextureArray.h
+        src/utils/OpenGL/OpenGL.cpp
+        src/utils/OpenGL/OpenGL.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)
