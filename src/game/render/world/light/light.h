@@ -5,8 +5,10 @@
 #ifndef LIGHT_H
 #define LIGHT_H
 
-#include "../../../render/model/mesh/shader/shader.h"
-#include "../../../render/model/mesh/mesh.h"
+#include "../../../render/mesh/shader/shader.h"
+#include "../../../render/mesh/vertex/Vertex.h"
+#include "../../../render/mesh/mesh.h"
+#include <vector>
 #include "glm.hpp"
 
 class Light {

@@ -7,17 +7,17 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "../../window.h"
-#include "../../model/mesh/shader/shader.h"
-#include "../../model/mesh/mesh.h"
+#include "../../../../utils/logs/Logs.h"
+#include "../../mesh/shader/shader.h"
+#include "../../mesh/mesh.h"
+#include "../../mesh/vertex/Vertex.h"
 
 
 class Cursor {
 public:
     void drawCursor(WINDOW w);
     Cursor();
-    ~Cursor() {
-        printf("Destroying cursor\n");
-    }
+    ~Cursor();
 
     static std::vector<VERTEX> vertices();
 

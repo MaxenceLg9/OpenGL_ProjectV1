@@ -6,9 +6,10 @@
 
 #include "../World.h"
 #include "../../../../math/math.h"
-#include "../../../../logs/Logs.h"
+#include "../../../../utils/logs/Logs.h"
 
 Light::Light() : color(1.0f, 1.0f, 1.0f), shader("assets/shaders/light/vertex.vert", "assets/shaders/light/fragment.frag") {
+    Logs::debug("Creating light");
     std::vector<VERTEX> vertices;
     std::vector<unsigned int> indices;
     build_mesh(vertices,indices);

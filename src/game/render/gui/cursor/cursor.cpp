@@ -6,13 +6,18 @@
 
 
 #include "../../window.h"
-#include "../../model/mesh/shader/shader.h"
+#include "../../mesh/shader/shader.h"
 #include <ext.hpp>
 
 
 
 Cursor::Cursor() : shader("assets/shaders/cursor/vertex.vert", "assets/shaders/cursor/fragment.frag"),
                    mesh(Cursor::vertices(),indices(),std::vector<TEXTURE>()) {
+}
+
+Cursor::~Cursor()
+{
+    Logs::debug("Destroying cursor");
 }
 
 std::vector<VERTEX> Cursor::vertices() {

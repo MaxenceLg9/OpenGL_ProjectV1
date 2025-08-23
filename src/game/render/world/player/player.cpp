@@ -6,9 +6,10 @@
 #include <cstdio>
 
 #include "../../../../math/math.h"
+#include "../../../../utils/logs/Logs.h"
 
 Player::~Player() {
-    printf("Destroying player\n");
+    Logs::debug("Destroying player");
 }
 
 
