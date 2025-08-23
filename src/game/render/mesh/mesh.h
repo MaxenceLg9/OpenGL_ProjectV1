@@ -10,12 +10,7 @@
 #include "shader/shader.h"
 #include "glm.hpp"
 #include "texture/textures.h"
-
-typedef struct {
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::ivec2 TexCoords;
-} VERTEX;
+#include "vertex/Vertex.h"
 
 
 class Mesh {

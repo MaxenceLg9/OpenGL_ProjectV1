@@ -10,11 +10,14 @@
 
 #include <glad/glad.h>
 #include <string>
+
+#include "../../../../utils/logs/Logs.h"
 #include "../shader/shader.h"
 
 class TextureArray {
 public:
     explicit TextureArray(const std::string &type);
+    ~TextureArray();
     void addTexture(const std::string& filename, int index);
 
     void use_textures(const Shader &shader) const;

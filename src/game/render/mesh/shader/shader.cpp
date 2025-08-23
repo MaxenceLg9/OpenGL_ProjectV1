@@ -6,6 +6,9 @@
 #include <glad/glad.h>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
+
+#include "../../../../utils/logs/Logs.h"
 
 Shader::Shader(const char *vertexPath, const char *fragmentPath) {
 
@@ -40,6 +43,7 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
 
 Shader::~Shader() {
     glDeleteProgram(this->id);
+    Logs::debug("Destroying shader " + std::to_string(this->id));
 }
 
 void Shader::readFile(char **buffer, const char *filename) {

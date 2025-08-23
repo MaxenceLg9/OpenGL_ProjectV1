@@ -6,7 +6,7 @@
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize2.h"
-#include "../../../../../logs/Logs.h"
+#include "../../../../utils/logs/Logs.h"
 #include <string>
 
 TextureArray::TextureArray(const std::string &type) : type(type), texture(0) {
@@ -18,6 +18,11 @@ TextureArray::TextureArray(const std::string &type) : type(type), texture(0) {
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 // Allocate the storage.
     glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, TEXTURE_SIZE, TEXTURE_SIZE, TEXTURE_ARRAY_SIZE);
+}
+
+TextureArray::~TextureArray()
+{
+    Logs::debug("Destroying texture array " + type);
 }
 
 void TextureArray::addTexture(const std::string& filename, int index){
@@ -41,6 +46,7 @@ void TextureArray::addTexture(const std::string& filename, int index){
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, index, TEXTURE_SIZE, TEXTURE_SIZE, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
 
     stbi_image_free(data);
 }
