@@ -16,14 +16,15 @@
 #include "chunk/chunk.h"
 #include "../../../math/math.h"
 #include "player/player.h"
-#include "../../render/model/mesh/shader/shader.h"
+#include "../../render/mesh/shader/shader.h"
 #include "light/light.h"
 #include "../window.h"
 #include "../../render/callback/callback.h"
-#include "../../render/model/mesh/texture/TextureArray.h"
+#include "../../render/mesh/texture/TextureArray.h"
 
 class Chunk;
 
+class ChunkMesh;
 
 class World {
 public:
@@ -41,36 +42,26 @@ public:
 
     void tick(double deltaTime);
 
-    void addChunkToBuild(const glm::ivec3 &pos, Chunk *chunk);
-
-    void addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks);
-
-    /**
-     * After building the chunk mesh asynchronously, needs to be linked with openGL from main thread
-     * Links all chunk meshes that are ready to be linked.
-     */
-    void link_chunk_meshes();
-
 private:
 
     void create_chunks();
 
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunks;
-    std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToBuild;
-    std::map<glm::ivec3, Chunk *,IVec3Compare> chunksToLink;
+
+    std::map<glm::ivec3, ChunkMesh *, IVec3Compare> meshes;
 
     std::atomic<bool> isBuilding = false;
 
     TextureArray texture;
 
     Shader chunkShader;
-    Light light;
+    // Light light;
     Player player;
     WINDOW *window;
     mutable std::string logMessage;
 
-    std::mutex buildLock;
-    std::mutex linkLock;
+    std::mutex meshesLock;
+    std::mutex chunksLock;
 
     void thread_chunk_mesh();
 };

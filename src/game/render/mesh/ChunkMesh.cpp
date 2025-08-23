@@ -4,17 +4,25 @@
 
 #include "ChunkMesh.h"
 #include "vertex/Vertex.h"
-#include "../../../../logs/Logs.h"
+#include "../../../utils/logs/Logs.h"
 
 ChunkMesh::ChunkMesh(const World &world, glm::ivec3 chunkPos, uint16_t *blocks) {
+    linked = false;
     buildMesh(world, chunkPos, blocks);
 }
 
 void ChunkMesh::link() {
+    Logs::debug("Linking chunks mesh");
     setupMesh();
     bindData();
+    linked = true;
     delete vertices;
     delete indices;
+}
+
+bool ChunkMesh::is_linked() const
+{
+    return linked;
 }
 
 void ChunkMesh::setupMesh() {
@@ -144,7 +152,8 @@ void ChunkMesh::draw() const {
     glBindVertexArray(0);
 }
 
-int ChunkMesh::addData(uint64_t *v, int index) {
+int ChunkMesh::addData(const uint64_t *v, const int index) const
+{
 
     for (int i = 0; i < 4; ++i) {
         vertices->push_back((uint32_t)(v[i] >> 32));        // High 32 bits

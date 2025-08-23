@@ -15,9 +15,8 @@
 #include <memory>
 #include <vector>
 #include <mutex>    // for std::mutex
-#include "../../../render/model/mesh/shader/shader.h"
-#include "../../../render/model/mesh/mesh.h"
-#include "../../../render/model/mesh/ChunkMesh.h"
+#include "../../../render/mesh/shader/shader.h"
+#include "../../../render/mesh/ChunkMesh.h"
 
 
 
@@ -32,23 +31,18 @@ public:
 
     ~Chunk();
 
-    void render() const;
-
-    void build_mesh();
+    ChunkMesh* build_mesh();
 
     uint16_t getBlockAt(glm::ivec3 blockPos) const;
 
-    void link_mesh();
-
 private:
     uint16_t blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
-    ChunkMesh *mesh;
     World *world;
     glm::ivec3 chunkPos;
 
     void generate_chunk();
 
-    int generate_block(int y);
+    static int generate_block(int y);
 
     glm::ivec3 getChunkPos() const;
 };

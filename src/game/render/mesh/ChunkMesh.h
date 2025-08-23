@@ -5,7 +5,7 @@
 #ifndef CHUNKMESH_H
 #define CHUNKMESH_H
 
-#include "../../world/World.h"
+#include "../world/World.h"
 
 class World;
 
@@ -17,13 +17,19 @@ public:
 
     void buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_t *blocks);
 
-    void draw() const;
-
+    /**
+     * After building the chunk mesh asynchronously, needs to be linked with openGL from main thread
+     * Links all chunk meshes that are ready to be linked.
+     */
     void link();
+
+    bool is_linked() const;
+
+    void draw() const;
 
 private:
 
-    int addData(uint64_t *v, int index);
+    int addData(const uint64_t *v, int index) const;
 
     void bindData() const;
 
@@ -34,6 +40,8 @@ private:
     unsigned int VAO, VBO, EBO, nbIndices;
     std::vector<uint32_t> *vertices;
     std::vector<unsigned int> *indices;
+
+    bool linked;
 };
 
 #endif //CHUNKMESH_H

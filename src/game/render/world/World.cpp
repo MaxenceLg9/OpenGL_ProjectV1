@@ -14,18 +14,20 @@
 #include "GLFW/glfw3.h"
 
 #include "player/player.h"
-#include "../../../logs/Logs.h"
+#include "../../../utils/logs/Logs.h"
 #include "block/block.h"
 
-World::World(WINDOW* window) : chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"),
-                               player(-1.0f, 0.0f, -1.0f), window(window), logMessage("Creating world\n"), texture("textures") {
-//    texture.addTexture("assets/textures/blocks/ikrine_block.png",10);
-//    texture.addTexture("assets/textures/blocks/ikrine_ore.png",11);
-    texture.addTexture("assets/textures/blocks/stone.png",BlockType::STONE - 1);
-    texture.addTexture("assets/textures/blocks/dirt.png",BlockType::DIRT - 1);
-    texture.addTexture("assets/textures/blocks/deepslate.png",BlockType::DEEPSLATE - 1);
-//    texture.addTexture("assets/textures/blocks/platinum_ore.png",12);
-//    texture.addTexture("assets/textures/blocks/stone_bricks.png",20);
+World::World(WINDOW* window) : texture("textures"),
+                               chunkShader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag"), player(-1.0f, 0.0f, -1.0f), window(window),
+                               logMessage("Creating world\n")
+{
+    //    texture.addTexture("assets/textures/blocks/ikrine_block.png",10);
+    //    texture.addTexture("assets/textures/blocks/ikrine_ore.png",11);
+    texture.addTexture("assets/textures/blocks/stone.png", BlockType::STONE - 1);
+    texture.addTexture("assets/textures/blocks/dirt.png", BlockType::DIRT - 1);
+    texture.addTexture("assets/textures/blocks/deepslate.png", BlockType::DEEPSLATE - 1);
+    //    texture.addTexture("assets/textures/blocks/platinum_ore.png",12);
+    //    texture.addTexture("assets/textures/blocks/stone_bricks.png",20);
     glfwSetWindowUserPointer(window->OGLwindow, &player);
     create_chunks();
     Logs::log("INFO", logMessage);
@@ -40,52 +42,65 @@ void World::create_chunks()
         "World size: " + std::to_string(WORLD_SIZE) + "x" + std::to_string(WORLD_SIZE) + "x" +
         std::to_string(WORLD_SIZE) + "\n");
     Logs::debug("Render distance : " + std::to_string(WORLD_SIZE) + " chunks");
-    for (short i  = 0; i < WORLD_THREADS; i++) {
+    for (short i = 0; i < WORLD_THREADS; i++)
+    {
         std::thread(&World::generate_chunks, this, i).detach();
     }
-
 }
 
-void World::generate_chunks(short part) {
+void World::generate_chunks(short part)
+{
     time_t t = time(nullptr);
     int totalChunks = WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
     int chunkPerThread = (totalChunks + WORLD_THREADS - 1) / WORLD_THREADS;
-    std::map<glm::ivec3, Chunk *, IVec3Compare> localChunks;
+    std::map<glm::ivec3, Chunk*, IVec3Compare> localChunks;
 
     int startIndex = part * chunkPerThread;
-    int endIndex   = startIndex + chunkPerThread > totalChunks ? totalChunks : startIndex + chunkPerThread;
-    for (int index = startIndex; index < endIndex; index++) {
+    int endIndex = startIndex + chunkPerThread > totalChunks ? totalChunks : startIndex + chunkPerThread;
+    for (int index = startIndex; index < endIndex; index++)
+    {
         int i = index / (WORLD_SIZE * WORLD_SIZE);
         int j = (index / WORLD_SIZE) % WORLD_SIZE;
         int k = index % WORLD_SIZE;
 
-//        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
+        //        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
         localChunks.emplace(glm::ivec3(i, j, k), new Chunk(glm::ivec3(i, j, k), this));
     }
-    addChunksToBuild(&localChunks);
-    Logs::debug("Thread " + std::to_string(part + 1) + " finished generating chunks in " + std::to_string(time(nullptr) - t) + " seconds\n" +
-                        " generated from " + std::to_string(startIndex) + " to " + std::to_string(endIndex) + " chunks");
+    this->chunksLock.lock();
+    for (auto& [pos,chunk] : localChunks)
+    {
+        chunks.emplace(pos,chunk);
+    }
+    chunksLock.unlock();
+    Logs::debug(
+        "Thread " + std::to_string(part + 1) + " finished generating chunks in " + std::to_string(time(nullptr) - t) +
+        " seconds\n" +
+        " generated from " + std::to_string(startIndex) + " to " + std::to_string(endIndex) + " chunks");
 }
 
 
-void World::build_chunk_mesh() {
-    if (chunksToBuild.empty())
+void World::build_chunk_mesh()
+{
+    if (chunks.empty())
         return;
-    if(isBuilding)
+    if (isBuilding)
         return;
     isBuilding = true;
-    std::thread([this]() {
+    std::thread([this]()
+    {
         thread_chunk_mesh();
         isBuilding = false;
     }).detach();
 }
 
-void World::thread_chunk_mesh(){
+void World::thread_chunk_mesh()
+{
     std::vector<glm::ivec3> toErase;
-//    Logs::debug(std::to_string(chunksToBuild.size()) + " chunks to build");
+    //    Logs::debug(std::to_string(chunksToBuild.size()) + " chunks to build");
 
-    for (auto& [pos, chunk] : chunksToBuild) {
-//        logMessage.append("Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
+    for (auto& [pos, chunk] : chunks)
+    {
+        //        logMessage.append("Building mesh for chunk at position: " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
         glm::ivec3 xNeg(pos.x - 1, pos.y, pos.z);
         glm::ivec3 xPos(pos.x + 1, pos.y, pos.z);
         glm::ivec3 yNeg(pos.x, pos.y - 1, pos.z);
@@ -94,100 +109,65 @@ void World::thread_chunk_mesh(){
         glm::ivec3 zPos(pos.x, pos.y, pos.z + 1);
 
         if (
-                (chunksToBuild.contains(xNeg) || chunks.contains(xNeg) || pos.x == 0) &&
-                (chunksToBuild.contains(xPos) || chunks.contains(xPos) || pos.x == WORLD_SIZE - 1) &&
-                (chunksToBuild.contains(yNeg) || chunks.contains(yNeg) || pos.y == 0) &&
-                (chunksToBuild.contains(yPos) || chunks.contains(yPos) || pos.y == WORLD_SIZE - 1) &&
-                (chunksToBuild.contains(zNeg) || chunks.contains(zNeg) || pos.z == 0) &&
-                (chunksToBuild.contains(zPos) || chunks.contains(zPos) || pos.z == WORLD_SIZE - 1)
-                ) {
-
-            chunk->build_mesh();
-//            Logs::debug("Adding the chunk in the vector");
-            linkLock.lock();
-            chunksToLink.emplace(pos, chunk);
-            linkLock.unlock();
-//            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
+            (chunks.contains(xNeg) || pos.x == 0) &&
+            (chunks.contains(xPos) || pos.x == WORLD_SIZE - 1) &&
+            (chunks.contains(yNeg) || pos.y == 0) &&
+            (chunks.contains(yPos) || pos.y == WORLD_SIZE - 1) &&
+            (chunks.contains(zNeg) || pos.z == 0) &&
+            (chunks.contains(zPos) || pos.z == WORLD_SIZE - 1)
+        )
+        {
+            //            Logs::debug("Adding the chunk in the vector");
+            meshesLock.lock();
+            meshes.emplace(pos,chunk->build_mesh());
+            meshesLock.unlock();
+            //            Logs::debug("Pushing the pos value to remove the chunk from chunksToBuild after the loop");
             toErase.push_back(pos);
-//            Logs::debug("Releasing the buildLock");
+            //            Logs::debug("Releasing the buildLock");
             break;
         }
         // Logs::debug("Skipping chunk mesh building for the chunk at pos : " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + "\n");
     }
-//    Logs::debug("Locking the mutex to remove the chunk from chunksToBuild");
+    //    Logs::debug("Locking the mutex to remove the chunk from chunksToBuild");
     if (toErase.empty())
         return;
-    buildLock.lock();
-    for (auto& pos : toErase)
-    {
-        chunksToBuild.erase(pos);
-    }
-    buildLock.unlock();
-//    Logs::debug("Finished building chunk meshes");
+    //    Logs::debug("Finished building chunk meshes");
 }
 
-void World::link_chunk_meshes(){
-    std::vector<glm::ivec3> toErase;
-    if (chunksToLink.empty())
-        return;
-    Logs::debug("Linking meshes");
-    for (auto& [pos, chunk] : chunksToLink) {
-        chunk->link_mesh();
-        chunks.emplace(pos,chunk);
-        toErase.push_back(pos);
-    }
-    Logs::debug("Removing chunks");
-    linkLock.lock();
-    for (auto& pos : toErase) {
-        chunksToLink.erase(pos);
-    }
-    linkLock.unlock();
-}
-
-void World::addChunkToBuild(const glm::ivec3& pos, Chunk * chunk) {
-    if (chunksToBuild.contains(pos) || chunks.contains(pos))
-        Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
-    buildLock.lock();
-    chunksToBuild.emplace(pos, chunk);
-    buildLock.unlock();
-}
-
-void World::addChunksToBuild(std::map<glm::ivec3, Chunk *, IVec3Compare> *localChunks) {
-    buildLock.lock();
-    for (const auto& [pos, chunk] : *localChunks) {
-        if (chunksToBuild.contains(pos) || chunks.contains(pos))
-            Logs::debug("Chunk at position " + std::to_string(pos.x) + "," + std::to_string(pos.y) + "," + std::to_string(pos.z) + " already exists");
-        chunksToBuild.emplace(pos, chunk);
-    }
-    buildLock.unlock();
-}
-
-World::~World() {
+World::~World()
+{
     Logs::debug("Destroying world and releasing chunks");
     for (const auto& chunk : chunks | std::views::values)
     {
         delete chunk; // Free the ChunkMesh
     }
+    for (const auto& mesh : meshes | std::views::values)
+    {
+        delete mesh; // Free the ChunkMesh
+    }
     window = nullptr;
+    Logs::debug("World destroyed");
 }
 
-void World::render() const {
-//    Logs::debug("Rendering world");
+void World::render() const
+{
+    //    Logs::debug("Rendering world");
     glm::vec3 cameraPos(player.getCoords());
     glm::vec3 cameraTarget = cameraPos + player.getDirection();
 
     // build view matrix
     glm::mat4 view = glm::lookAt(cameraPos, cameraTarget, player.getUp());
-    glm::mat4 projection = glm::perspective(glm_rad(player.getFov()), (float)window->width / (float)window->height,0.01f, 1000.0f);
+    glm::mat4 projection = glm::perspective(glm_rad(player.getFov()), (float)window->width / (float)window->height,
+                                            0.01f, 1000.0f);
     glm::mat4 pro_view = projection * view;
 
     glDepthFunc(GL_LESS);
-    light.render(pro_view, player.getCoords() + glm::vec3(0.0f, 100.0f, 0.0f));
+    // light.render(pro_view, player.getCoords() + glm::vec3(0.0f, 100.0f, 0.0f));
 
     chunkShader.use();
     texture.use_textures(chunkShader);
     // camera/view transformation
-//    glm::vec3 color = light.getColor();
+    //    glm::vec3 color = light.getColor();
     glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); // Default color for debugging
     chunkShader.setVec3("color", color.x, color.y, color.z);
     int n = 0;
@@ -197,12 +177,15 @@ void World::render() const {
         {
             for (int k = 0; k < WORLD_SIZE; k++)
             {
-                if (!chunks.contains(glm::ivec3(i, j, k)))
+                if (!meshes.contains(glm::ivec3(i, j, k)))
                     continue;
+                ChunkMesh *mesh = meshes.at(glm::ivec3(i, j, k));
+                if (!mesh->is_linked())
+                    mesh->link();
                 glm::mat4 model(1.0f);
                 model = glm::translate(model, glm::vec3(i, j, k) * (float)CHUNK_SIZE);
                 chunkShader.setMatrix4fv("p_v_m", glm::value_ptr(pro_view * model));
-                chunks.at(glm::ivec3(i, j, k))->render();
+                mesh->draw();
                 n++;
             }
         }
@@ -216,20 +199,18 @@ int World::getBlockAt(const glm::ivec3 ipos) const
     glm::ivec3 blockPos(ipos.x % CHUNK_SIZE, ipos.y % CHUNK_SIZE, ipos.z % CHUNK_SIZE);
 
     // Check if the chunk exists
-    if (!chunks.contains(chunkPos) && !chunksToBuild.contains(chunkPos))
+    if (!chunks.contains(chunkPos))
     {
         return 0; // Return 0 for empty space
     }
     //    logMessage.append("Block position out of bounds: " + std::to_string(ipos.x) + "," + std::to_string(ipos.y) + "," + std::to_string(ipos.z) + " : " + std::to_string(world.at(chunkPos)->getBlockAt(blockPos)) + "\n");
-    if (chunks.contains(chunkPos))
-        return chunks.at(chunkPos)->getBlockAt(blockPos);
-    return chunksToBuild.at(chunkPos)->getBlockAt(blockPos);
+    return chunks.at(chunkPos)->getBlockAt(blockPos);
 }
 
 void World::tick(const double deltaTime)
 {
     player.setDeltaTime(deltaTime);
-//    light.setColor(glfwGetTime());
-    light.setColor(100);
+    //    light.setColor(glfwGetTime());
+    // light.setColor(100);
     handleKeysPressed(window->OGLwindow, &player);
 }
