@@ -9,7 +9,8 @@
 #include "game/render/gui/cursor/cursor.h"
 #include "game/render/world/World.h"
 #include "game/render/world/light/light.h"
-#include "logs/Logs.h"
+#include "utils/logs/Logs.h"
+#include "utils/OpenGL/OpenGL.h"
 
 
 WINDOW window;
@@ -62,43 +63,42 @@ int main() {
 
     // Shader shader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag");
 
+    check_opengl_error("main1");
 
     glEnable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT,GL_FILL);
+    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW); // Counter-clockwise is front
     glCullFace(GL_BACK); // Cull back faces
+    check_opengl_error("main2");
 
-    World world(&window);
-    auto *cursor = new Cursor();
+    const auto world = new World(&window);
+    const auto cursor = new Cursor();
 
     double lastFrame(glfwGetTime()); // Time of last frame
     while (!glfwWindowShouldClose(window.OGLwindow)) {
-        double currentFrame = glfwGetTime();
+        const double currentFrame = glfwGetTime();
 
-        world.tick(currentFrame - lastFrame);
+        world->tick(currentFrame - lastFrame);
         lastFrame = currentFrame;
         glClearColor(0.15f, 0.65f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        world.build_chunk_mesh(); // Build chunks that are ready
-        world.link_chunk_meshes();
-        world.render();
-        GLenum err;
-        while ((err = glGetError()) != GL_NO_ERROR) {
-            Logs::debug("OpenGL error: " + std::to_string(err));
-        }
+        world->build_chunk_mesh(); // Build chunks that are ready
+        world->render();
+        // Checking for OpenGL errors after each loop
+        check_opengl_error("loop");
         cursor->drawCursor(window);
 
         glfwSwapBuffers(window.OGLwindow);
         glfwPollEvents();
     }
-
-    printf("End\n");
     glfwSetWindowUserPointer(window.OGLwindow,nullptr);
+    delete cursor;
+    delete world;
     glfwDestroyWindow(window.OGLwindow);
     glfwTerminate();
-    delete cursor;
     Logs::close();
+    Logs::debug("Ending program");
     return 0;
 }
