@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vec3.hpp>
 
 #include "../../../../utils/logs/Logs.h"
 
@@ -100,6 +101,10 @@ void Shader::setVec2(const char *name, const float v1,const float v2) const {
 
 void Shader::setVec3(const char *name, float v1, float v2,float v3) const {
     glUniform3f(glGetUniformLocation(this->id, name),v1, v2,v3);
+}
+
+void Shader::setVec3(const char *name, const glm::vec3 &value) const {
+    glUniform3f(glGetUniformLocation(this->id, name),value.x, value.y,value.z);
 }
 
 void Shader::setVec4(const char *name, const float v1,const float v2, const float v3, const float v4) const {

@@ -1,5 +1,6 @@
 #ifndef SHADER_H
 #define SHADER_H
+#include <vec3.hpp>
 
 
 class Shader{
@@ -18,6 +19,8 @@ public:
     void setVec2(const char *name, float v1, float v2) const;
 
     void setVec3(const char *name, float v1, float v2,float v3) const;
+
+    void setVec3(const char *name, const glm::vec3 &value) const;
 
     void setVec4(const char *name, float v1, float v2, float v3, float v4) const;
 
