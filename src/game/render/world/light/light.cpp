@@ -21,7 +21,7 @@ glm::vec3 Light::getColor() const {
 }
 
 Light::~Light() {
-    printf("Releasing Mesh %p\n", mesh);
+    Logs::debug("Releasing Mesh");
     delete mesh;
 }
 
@@ -53,11 +53,8 @@ int Light::addData(std::vector<VERTEX> &vertex, std::vector<unsigned int> &indic
     return index + 4;
 }
 
-void Light::setColor(double deltaTime) {
-    double speed = 2.0; // Speed of oscillation
-    color.r = (float) (sin(deltaTime * speed) + 1.0) / 2.0f; // Red oscillates between 0 and 1
-    color.g = (float) (sin(deltaTime * speed + glm::pi<double>() / 2) + 1.0) / 2.0f; // Green offset by 90 degrees
-    color.b = (float) (sin(deltaTime * speed + glm::pi<double>()) + 1.0) / 2.0f; // Blue offset by 180 degrees
+void Light::setColor(const glm::vec3 color) {
+    this->color = color;
 }
 
 void Light::build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int> &indices) {
@@ -65,52 +62,52 @@ void Light::build_mesh(std::vector<VERTEX> &vertexdata, std::vector<unsigned int
     int x = 0, y = 0, z = 0;
     VERTEX v[4];
     //front face
-    v[0].Position = glm::vec3(x, y, z + 10);
-    v[1].Position = glm::vec3(x, y + 10, z + 10);
-    v[2].Position = glm::vec3(x + 10, y + 10, z + 10);
-    v[3].Position = glm::vec3(x + 10, y, z + 10);
+    v[0].Position = glm::vec3(x, y, z + SIZE);
+    v[1].Position = glm::vec3(x, y + SIZE, z + SIZE);
+    v[2].Position = glm::vec3(x + SIZE, y + SIZE, z + SIZE);
+    v[3].Position = glm::vec3(x + SIZE, y, z + SIZE);
 
     index = addData(vertexdata, indices, v, index);
 
     // back face
     v[0].Position = glm::vec3(x, y, z);
-    v[1].Position = glm::vec3(x + 10, y, z);
-    v[2].Position = glm::vec3(x + 10, y + 10, z);
-    v[3].Position = glm::vec3(x, y + 10, z);
+    v[1].Position = glm::vec3(x + SIZE, y, z);
+    v[2].Position = glm::vec3(x + SIZE, y + SIZE, z);
+    v[3].Position = glm::vec3(x, y + SIZE, z);
 
     index = addData(vertexdata, indices, v, index);
     //top face
     // format: x, y, z, voxel_id, face_id, ao_id,
-    v[0].Position = glm::vec3(x, y + 10, z);
-    v[1].Position = glm::vec3(x + 10, y + 10, z);
-    v[2].Position = glm::vec3(x + 10, y + 10, z + 10);
-    v[3].Position = glm::vec3(x, y + 10, z + 10);
+    v[0].Position = glm::vec3(x, y + SIZE, z);
+    v[1].Position = glm::vec3(x + SIZE, y + SIZE, z);
+    v[2].Position = glm::vec3(x + SIZE, y + SIZE, z + SIZE);
+    v[3].Position = glm::vec3(x, y + SIZE, z + SIZE);
 
     index = addData(vertexdata, indices, v, index);
 
     // bottom face
     v[0].Position = glm::vec3(x, y, z);
-    v[3].Position = glm::vec3(x + 10, y, z);
-    v[2].Position = glm::vec3(x + 10, y, z + 10);
-    v[1].Position = glm::vec3(x, y, z + 10);
+    v[3].Position = glm::vec3(x + SIZE, y, z);
+    v[2].Position = glm::vec3(x + SIZE, y, z + SIZE);
+    v[1].Position = glm::vec3(x, y, z + SIZE);
 
     index = addData(vertexdata, indices, v, index);
 
     // right face
 
-    v[0].Position = glm::vec3(x + 10, y, z);
-    v[3].Position = glm::vec3(x + 10, y + 10, z);
-    v[2].Position = glm::vec3(x + 10, y + 10, z + 10);
-    v[1].Position = glm::vec3(x + 10, y, z + 10);
+    v[0].Position = glm::vec3(x + SIZE, y, z);
+    v[3].Position = glm::vec3(x + SIZE, y + SIZE, z);
+    v[2].Position = glm::vec3(x + SIZE, y + SIZE, z + SIZE);
+    v[1].Position = glm::vec3(x + SIZE, y, z + SIZE);
 
     index = addData(vertexdata, indices, v, index);
 
 
     // left face
     v[0].Position = glm::vec3(x, y, z);
-    v[1].Position = glm::vec3(x, y + 10, z);
-    v[2].Position = glm::vec3(x, y + 10, z + 10);
-    v[3].Position = glm::vec3(x, y, z + 10);
+    v[1].Position = glm::vec3(x, y + SIZE, z);
+    v[2].Position = glm::vec3(x, y + SIZE, z + SIZE);
+    v[3].Position = glm::vec3(x, y, z + SIZE);
 
     addData(vertexdata, indices, v, index);
 
