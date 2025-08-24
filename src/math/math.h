@@ -20,16 +20,15 @@ struct IVec3Compare {
 };
 
 namespace Utils {
-
     inline float max(float a, float b) {
-        if(a > b) {
+        if (a > b) {
             return a;
         }
         return b;
     }
 
     inline float min(float a, float b) {
-        if(a < b) {
+        if (a < b) {
             return a;
         }
         return b;
@@ -47,33 +46,33 @@ namespace Utils {
         return t * pow(frequency, -H);
     }
 
-    inline float valley(float x){
-        return 1.f/(0.2f * powf(4,(sinf((x) / 15.f) * 2.f + 0.1f)));
+    inline float valley(float x) {
+        return 1.f / (0.2f * powf(4, (sinf((x) / 15.f) * 2.f + 0.1f)));
     }
 
-    inline float mountain(float x){
-        return 0.1f * powf(4,sinf(glm::perlin(glm::vec3(x * 0.01f,x * 0.01f,0.0f))) * 2.f + 5);
+    inline float mountain(float x) {
+        return 0.1f * powf(4, sinf(glm::perlin(glm::vec3(x * 0.01f, x * 0.01f, 0.0f))) * 2.f + 5);
     }
 
-    inline float terrain2(float x, float y){
-        return Utils::valley(x) * glm::perlin(glm::vec2(x,y) * 0.01f);
+    inline float terrain2(float x, float y) {
+        return Utils::valley(x) * glm::perlin(glm::vec2(x, y) * 0.01f);
     }
 
-    inline double noised_terrain_default(float x, float y) {
+    inline double noised_terrain_default(int x, int y) {
         float ret = 0.0;
         float frequency = 0.005f;
         for (int i = 0; i < 4; i++) {
-            ret += (float) Utils::alpha(ret, i) * glm::perlin(glm::vec3((float)x * frequency, (float)y * frequency, 0.0));
+            ret += (float)Utils::alpha(ret, i) *
+                glm::perlin(glm::vec3((float)x * frequency, (float)y * frequency, 0.0));
             frequency *= 2.0;
         }
         return ret;
     }
 
-    inline double terrain(float x, float y) {
-//        return noised_terrain_default(x,y) * Utils::mountain(x + y) + 200;
-        return powf(5,noised_terrain_default(x,y) * 5.f + 1);
+    inline double terrain(int x, int y) {
+        //        return noised_terrain_default(x,y) * Utils::mountain(x + y) + 200;
+        return pow(5, noised_terrain_default(x, y) * 5.f + 1);
     }
-
 }
 
 #endif //MATH_H
