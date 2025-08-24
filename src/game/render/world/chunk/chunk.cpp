@@ -27,7 +27,7 @@ void Chunk::generate_chunk(){
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int z = 0; z < CHUNK_SIZE; z++) {
             int blockX = x + chunkPos.x * CHUNK_SIZE, blockZ = z + chunkPos.z * CHUNK_SIZE;
-            int maxH = Utils::noised_terrain_default(blockX,blockZ) * 200.f + 200.f;
+            int maxH = Utils::noised_terrain_default(blockX,blockZ) * 100.f + 400.f;
             int localMaxHeight = maxH - chunkPos.y * CHUNK_SIZE;
 //            Logs::debug("MaxH: " + std::to_string(maxH));
             for (int y = 0; y < localMaxHeight && y < CHUNK_SIZE; y++) {
