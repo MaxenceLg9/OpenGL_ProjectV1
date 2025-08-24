@@ -65,40 +65,40 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                 //front face
                 if (isVoid(glm::vec3(x, y, z + 1), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 0);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 1);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 3);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), glm::vec3(0.0f, 0.0f, 1.0f), 2);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), 1, 0);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), 1, 1);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), 1, 3);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), 1, 2);
 
                     index = addData(v, index);
                 }
                 // back face
                 if (isVoid(glm::vec3(x, y, z - 1), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 2);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 0);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 1);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 3);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), 4, 2);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), 4, 0);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), 4, 1);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), 4, 3);
 
                     index = addData(v, index);
                 }
                 //top face
                 if (isVoid(glm::vec3(x, y + 1, z), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 2);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 0);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 1);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 3);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), 0, 2);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), 0, 0);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), 0, 1);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), 0, 3);
 
                     index = addData(v, index);
                 }
                 // bottom face
                 if (isVoid(glm::vec3(x, y - 1, z), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 1);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 3);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 2);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 0);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), 5, 1);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), 5, 3);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), 5, 2);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), 5, 0);
 
                     index = addData(v, index);
                 }
@@ -106,10 +106,10 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                 // right face
                 if (isVoid(glm::vec3(x + 1, y, z), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 2);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 0);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 1);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 3);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z), 2, 2);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y, z + 1), 2, 0);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z + 1), 2, 1);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x + 1, y + 1, z), 2, 3);
 
                     index = addData(v, index);
                 }
@@ -117,10 +117,10 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
                 // left face
                 if (isVoid(glm::vec3(x - 1, y, z), blocks, world, chunkPos)) {
 
-                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), glm::vec3(0.0f, 0.0f, -1.0f), 0);
-                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), glm::vec3(0.0f, 0.0f, -1.0f), 1);
-                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 3);
-                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), glm::vec3(0.0f, 0.0f, -1.0f), 2);
+                    v[0] = Vertex::packData(voxel_id, glm::ivec3(x, y, z), 3, 0);
+                    v[1] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z), 3, 1);
+                    v[2] = Vertex::packData(voxel_id, glm::ivec3(x, y + 1, z + 1), 3, 3);
+                    v[3] = Vertex::packData(voxel_id, glm::ivec3(x, y, z + 1), 3, 2);
 
                     index = addData(v, index);
                 }
