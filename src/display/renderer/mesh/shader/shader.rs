@@ -10,7 +10,7 @@ impl Shader {
 
     pub unsafe fn new(vertex_path: String, fragment_path: String) -> Shader {
 
-        let vertex_code = fs::read_to_string(vertex_path).expect("Cannot read file");
+        let vertex_code = fs::read_to_string(vertex_path.clone()).expect(format!("Cannot read file {}",vertex_path).as_str());
         let fragment_code = fs::read_to_string(fragment_path).expect("Cannot read file");
 
         // vertex Shader

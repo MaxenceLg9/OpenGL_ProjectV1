@@ -1,0 +1,14 @@
+[package]
+name = "OpenGL_ProjectV1"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+glutin = "0.32.3"
+winit = "0.30.12"
+glutin-winit = "0.5.0"
+raw-window-handle = "0.6.2"
+glam = "0.32.0"
+image = "0.25.9"
+noise = "0.9.0"
+gl = "0.14.0"

@@ -1,3 +1,3 @@
-mod gui;
+mod cursor;
 
-pub use gui::*;
+pub use cursor::*;

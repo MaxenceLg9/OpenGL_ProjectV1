@@ -69,6 +69,19 @@ impl Texture {
         shader.set_int(self.t_type.clone(), self.code as i32);
         gl::BindTexture(gl::TEXTURE_2D, self.texture);
     }
+
+    pub fn get_code(&self) -> GLuint {
+        self.code
+    }
+    pub fn get_t_type(&self) -> String {
+        self.t_type.clone()
+    }
+
+    pub fn get_texture(&self) -> GLuint {
+        self.texture
+    }
+
+
 }
 
 impl Drop for Texture {

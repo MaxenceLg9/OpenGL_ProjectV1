@@ -5,6 +5,7 @@ use glutin::display::GlDisplay;
 use glutin_winit::DisplayBuilder;
 use glutin::prelude::*;
 use winit::window::Window;
+use crate::display::renderer::gui::Cursor;
 use crate::game::world::world::World;
 
 pub enum GlDisplayCreationState {
@@ -16,6 +17,7 @@ pub enum GlDisplayCreationState {
 
 pub struct Renderer {
     world: World,
+    cursor: Cursor
 }
 
 impl Renderer {
@@ -25,7 +27,8 @@ impl Renderer {
             gl_display.get_proc_address(&symbol_cstr) as *const _
         });
         let mut renderer = Self {
-            world: World::new()
+            world: World::new(),
+            cursor: Cursor::new()
         };
         renderer
     }
@@ -38,6 +41,7 @@ impl Renderer {
             self.world.render(window);
             self.world.collect_meshes();
             self.world.build_chunk_mesh();
+            self.cursor.drawCursor(window);
         }
     }
 
