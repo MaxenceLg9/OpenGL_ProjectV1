@@ -73,8 +73,8 @@ impl ChunkMesh {
     }
 
     unsafe fn bind_data2(&self) {
-        gl::NamedBufferData(self.vbo, self.vertices.len().cast_signed(), self.vertices.as_ptr() as *const _ , gl::STATIC_DRAW);
-        gl::NamedBufferData(self.ebo, self.vertices.len().cast_signed(), self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
+        gl::NamedBufferData(self.vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _ , gl::STATIC_DRAW);
+        gl::NamedBufferData(self.ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
 
@@ -185,7 +185,7 @@ impl ChunkMesh {
         gl::BindVertexArray(0);
     }
 
-    fn add_data(&mut self, mut v : [u64;4], index : u32) -> u32 {
+    fn add_data(&mut self, v : [u64;4], index : u32) -> u32 {
 
         for i in 0..4usize {
             self.vertices.push((v[i] >> 32) as u32);        // High 32 bits
@@ -193,11 +193,11 @@ impl ChunkMesh {
         }
 
         self.indices.push(index);
+        self.indices.push(index + 2);
         self.indices.push(index + 1);
-        self.indices.push(index + 2);
         self.indices.push(index);
-        self.indices.push(index + 2);
         self.indices.push(index + 3);
+        self.indices.push(index + 2);
 
         index + 4
     }

@@ -3,10 +3,10 @@ use std::num::NonZeroU32;
 use std::time::{Instant};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
-use winit::event::{KeyEvent, WindowEvent};
+use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::keyboard::{Key, NamedKey};
-use winit::window::{Window, WindowAttributes};
+use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
+use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes};
 
 use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext, Version};
@@ -14,7 +14,6 @@ use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval::*, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
-
 use crate::display::renderer::renderer::*;
 
 impl ApplicationHandler for App {
@@ -35,7 +34,8 @@ impl ApplicationHandler for App {
                         return;
                     },
                 };
-
+                // let fullscreen_mode = window_attributes().fullscreen; // Get the mode we defined
+                // window.set_fullscreen(fullscreen_mode);
                 println!("Picked a config with {} samples", gl_config.num_samples());
 
                 // Mark the display as initialized to not recreate it on resume, since the
@@ -105,15 +105,36 @@ impl ApplicationHandler for App {
 
                     // Tell winit to loop immediately (for 60+ FPS)
                     state.window.request_redraw();
+                    state.window.set_fullscreen(window_attributes().fullscreen);
                 }
             },
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-                event: KeyEvent { logical_key: Key::Named(NamedKey::Escape), .. },
-                ..
-            } => event_loop.exit(),
+            WindowEvent::KeyboardInput { device_id, event, is_synthetic} => {
+                if event.physical_key == KeyCode::Escape {
+                    event_loop.exit();
+                }
+                self.renderer.as_mut().unwrap().get_player().key_callback(event);
+            },
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Focused(true) => {
+                if let Some(AppState { window, .. }) = self.state.as_ref() {
+                    println!("Window focused, grabbing cursor");
+                    let _ = window.set_cursor_grab(CursorGrabMode::Locked)
+                        .or_else(|_| window.set_cursor_grab(CursorGrabMode::Confined));
+                    window.set_cursor_visible(false);
+                }
+            },
 
             _ => (),
+        }
+    }
+
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                // println!("Mouse motion delta: {:?}", delta);
+                self.renderer.as_mut().unwrap().get_player().mouse_callback(delta.0,delta.1);
+            },
+            _ => ()
         }
     }
 
@@ -121,6 +142,7 @@ impl ApplicationHandler for App {
         let current_frame = std::time::Instant::now();
         let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
         self.last_frame = current_frame;
+        self.renderer.as_mut().unwrap().get_player().poll_keys(delta);
 
         // println!("Waking up at {:?}fps", 1_f32 / delta);
 
@@ -168,7 +190,11 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
     let raw_window_handle = window.window_handle().ok().map(|wh| wh.as_raw());
 
     // The context creation part.
-    let context_attributes = ContextAttributesBuilder::new().with_context_api(ContextApi::OpenGl(Some(Version::new(4, 6)))).with_profile(GlProfile::Core).build(raw_window_handle);
+    let context_attributes = ContextAttributesBuilder::new()
+        .with_context_api(ContextApi::OpenGl(Some(Version::new(4, 6))))
+        .with_profile(GlProfile::Core)
+        .with_debug(true)
+        .build(raw_window_handle);
 
     // Since glutin by default tries to create OpenGL core context, which may not be
     // present we should try gles.
@@ -201,9 +227,12 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
 }
 
 pub fn window_attributes() -> WindowAttributes {
+    // Wayland fix: Get the first available monitor since "Primary" is usually None
     Window::default_attributes()
-        .with_transparent(true)
-        .with_title("Glutin triangle gradient example (press Escape to exit)")
+        .with_transparent(false)
+        .with_maximized(true)
+        .with_fullscreen(Some(Fullscreen::Borderless(None)))
+        .with_title("OpenGL hf")
 }
 
 pub struct App {
@@ -218,10 +247,10 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(template: ConfigTemplateBuilder, display_builder: DisplayBuilder) -> Self {
+    pub fn new(template: ConfigTemplateBuilder) -> Self {
         Self {
             template,
-            gl_display: GlDisplayCreationState::Builder(Box::new(display_builder)),
+            gl_display: GlDisplayCreationState::Builder(Box::new(DisplayBuilder::new().with_window_attributes(Some(window_attributes())))),
             exit_state: Ok(()),
             gl_context: None,
             state: None,

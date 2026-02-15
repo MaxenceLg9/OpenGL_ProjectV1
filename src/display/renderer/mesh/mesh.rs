@@ -28,11 +28,11 @@ impl Mesh {
             indices,
             textures
         };
-        mesh.setupMesh();
+        mesh.setup_mesh();
         mesh
     }
 
-    pub unsafe fn setupMesh(&mut self) {
+    pub unsafe fn setup_mesh(&mut self) {
         gl::CreateBuffers(1, &mut self.vbo);
         gl::NamedBufferData(self.vbo, (self.vertices.len() * std::mem::size_of::<Vertex>()).cast_signed(), self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
 
@@ -82,7 +82,7 @@ impl Mesh {
             }
 
             // now set the sampler to the correct texture unit
-            shader.set_int(name, i as i32);
+            shader.set_int(name.as_str(), i as i32);
             // and finally bind the texture
             gl::BindTexture(gl::TEXTURE_2D, self.textures[i].get_texture());
         }
@@ -97,12 +97,12 @@ impl Mesh {
         gl::ActiveTexture(gl::TEXTURE0);
     }
 
-    pub unsafe fn loadTextures(&mut self,filename : String, tCode : u32, name : String) {
+    pub unsafe fn load_textures(&mut self, filename : String, tCode : u32, name : String) {
         let texture: Texture = Texture::new(filename,tCode,name).unwrap();
         self.textures.push(texture);
     }
 
-    pub unsafe fn initTextures(&self) {
+    pub unsafe fn init_textures(&self) {
         // set the texture wrapping/filtering options (on the currently bound texture object)
         gl::TextureParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
         gl::TextureParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);

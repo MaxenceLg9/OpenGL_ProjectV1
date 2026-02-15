@@ -1,6 +1,7 @@
 use winit::event_loop::{ControlFlow, EventLoop};
 use glutin::config::{ConfigTemplateBuilder};
 use glutin_winit::{DisplayBuilder};
+use winit::window::{Window, WindowAttributes};
 
 mod display;
 mod game;
@@ -20,11 +21,9 @@ pub fn main() -> Result<(), String> {
     // that, because we can query only one config at a time on it, but all
     // normal platforms will return multiple configs, so we can find the config
     // with transparency ourselves inside the `reduce`.
-    let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(true);
+    let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(false);
 
-    let display_builder = DisplayBuilder::new().with_window_attributes(Some(window_attributes()));
-
-    let mut app = App::new(template, display_builder);
+    let mut app = App::new(template);
     event_loop.run_app(&mut app).expect("Failed to run the event loop");
 
     app.exit_state()

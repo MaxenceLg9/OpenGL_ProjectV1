@@ -1,4 +1,5 @@
 use std::io;
+use glam::IVec3;
 
 pub struct Vertex {
     pub position: glam::Vec3,
@@ -12,7 +13,8 @@ impl Vertex {
         Self { position, normal, tex_coords }
     }
 
-    pub fn pack_data(id : u16, pos : glam::IVec3, face_id : u32, tex_coords : u8) -> io::Result<u64> {
+    pub fn pack_data(id : u16, pos: glam::IVec3, face_id : u32, tex_coords : u8) -> io::Result<u64> {
+        // println!("Input : {}, {}, {}",pos, face_id, tex_coords);
         if id as u32 >= 2_u32.pow(18) {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Vertex ID exceeds maximum value of 2^18 - 1".to_string()));
         }

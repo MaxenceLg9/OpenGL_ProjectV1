@@ -1,11 +1,14 @@
 use std::ffi::CString;
+use std::os::raw::c_void;
 use std::sync::Arc;
+use gl::types::{GLchar, GLenum, GLsizei, GLuint};
 use glutin::config::Config;
 use glutin::display::GlDisplay;
 use glutin_winit::DisplayBuilder;
 use glutin::prelude::*;
 use winit::window::Window;
 use crate::display::renderer::gui::Cursor;
+use crate::game::world::player::player::PlayerUser;
 use crate::game::world::world::World;
 
 pub enum GlDisplayCreationState {
@@ -17,7 +20,19 @@ pub enum GlDisplayCreationState {
 
 pub struct Renderer {
     world: World,
-    cursor: Cursor
+    cursor: Cursor,
+    player: PlayerUser
+}
+
+impl Renderer {
+    pub(crate) fn get_world(&self) -> &World {
+        &self.world
+    }
+}
+
+extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, userParam: *mut c_void) {
+    let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
+    println!("GL Debug [{}]: {}", severity, msg);
 }
 
 impl Renderer {
@@ -26,22 +41,31 @@ impl Renderer {
             let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
             gl_display.get_proc_address(&symbol_cstr) as *const _
         });
+        gl::Enable(gl::DEBUG_OUTPUT);
+        gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
+        gl::DebugMessageCallback(Some(message_callback),std::ptr::null());
         let mut renderer = Self {
             world: World::new(),
-            cursor: Cursor::new()
+            cursor: Cursor::new(),
+            player: PlayerUser::new(-10_f32, 650_f32, -10_f32)
         };
         renderer
     }
+
     pub fn draw(&mut self, window: &Window) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-            gl::Disable(gl::CULL_FACE); // Show both sides of triangles
-            gl::Disable(gl::DEPTH_TEST); // Draw regardless of distance
-            self.world.render(window);
+            gl::Enable(gl::DEPTH_TEST);
+            gl::PolygonMode(gl::FRONT_AND_BACK,gl::FILL);
+            gl::Enable(gl::CULL_FACE);
+            gl::FrontFace(gl::CW); // Counter-clockwise is front
+            gl::CullFace(gl::BACK); // Cull back faces
+
+            self.world.render(window,&self.player);
             self.world.collect_meshes();
             self.world.build_chunk_mesh();
-            self.cursor.drawCursor(window);
+            self.cursor.draw_cursor(window);
         }
     }
 
@@ -49,6 +73,10 @@ impl Renderer {
         unsafe {
             gl::Viewport(0, 0, width, height);
         }
+    }
+
+    pub fn get_player(&mut self) -> &mut PlayerUser {
+        &mut self.player
     }
 }
 

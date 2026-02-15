@@ -1,6 +1,6 @@
 use std::io;
 use std::sync::Arc;
-use gl::types::GLuint;
+use gl::types::{GLuint, GLvoid};
 use image::{ImageReader};
 use image::imageops::FilterType;
 use crate::display::renderer::mesh::shader::shader::Shader;
@@ -65,13 +65,13 @@ impl TextureArray {
         gl::TextureParameteri(self.texture, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
         // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
-        gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, TEXTURE_SIZE, TEXTURE_SIZE, 1, gl::RGBA, gl::UNSIGNED_BYTE, image.as_bytes().as_ptr() as *const _);
+        gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, TEXTURE_SIZE, TEXTURE_SIZE, 1, gl::RGBA, gl::UNSIGNED_BYTE, image.to_rgba8().as_raw().as_ptr() as *const GLvoid);
         Ok(())
     }
     //
     pub unsafe fn use_textures(&self,shader : &Shader) {
         gl::ActiveTexture(gl::TEXTURE0);
-        shader.set_int(self.name.clone(), 0);
+        shader.set_int(self.name.as_str(), 0);
         gl::BindTexture(gl::TEXTURE_2D_ARRAY, self.texture);
     }
 }

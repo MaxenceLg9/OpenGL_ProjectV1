@@ -66,7 +66,7 @@ impl Texture {
 
     pub unsafe fn use_texture(&self, shader: &Shader) {
         gl::ActiveTexture(TEXTURE0 + self.code);
-        shader.set_int(self.t_type.clone(), self.code as i32);
+        shader.set_int(self.t_type.as_str(), self.code as i32);
         gl::BindTexture(gl::TEXTURE_2D, self.texture);
     }
 

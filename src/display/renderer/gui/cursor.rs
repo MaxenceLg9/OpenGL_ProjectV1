@@ -34,7 +34,7 @@ impl Cursor {
         vertices.push(Vertex::new(glam::vec3(0.02, -0.003, -0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 0)));
         vertices.push(Vertex::new(glam::vec3(-0.02, -0.003, -0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 0)));
 
-        return vertices;
+        vertices
     }
 
     pub fn indices() -> Vec<u32> {
@@ -60,7 +60,7 @@ impl Cursor {
     }
 
 
-    pub unsafe fn drawCursor(&mut self, window: &Window){
+    pub unsafe fn draw_cursor(&mut self, window: &Window){
         self.shader.use_shader();
         let aspect = window.inner_size().width as f32 / window.inner_size().height as f32;
         let projection = glam::Mat4::orthographic_rh(
@@ -74,7 +74,7 @@ impl Cursor {
 
         // 2. Upload to the shader
         // We use .to_cols_array_2d() or .as_ref() depending on your GL wrapper
-        self.shader.set_matrix4fv("projection".to_string(), &projection);
+        self.shader.set_matrix4fv("projection", projection);
         gl::DepthFunc(gl::ALWAYS); // Always pass the depth test (same effect as glDisable(GL_DEPTH_TEST))
         self.mesh.draw(&self.shader);
     }

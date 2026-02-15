@@ -84,3 +84,12 @@ impl Chunk {
         ChunkMesh::new(world, self.chunk_pos, &self.blocks)
     }
 }
+
+impl Clone for Chunk {
+    fn clone(&self) -> Self {
+        Self {
+            blocks: self.blocks.clone(),
+            chunk_pos: self.chunk_pos.clone()
+        }
+    }
+}
