@@ -5,13 +5,15 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#define WORLD_SIZE 8
+#define RENDER_DISTANCE 8
+#define LOADING_DISTANCE 12
 #define WORLD_THREADS 16
 
 
 #include <memory>
 #include <vector>
 #include <atomic>
+#include <queue>
 
 #include "chunk/chunk.h"
 #include "../../../math/math.h"
@@ -32,7 +34,7 @@ public:
 
     ~World();
 
-    void render() const;
+    void render();
 
     int getBlockAt(glm::ivec3 ipos) const;
 
@@ -47,21 +49,23 @@ private:
     void create_chunks();
 
     std::map<glm::ivec3, Chunk *,IVec3Compare> chunks;
-
     std::map<glm::ivec3, ChunkMesh *, IVec3Compare> meshes;
+    std::queue<std::pair<glm::ivec3, ChunkMesh*>> buildQueue;
+
 
     std::atomic<bool> isBuilding = false;
 
     TextureArray texture;
 
     Shader chunkShader;
-    // Light light;
+    Light light;
     Player player;
     WINDOW *window;
     mutable std::string logMessage;
 
     std::mutex meshesLock;
     std::mutex chunksLock;
+    std::mutex buildQueueLock;
 
     void thread_chunk_mesh();
 };

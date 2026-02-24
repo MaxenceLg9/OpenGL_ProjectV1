@@ -17,6 +17,7 @@ typedef struct {
 } VERTEX;
 
 namespace Vertex {
+    uint64_t packData(int id, glm::ivec3 pos, glm::vec3 lighting, int face_id, unsigned char texCoords);
     uint64_t packData(int id, glm::ivec3 pos, int face_id, unsigned char texCoords);
 } // namespace Vertex
 

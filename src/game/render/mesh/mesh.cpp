@@ -10,7 +10,6 @@
 #include <string>
 
 #include "../../../utils/logs/Logs.h"
-#include "../../../utils/OpenGL/OpenGL.h"
 #include "glad/glad.h"
 
 Mesh::Mesh(std::vector<VERTEX> vertices, std::vector<unsigned int> indices, std::vector<TEXTURE> textures) {
@@ -46,7 +45,6 @@ void Mesh::setupMesh() {
     glVertexArrayAttribBinding(VAO,2,0);
 
     Logs::debug("Mesh created with VBO: " + std::to_string(VBO) + ", EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
-    check_opengl_error("mesh");
 }
 
 void Mesh::draw(const Shader& shader) {     // render the mesh

@@ -58,7 +58,7 @@ void ChunkMesh::buildMesh(const World &world, glm::ivec3 chunkPos, const uint16_
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
-                uint16_t voxel_id = blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z];
+                const uint16_t voxel_id = blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z];
 
                 if (voxel_id == 0) continue; // skip empty blocks
                 uint64_t v[4];

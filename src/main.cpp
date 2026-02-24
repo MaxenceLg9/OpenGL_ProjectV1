@@ -10,7 +10,6 @@
 #include "game/render/world/World.h"
 #include "game/render/world/light/light.h"
 #include "utils/logs/Logs.h"
-#include "utils/OpenGL/OpenGL.h"
 
 
 WINDOW window;
@@ -21,6 +20,10 @@ void framebuffercallback(GLFWwindow *w, const int width, const int height) {
     glViewport(0, 0, width, height);
 }
 
+void message_callback(GLenum source,GLenum type,GLuint id,GLenum severity,GLsizei length,const GLchar *message,const void *userParam) {
+    printf("%s\n", message);
+}
+
 int main() {
     Logs::init();
     // Init GLFW
@@ -29,6 +32,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
     Logs::log("INFO", "Initializing GLFW");
 
@@ -63,19 +67,19 @@ int main() {
 
     // Shader shader("assets/shaders/chunk/vertex.vert", "assets/shaders/chunk/fragment.frag");
 
-    check_opengl_error("main1");
-
     glEnable(GL_DEPTH_TEST);
     glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW); // Counter-clockwise is front
     glCullFace(GL_BACK); // Cull back faces
-    check_opengl_error("main2");
+    glDebugMessageCallback(message_callback,0);
 
     const auto world = new World(&window);
     const auto cursor = new Cursor();
 
     double lastFrame(glfwGetTime()); // Time of last frame
+    double time(glfwGetTime());
+    int framesCount = 0;
     while (!glfwWindowShouldClose(window.OGLwindow)) {
         const double currentFrame = glfwGetTime();
 
@@ -87,10 +91,16 @@ int main() {
         world->build_chunk_mesh(); // Build chunks that are ready
         world->render();
         // Checking for OpenGL errors after each loop
-        check_opengl_error("loop");
         cursor->drawCursor(window);
 
         glfwSwapBuffers(window.OGLwindow);
+        framesCount++;
+        if (glfwGetTime() - time >= 1.0) { // If last prinf() was more than 1 sec ago
+            // printf and reset timer
+            Logs::debug("FPS: " + std::to_string(framesCount));
+            framesCount = 0;
+            time = glfwGetTime();
+        }
         glfwPollEvents();
     }
     glfwSetWindowUserPointer(window.OGLwindow,nullptr);

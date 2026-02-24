@@ -20,8 +20,8 @@ set(SOURCE_FILES
         src/math/math.h
         src/game/render/world/chunk/chunk.cpp
         src/game/render/world/chunk/chunk.h
-        src/game/render/world/block/block.cpp
-        src/game/render/world/block/block.h
+        src/game/render/world/chunk/block/block.cpp
+        src/game/render/world/chunk/block/block.h
         src/game/render/mesh/mesh.h
         src/game/render/mesh/mesh.cpp
         src/game/render/gui/cursor/cursor.cpp
@@ -40,8 +40,6 @@ set(SOURCE_FILES
         src/configs/Configs.h
         src/game/render/mesh/texture/TextureArray.cpp
         src/game/render/mesh/texture/TextureArray.h
-        src/utils/OpenGL/OpenGL.cpp
-        src/utils/OpenGL/OpenGL.h
 )
 set(OpenGL_GL_PREFERENCE GLVND)
 set(GLFW_USE_WAYLAND 1)

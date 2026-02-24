@@ -6,7 +6,7 @@
 #include "ext/matrix_transform.hpp"
 #include "gtc/type_ptr.hpp"
 #include "../../../../utils/logs/Logs.h"
-#include "../block/block.h"
+#include "block/block.h"
 
 #include <cmath>
 #include <thread>
