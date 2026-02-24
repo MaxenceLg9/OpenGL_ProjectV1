@@ -30,7 +30,7 @@ impl Renderer {
     }
 }
 
-extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, userParam: *mut c_void) {
+extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
     let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
     println!("GL Debug [{}]: {}", severity, msg);
 }

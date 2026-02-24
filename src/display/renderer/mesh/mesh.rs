@@ -97,8 +97,8 @@ impl Mesh {
         gl::ActiveTexture(gl::TEXTURE0);
     }
 
-    pub unsafe fn load_textures(&mut self, filename : String, tCode : u32, name : String) {
-        let texture: Texture = Texture::new(filename,tCode,name).unwrap();
+    pub unsafe fn load_textures(&mut self, filename : String, t_code: u32, name : String) {
+        let texture: Texture = Texture::new(filename, t_code, name).unwrap();
         self.textures.push(texture);
     }
 

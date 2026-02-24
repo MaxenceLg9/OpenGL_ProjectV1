@@ -39,11 +39,10 @@ impl Chunk {
             for z in 0..CHUNK_SIZE {
                 let block_x = x as i32 + self.chunk_pos.x * CHUNK_SIZE as i32;
                 let block_z = z as i32 + self.chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = noised_terrain_default(block_x, block_z) as i32 * 100 + 400;
+                let max_h : i32 = (noised_terrain_default(block_x, block_z) * 100.0 + 400.0) as i32;
                 let local_max_height = max_h - self.chunk_pos.y * CHUNK_SIZE as i32;
-                //            Logs::debug("MaxH: " + std::to_string(max_h));
                 for y in 0..local_max_height {
-                    if (y > (CHUNK_SIZE - 1) as i32) {
+                    if y > (CHUNK_SIZE - 1) as i32 {
                         break;
                     }
                     self.blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  self.generate_block((y + self.chunk_pos.y * CHUNK_SIZE as i32) as u16);

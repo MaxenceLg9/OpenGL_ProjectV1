@@ -33,10 +33,11 @@ pub fn terrain2(x : f32, y : f32) -> f64 {
 }
 
 pub fn noised_terrain_default(x : i32, y : i32) -> f64 {
+    let perlin = noise::Perlin::new(1);
     let mut ret = 0.0_f64;
     let mut frequency = 0.005;
     for i in 0..4 {
-        ret += alpha(ret, i) * noise::Perlin::new(1).get([x as f64 * frequency, y as f64 * frequency, 0.0]);
+        ret += alpha(ret, i) * perlin.get([x as f64 * frequency, y as f64 * frequency, 0.0]);
         frequency *= 2.0;
     }
     ret

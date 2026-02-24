@@ -1,15 +1,16 @@
+use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
-use std::sync::mpsc;
+use std::sync::{mpsc} ;
 use std::time::Instant;
 use winit::window::Window;
 use crate::display::renderer::mesh::{chunk_mesh::*, texture::texture_array::TextureArray, shader::shader::Shader};
 use crate::game::world::chunk::block::block::BlockType;
 use super::{chunk::chunk::*, player::player::PlayerUser};
 
-pub const WORLD_SIZE : u32 = 10;
+pub const WORLD_SIZE : u32 = 12;
 pub const WORLD_THREADS : u32 = 16;
 
 pub struct World {
@@ -44,45 +45,64 @@ impl World {
             chunk_receiver: None,
             mesh_receiver: None,
         };
-
-        world.create_chunks();
+        world.create_chunks(glam::vec3(0.0,0.0,0.0));
         world.world_data.read().unwrap().use_shader();
         world
-    }
-
-    pub fn create_chunks(&mut self) {
-        let (tx, rx) = mpsc::channel();
-        println!("Running threads to generate the chunks");
-        for i in 0..WORLD_THREADS {
-            let tx_thread = tx.clone();
-            std::thread::spawn(move || {
-                World::generate_chunks(i,tx_thread);
-            });
-        }
-        self.chunk_receiver = Some(rx);
     }
 
     pub fn get_data(&self) -> Arc<RwLock<WorldData>> {
         self.world_data.clone()
     }
 
-    pub fn generate_chunks(part : u32, chunk_sender: mpsc::Sender<Chunk>) {
+
+    pub fn create_chunks(&mut self, player_pos : glam::Vec3) {
+        let player_ipos = player_pos.as_ivec3() / CHUNK_SIZE as i32;
+        // println!("Player pos : {}", player_ipos);
+        let mut chunks_to_build : Vec<glam::IVec3> = Vec::new();
+        for x in - (WORLD_SIZE as i32)..WORLD_SIZE as i32 {
+            for z in - (WORLD_SIZE as i32)..WORLD_SIZE as i32 {
+                for y in 0..WORLD_SIZE {
+                    let mut chunk_pos = player_ipos.clone();
+                    chunk_pos.z = chunk_pos.z + z;
+                    chunk_pos.x = chunk_pos.x + x;
+                    chunk_pos.y = y as i32;
+                    if !self.world_data.read().unwrap().chunks.contains_key(&chunk_pos) {
+                        println!("Thread {}, chunk {} doesn't exist, to build ", std::thread::current().name().unwrap_or("create_chunks").to_string(), chunk_pos);
+                        chunks_to_build.push(chunk_pos);
+                    }
+                }
+            }
+        }
+        let len = chunks_to_build.len() as u32;
+        if len == 0 {
+            return;
+        }
+        let arc_chunks_to_build = Arc::new(chunks_to_build);
+        let (tx, rx) = mpsc::channel();
+        println!("Running threads to generate the chunks");
+        for i in 0..WORLD_THREADS {
+            let tx_thread = tx.clone();
+            let chunks_per_thread = ((len + WORLD_THREADS - 1) / WORLD_THREADS).max(4);
+            let start = chunks_per_thread * i;
+            let end = (chunks_per_thread * (i + 1)).min(len);
+            let arc = arc_chunks_to_build.clone();
+            std::thread::spawn(move || {
+                World::generate_chunks(start, end, tx_thread, arc);
+            });
+            if end == len {
+                break;
+            }
+        }
+        self.chunk_receiver = Some(rx);
+    }
+
+    pub fn generate_chunks(start: u32, end : u32, chunk_sender: mpsc::Sender<Chunk>, chunks_to_build : Arc<Vec<glam::IVec3>>) {
         let time : Instant = Instant::now();
-        let total_chunks: u32 = WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
-        let chunk_per_thread: u32 = (total_chunks + WORLD_THREADS - 1) / WORLD_THREADS;
-
-        let start_index: u32 = part * chunk_per_thread;
-        let end_index: u32 = if start_index + chunk_per_thread > total_chunks { total_chunks } else { start_index + chunk_per_thread };
-        for index in start_index..end_index {
-            let i = (index / (WORLD_SIZE * WORLD_SIZE)) as i32;
-            let j = ((index / WORLD_SIZE) % WORLD_SIZE) as i32;
-            let k = (index % WORLD_SIZE) as i32;
-
-            //        Logs::debug("Thread " + std::to_string(part) + " generating chunk at position: " + std::to_string(i) + "," + std::to_string(j) + "," + std::to_string(k));
-            let chunk = Chunk::new(glam::ivec3(i, j, k));
+        for index in start..end {
+            let chunk = Chunk::new(chunks_to_build.get(index as usize).unwrap().clone());
             chunk_sender.send(chunk).expect("TODO: panic message");
         }
-        println!("Thread {} finished generating chunks in {} seconds generated from {} to {} chunks", part + 1, Instant::now().duration_since(time).as_secs_f32(), start_index, end_index);
+        println!("Thread {} finished generating chunks in {} seconds generated from {} to {} chunks", start / (end - start) + 1, Instant::now().duration_since(time).as_secs_f32(), start, end);
     }
 
     pub fn build_chunk_mesh(&mut self) {
@@ -103,7 +123,6 @@ impl World {
             }
         }
         if new_chunks.is_empty() {
-            // println!("No new chunks to build");
             return;
         }
 
@@ -130,7 +149,7 @@ impl World {
         }
         let mut n = 0;
         for mut packed in self.mesh_receiver.as_ref().unwrap().try_iter() {
-            println!("Linking chunk at {:?}", packed.pos);
+            println!("Linking chunk at {}", packed.pos);
             // If it crashes here, the issue is inside link()
             packed.mesh.link();
 
@@ -161,12 +180,12 @@ impl World {
             let z_neg = glam::ivec3(pos.x, pos.y, pos.z - 1);
             let z_pos = glam::ivec3(pos.x, pos.y, pos.z + 1);
 
-            if (world.chunks.contains_key(&x_neg) || pos.x == 0) &&
-                (world.chunks.contains_key(&x_pos) || pos.x == (WORLD_SIZE - 1) as i32) &&
-                (world.chunks.contains_key(&y_neg) || pos.y == 0) &&
-                (world.chunks.contains_key(&y_pos) || pos.y == (WORLD_SIZE - 1) as i32) &&
-                (world.chunks.contains_key(&z_neg) || pos.z == 0) &&
-                (world.chunks.contains_key(&z_pos) || pos.z == (WORLD_SIZE - 1) as i32) {
+            if (world.chunks.contains_key(&x_neg)) &&
+                (world.chunks.contains_key(&x_pos)) &&
+                (world.chunks.contains_key(&y_neg)) &&
+                (world.chunks.contains_key(&y_pos)) &&
+                (world.chunks.contains_key(&z_neg)) &&
+                (world.chunks.contains_key(&z_pos)) {
                 n += 1;
                 let mesh = chunk.build_mesh(&world);
                 let packed = PackedData {
@@ -182,20 +201,20 @@ impl World {
 
         if n > 0 {
             println!("Built mesh of {} chunks", n)
-        };
+        } else {
+            println!("Didn't build any chunks");
+        }
     }
 
     pub unsafe fn render(&mut self, window: &Window, player: &PlayerUser) {
-        let mut d = self.world_data.read().unwrap();
-        d.render(window,player);
-        d.tick(0.005_f64);
+        self.world_data.read().unwrap().render(window,player);
     }
 
     pub fn get_block_at(&self, ipos : glam::IVec3) -> u16 {
         self.world_data.read().unwrap().get_block_at(ipos)
     }
 
-    pub fn tick(&self, delta_time: f64) {
+    pub fn tick(&mut self, delta_time: f64) {
         self.world_data.read().unwrap().tick(delta_time);
     }
 
@@ -263,26 +282,32 @@ impl WorldData {
         self.chunk_shader.set_vec3("uniformLightPos", light_pos);
         self.chunk_shader.set_vec3("uniformViewPos", camera_pos);
         self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
-
-        for i in 0..WORLD_SIZE as i32
-        {
-            for j in 0..WORLD_SIZE as i32
-            {
-                for k in 0..WORLD_SIZE as i32
-                {
-                    if (!self.meshes.contains_key(&glam::ivec3(i, j, k))) {
-                        continue;
-                    }
-                    // Use get_mut to get a mutable reference
-                    if let Some(mesh) = self.meshes.get(&glam::ivec3(i, j, k)) {
-                        let mut model = glam::Mat4::IDENTITY;
-                        model = model * glam::Mat4::from_translation(glam::vec3(i as f32, j as f32, k as f32) * CHUNK_SIZE as f32);
-                        self.chunk_shader.set_matrix4fv("uniform_model", model);
-                        mesh.draw();
-                    }
-                }
-            }
+        // println!("Len of meshes {}, len of chunks {}",self.meshes.len(), self.chunks.len());
+        for (pos, mesh) in self.meshes.iter() {
+            let mut model = glam::Mat4::IDENTITY;
+            model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
+            self.chunk_shader.set_matrix4fv("uniform_model", model);
+            mesh.draw();
         }
+        // for i in 0..WORLD_SIZE as i32
+        // {
+        //     for j in 0..WORLD_SIZE as i32
+        //     {
+        //         for k in 0..WORLD_SIZE as i32
+        //         {
+        //             if (!self.meshes.contains_key(&glam::ivec3(i, j, k))) {
+        //                 continue;
+        //             }
+        //             // Use get_mut to get a mutable reference
+        //             if let Some(mesh) = self.meshes.get(&glam::ivec3(i, j, k)) {
+        //                 let mut model = glam::Mat4::IDENTITY;
+        //                 model = model * glam::Mat4::from_translation(glam::vec3(i as f32, j as f32, k as f32) * CHUNK_SIZE as f32);
+        //                 self.chunk_shader.set_matrix4fv("uniform_model", model);
+        //                 mesh.draw();
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     unsafe fn use_shader(&self){
