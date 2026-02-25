@@ -20,20 +20,20 @@ pub struct KeyState {
 impl PlayerUser {
     fn move_forward(&mut self, delta : f32, time : f32) {
         self.pos += self.direction * delta * 3.5 * self.get_speed(time);
-        println!("Pos : {},{},{}", self.pos.x, self.pos.y, self.pos.z);
-        println!("Direction : {},{},{}", self.direction.x, self.direction.y, self.direction.z);
+        // println!("Pos : {},{},{}", self.pos.x, self.pos.y, self.pos.z);
+        // println!("Direction : {},{},{}", self.direction.x, self.direction.y, self.direction.z);
     }
 
     fn move_left(&mut self, delta : f32, time : f32) {
         let right : glam::Vec3 = glam::Vec3::normalize(glam::Vec3::cross(self.direction, self.up));
         // println!("Moving right: %f\n", glam::length(right));
         self.pos = self.pos + right * delta * 3.5 * self.get_speed(time);
-        println!("Pos : {},{},{}", self.pos.x, self.pos.y, self.pos.z);
+        // println!("Pos : {},{},{}", self.pos.x, self.pos.y, self.pos.z);
     }
 
     fn move_up(&mut self, delta : f32, time : f32) {
         // Rotate baseUp around front vector (XZ plane) by roll angle to get the rolled-up vector
-        println!("Length rolledUp: {}", glam::Vec3::length(self.up));
+        // println!("Length rolledUp: {}", glam::Vec3::length(self.up));
         // Move along local-up
         self.pos += self.up * delta * 2.5 * self.get_speed(time);
     }
@@ -99,7 +99,7 @@ impl PlayerUser {
         let right = self.direction.cross(self.up).normalize();
         let pitch_rotation = glam::Mat4::from_axis_angle(right, -y_offset.to_radians() as f32);
         self.direction = pitch_rotation.transform_vector3(self.direction);
-        println!("Direction : {},{},{}", self.direction.x, self.direction.y, self.direction.z);
+        // println!("Direction : {},{},{}", self.direction.x, self.direction.y, self.direction.z);
         // 3. Re-compute the up vector
         self.compute_up();
     }
@@ -150,7 +150,7 @@ impl PlayerUser {
                             self.move_up(-1.0, time);
                         },
                         PhysicalKey::Code(KeyCode::ShiftLeft) => {
-                            self.add_speed_multiplier(0, 10.0);
+                            self.add_speed_multiplier(0, 50.0);
                         }
                         _ => {}
                     }

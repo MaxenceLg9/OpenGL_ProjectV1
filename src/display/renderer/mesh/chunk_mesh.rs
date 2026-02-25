@@ -163,10 +163,8 @@ impl ChunkMesh {
             // println!("No vertices to draw");
             return;
         } else {
-            println!("Created {} vertices in chunks", self.nb_indices);
+            println!("Thread : {}, Created {} vertices in chunks", std::thread::current().name().unwrap(), self.nb_indices);
         }
-        //    Logs::debug("Size " + std::to_string(vertices->size()) + " : " + std::to_string(indices->size()));
-        //    Logs::debug("Data bound to VBO and EBO");
     }
 
     fn is_void(&self, block_pos: glam::IVec3, blocks : &Vec<u16>, world : &RwLockReadGuard<WorldData>, chunk_pos: glam::IVec3) -> bool {
