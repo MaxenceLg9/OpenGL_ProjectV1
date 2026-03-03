@@ -9,12 +9,12 @@
 use noise::NoiseFn;
 
 pub fn alpha(t : f64, o : i32) -> f64 {
-    if (o == 0) {
+    if o == 0 {
         return 1.0;
     }
     let mut frequency : f64 = 1.0;
     let h = 0.75;
-    for  i in 0..o {
+    for  _i in 0..o {
         frequency *= 2.0;
     }
     t * frequency.powf(-h)
@@ -29,7 +29,7 @@ pub fn mountain(x : f32) -> f64 {
 }
 
 pub fn terrain2(x : f32, y : f32) -> f64 {
-    valley(x) as f64 * noise::Perlin::new(1).get([x as f64 * 0.01_f64, x as f64 * 0.01_f64])
+    valley(x) as f64 * noise::Perlin::new(1).get([x as f64 * 0.01_f64, y as f64 * 0.01_f64])
 }
 
 pub fn noised_terrain_default(x : i32, y : i32) -> f64 {

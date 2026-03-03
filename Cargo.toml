@@ -1,7 +1,24 @@
 [package]
-name = "OpenGL_ProjectV1"
+name = "opengl"
 version = "0.1.0"
 edition = "2024"
+
+[lib]
+name = "shared"
+path = "src/lib.rs"
+
+[[bin]]
+name = "client"
+path = "src/bin/client.rs"
+
+[[bin]]
+name = "server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "test"
+path = "src/bin/test.rs"
+
 
 [dependencies]
 glutin = "0.32.3"
@@ -12,3 +29,10 @@ glam = "0.32.0"
 image = "0.25.9"
 noise = "0.9.0"
 gl = "0.14.0"
+dhat = "0.3.3"
+crossbeam = "0.8.4"
+tokio = { version = "1.40", features = ["full"] }
+
+[features]
+dhat-heap = []    # if you are doing heap profiling
+

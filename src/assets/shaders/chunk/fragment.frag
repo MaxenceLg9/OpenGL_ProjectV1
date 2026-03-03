@@ -39,8 +39,8 @@ void main() {
 
     FragColor = vec4((ambient + diffuse + specular) * uniformLightColor, 1.0) * texture(textures, vec3(TexCoord, voxel_id - 1));
     if (faceIndex > 0 && faceIndex < 5) {
-        FragColor *= 0.9f;
+        FragColor *= vec4(vec3(0.7f),1.0f);;
     } else if (faceIndex == 5) {
-        FragColor *= 0.9f;
+        FragColor *= vec4(vec3(0.5f),1.0f);;
     }
 }
