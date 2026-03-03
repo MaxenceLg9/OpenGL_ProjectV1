@@ -1,6 +1,10 @@
+use std::net::{Ipv6Addr, SocketAddrV6};
 use winit::event_loop::{ControlFlow, EventLoop};
 use glutin::config::{ConfigTemplateBuilder};
 use client::display::app::App;
+use shared::common::network::packet::{PacketTrait, Packet};
+use shared::common::network::request::connection_packet::ConnectionPacket;
+use crate::client::network::socket::ClientSocket;
 
 #[path="../client/mod.rs"] pub mod client;
 
@@ -32,7 +36,10 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 pub fn main() -> Result<(), String> {
     #[cfg(feature = "dhat-heap")]
     let _profiler = dhat::Profiler::new_heap();
+    let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
 
-
+    let mut s = ClientSocket::new(SocketAddrV6::new(ipv6_address,25000,0,0));
+    let connection = Packet::Connect(ConnectionPacket::new(2000, "maxence\0".to_string()));
+    s.send(connection.serialize());
     Ok(())
 }

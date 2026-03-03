@@ -67,7 +67,7 @@ impl ServerPlayer {
     }
 
     pub fn new(x : f32, y : f32, z : f32) -> Self {
-        print_base!("Creating player at {},{},{}\n", x, y, z);
+        print_base!("Creating player at {},{},{}", x, y, z);
         Self {
             pos : glam::vec3(x, y, z),
             speed_multiplier: HashMap::new(),

@@ -1,36 +1,33 @@
 use shared::print_base;
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc};
 use std::vec::Vec;
 use glam::*;
 use shared::common::display::vertex::vertex::Vertex;
+use shared::common::generation::chunk_mesh::CommonChunkMesh;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_debug;
 use crate::server::world_data::chunk::chunk::Chunk;
 
 pub struct ServerChunkMesh {
-    vertices: Vec<u32>,
-    indices: Vec<u32>,
-    linked : bool,
+    data: CommonChunkMesh,
 }
 
 impl ServerChunkMesh {
     pub fn new(chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) -> ServerChunkMesh {
         let mut chunk_mesh = Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            linked: false,
+            data: CommonChunkMesh::new()
         };
-        chunk_mesh.linked = false;
         chunk_mesh.build_mesh(chunks_map, chunk_pos, blocks);
         chunk_mesh
     }
 
     fn build_mesh(&mut self, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) {
 
-        self.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-        self.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
+        self.data.vreserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
+        self.data.ireserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
         let mut index = 0;
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
@@ -107,10 +104,10 @@ impl ServerChunkMesh {
                 }
             }
         }
-        if self.indices.len() == 0 {
+        if self.data.ilen() == 0 {
             return;
         } else {
-            print_debug!("Created {} vertices in chunks", self.indices.len());
+            print_debug!("Created {} vertices in chunks", self.data.ilen());
         }
     }
 
@@ -135,16 +132,16 @@ impl ServerChunkMesh {
     fn add_data(&mut self, v : [u64;4], index : u32) -> u32 {
 
         for i in 0..4usize {
-            self.vertices.push((v[i] >> 32) as u32);        // High 32 bits
-            self.vertices.push((v[i] & 0xFFFFFFFF) as u32); // Low 32 bits
+            self.data.vpush((v[i] >> 32) as u32);        // High 32 bits
+            self.data.vpush((v[i] & 0xFFFFFFFF) as u32); // Low 32 bits
         }
 
-        self.indices.push(index);
-        self.indices.push(index + 2);
-        self.indices.push(index + 1);
-        self.indices.push(index);
-        self.indices.push(index + 3);
-        self.indices.push(index + 2);
+        self.data.ipush(index);
+        self.data.ipush(index + 2);
+        self.data.ipush(index + 1);
+        self.data.ipush(index);
+        self.data.ipush(index + 3);
+        self.data.ipush(index + 2);
 
         index + 4
     }

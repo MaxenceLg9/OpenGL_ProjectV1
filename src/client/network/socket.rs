@@ -1,5 +1,7 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::net::{SocketAddrV6, TcpStream};
+use bitvec::order::BitOrder;
+use bitvec::vec::BitVec;
 use shared::print_base;
 
 pub struct ClientSocket {
@@ -9,14 +11,14 @@ pub struct ClientSocket {
 impl ClientSocket {
     pub fn new(socket_addr_v6: SocketAddrV6) -> Self {
         let socket = TcpStream::connect(socket_addr_v6).unwrap();
-        print_base!("ServerSocket binding to {:?}", socket_addr_v6);
+        print_base!("ClientSocket connecting to {:?}", socket_addr_v6);
         Self {
             socket,
         }
     }
 
-    pub fn send(&mut self, message: &str) {
-        self.socket.write(message.to_string().as_bytes()).expect("aaa");
+    pub fn send(&mut self, bits: BitVec<u8>) {
+        self.socket.write(bits.as_raw_slice()).expect("aaa");
     }
 }
 

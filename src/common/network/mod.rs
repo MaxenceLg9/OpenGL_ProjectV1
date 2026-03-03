@@ -1,2 +1,3 @@
 pub mod packet;
-pub mod connection_packet;
+pub mod request;
+pub mod response;

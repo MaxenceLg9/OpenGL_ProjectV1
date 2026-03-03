@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use shared::common::account::puid::PUID;
+use shared::{print_base, print_debug};
 use crate::server::world_data::player::player::ServerPlayer;
 use crate::server::world_data::chunk::chunkmap::ChunkMap;
 use crate::server::world_data::properties::{Difficulty, ServerWorldProperties};
@@ -34,7 +35,13 @@ impl ServerWorldData {
 
         } else {
             let player = Arc::new(ServerPlayer::new(1.0,1.0,1.0));
+            print_base!("Connection initialized from {}", puid);
             self.players.insert(puid, player);
         }
+    }
+
+    pub fn disconnect_player(&mut self, puid : &PUID) {
+        // check if the player is new or already has data
+        self.players.remove(puid);
     }
 }
