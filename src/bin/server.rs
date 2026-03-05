@@ -5,8 +5,8 @@ use crate::server::world::ServerWorld;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 #[path="../server/mod.rs"] mod server;
 pub fn main() -> Result<(), String> {
-    #[cfg(feature = "dhat-heap")]
-    let _profiler = dhat::Profiler::new_heap();
+    // #[cfg(feature = "dhat-heap")]
+    // let _profiler = dhat::Profiler::new_heap();
 
     let mut server = ServerWorld::new();
     server.listen();

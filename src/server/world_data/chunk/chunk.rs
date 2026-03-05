@@ -35,7 +35,7 @@ impl Chunk {
             for z in 0..CHUNK_SIZE {
                 let block_x = x as i32 + self.chunk_pos.x * CHUNK_SIZE as i32;
                 let block_z = z as i32 + self.chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = (noised_terrain_default(block_x, block_z) * 50.0 + 100.0) as i32;
+                let max_h : i32 = (noised_terrain_default(block_x, block_z) * 100.0 + 150.0) as i32;
                 let local_max_height = max_h - self.chunk_pos.y * CHUNK_SIZE as i32;
                 for y in 0..local_max_height {
                     if y > (CHUNK_SIZE - 1) as i32 {

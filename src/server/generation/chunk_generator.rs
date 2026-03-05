@@ -63,7 +63,7 @@ impl ChunkGenerator {
                 print_base!("Error sending chunk: {:?}", e);
                 return;
             }
-            print_base!("Generated chunk {}", elt.deref());
+            // print_base!("Generated chunk {}", elt.deref());
         }
     }
 
@@ -156,7 +156,7 @@ impl ChunkGenerator {
                         print_base!("Error sending mesh: {:?}", e);
                         return;
                     }
-                    // print_base!("Meshed chunk {}", chunk_pos.deref());
+                    print_base!("Meshed chunk {}", chunk_pos.deref());
                 } else if count == 0 {
                     hash_set.remove(chunk_pos);
                 }

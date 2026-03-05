@@ -16,8 +16,8 @@ use crate::client::world::ClientWorld;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 pub fn main() -> Result<(), String> {
-    #[cfg(feature = "dhat-heap")]
-    let _profiler = dhat::Profiler::new_heap();
+    // #[cfg(feature = "dhat-heap")]
+    // let _profiler = dhat::Profiler::new_heap();
 
     let event_loop = EventLoop::new().expect("Failed to create event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
@@ -40,7 +40,7 @@ pub fn main() -> Result<(), String> {
 //     #[cfg(feature = "dhat-heap")]
 //     let _profiler = dhat::Profiler::new_heap();
 //     let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
-// 
+//
 //     let mut c = ClientWorld::new();
 //     c.connect_to();
 //     Ok(())

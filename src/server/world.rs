@@ -34,9 +34,9 @@ impl ServerWorld {
         let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
 
         self.socket.listen(self.data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into());
-        for i in 0..4 {
-            for j in 0..4 {
-                for k in 0..4 {
+        for i in 0..12 {
+            for j in 0..12 {
+                for k in 0..12 {
                     self.generator.create_chunk(ChunkPos::new(glam::ivec3(i,j,k)));
                 }
             }

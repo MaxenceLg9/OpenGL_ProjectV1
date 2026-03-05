@@ -32,15 +32,15 @@ impl MeshPacket {
             bits: bits.clone(),
         }
     }
-    
+
     pub fn get_indice(&self) -> u8 {
         self.indice
     }
-    
+
     pub fn get_total(&self) -> u8 {
         self.len
     }
-    
+
     pub fn get_chunk_pos(&self) -> ChunkPos {
         self.chunk_pos
     }
@@ -55,7 +55,7 @@ impl MeshPacket {
         let slice = header[16..32].load_le::<u16>();
         let ilen = header[32..64].load_le::<u32>();
         let vlen = header[64..96].load_le::<u32>();
-        print_base!("Packet: {}/{}, ChunkPos : {}, Ilen : {}, Vlen {}, bytes {}", i + 1, len, chunk_pos.deref(), ilen, vlen, slice);
+        // print_base!("Packet: {}/{}, ChunkPos : {}, Ilen : {}, Vlen {}, bytes {}", i + 1, len, chunk_pos.deref(), ilen, vlen, slice);
         // let uncompressed = content_bits;
         Self {
             chunk_pos,
