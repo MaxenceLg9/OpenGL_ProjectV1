@@ -4,7 +4,8 @@ use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 use bitvec::view::{BitView};
 use crate::common::account::puid::PUID;
-use crate::common::network::packet::{Message};
+use crate::common::network::network_traits::{ClientMessage, Message};
+use crate::common::network::packet_type::ClientPacketType;
 
 pub struct ConnectionPacket {
     puid : PUID,
@@ -33,23 +34,36 @@ impl ConnectionPacket {
         }
     }
 
+    pub fn get_uuid(&self) -> &PUID {
+        &self.puid
+    }
+
 
 
 }
 
 impl Display for ConnectionPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("ConnectionPacket {{ PUID: {}, Password: {} }}", self.puid, self.password))
+        f.write_fmt(format_args!("ConnectionPacket {{ \"PUID\": {}, \"Password\": {} }}", self.puid, self.password))
     }
 }
 
 impl Message for ConnectionPacket {
-    fn serialize(&self, packet_type : u8) -> BitVec<u8> {
+    fn serialize(&self, type_val : u8) -> BitVec<u8> {
         let mut bits = BitVec::new();
-        let packet_type = packet_type as u32;
-        bits.extend_from_bitslice(&packet_type.view_bits::<Lsb0>()[..3]);
+        bits.extend_from_bitslice(type_val.view_bits::<Lsb0>());
         bits.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
         bits.extend_from_bitslice(self.password.as_bytes().view_bits::<Lsb0>());
         bits
+    }
+}
+
+impl ClientMessage for ConnectionPacket {
+    fn get_puid(&self) -> PUID {
+        self.puid
+    }
+
+    fn get_packet_type(&self) -> ClientPacketType {
+        ClientPacketType::Connect
     }
 }

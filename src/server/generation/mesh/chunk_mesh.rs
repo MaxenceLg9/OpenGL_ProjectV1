@@ -3,31 +3,82 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc};
 use std::vec::Vec;
+use bitvec::order::Lsb0;
+use bitvec::prelude::BitVec;
+use bitvec::view::BitView;
 use glam::*;
+use zstd::compression_level_range;
 use shared::common::display::vertex::vertex::Vertex;
-use shared::common::generation::chunk_mesh::CommonChunkMesh;
+use shared::common::network::server::mesh_packet::MeshPacket;
+use shared::common::network::server::packet::ServerPacket;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_debug;
 use crate::server::world_data::chunk::chunk::Chunk;
 
 pub struct ServerChunkMesh {
-    data: CommonChunkMesh,
+    vertices: Vec<u32>,
+    indices: Vec<u32>,
+    chunk_pos: ChunkPos
 }
 
 impl ServerChunkMesh {
     pub fn new(chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) -> ServerChunkMesh {
         let mut chunk_mesh = Self {
-            data: CommonChunkMesh::new()
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            chunk_pos
         };
         chunk_mesh.build_mesh(chunks_map, chunk_pos, blocks);
         chunk_mesh
     }
 
+    pub fn get_chunk_pos(&self) -> ChunkPos {
+        self.chunk_pos
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.vertices.is_empty() && self.indices.is_empty()
+    }
+
+    fn compress(&self) -> Vec<BitVec<u8>> {
+        let mut vec = Vec::new();
+        let mut bits: BitVec<u8> = BitVec::new();
+
+        let level = if compression_level_range().contains(&10) { 10 } else { compression_level_range().max().unwrap() };
+        let mut vertices_u8 = self.vertices.iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>();
+        let indices_u8 = self.indices.iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>();
+        vertices_u8.extend(indices_u8);
+
+        let data = zstd::bulk::compress(vertices_u8.as_slice(),level).expect("Cannot compress");
+
+        bits.extend_from_bitslice(data.view_bits::<Lsb0>());
+        for bit_chunk in bits.chunks(8000) {
+            vec.push(bit_chunk.to_bitvec());
+        }
+        vec
+    }
+
+    pub fn to_packets(&self) -> HashMap<u8,MeshPacket> {
+        let mut packets = HashMap::new();
+        let (ilen, vlen) = (self.indices.len(), self.vertices.len());
+        let chunk_pos : ChunkPos = self.get_chunk_pos();
+        let bytes_vec: Vec<BitVec<u8>> = self.compress();
+
+        let len = bytes_vec.len() as u8;
+
+        for i in 0..len {
+            let slice= bytes_vec.get(i as usize).unwrap();
+            let packet = MeshPacket::new(chunk_pos, i, len, ilen as u32, vlen as u32, slice);
+            packets.insert(i,packet);
+        }
+        packets
+    }
+
     fn build_mesh(&mut self, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) {
 
-        self.data.vreserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-        self.data.ireserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
+        self.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
+        self.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
         let mut index = 0;
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
@@ -104,10 +155,10 @@ impl ServerChunkMesh {
                 }
             }
         }
-        if self.data.ilen() == 0 {
+        if self.indices.len() == 0 {
             return;
         } else {
-            print_debug!("Created {} vertices in chunks", self.data.ilen());
+            print_debug!("Created {} vertices in chunks", self.indices.len());
         }
     }
 
@@ -116,7 +167,7 @@ impl ServerChunkMesh {
             block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 ||
             block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
 
-            return self.get_block_at(chunk_pos * CHUNK_SIZE as i32 + block_pos, chunks_map) == 0;
+            return self.get_block_at(chunk_pos + block_pos, chunks_map) == 0;
         }
         blocks[block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize] == 0
     }
@@ -132,17 +183,18 @@ impl ServerChunkMesh {
     fn add_data(&mut self, v : [u64;4], index : u32) -> u32 {
 
         for i in 0..4usize {
-            self.data.vpush((v[i] >> 32) as u32);        // High 32 bits
-            self.data.vpush((v[i] & 0xFFFFFFFF) as u32); // Low 32 bits
+            self.vertices.push((v[i] >> 32) as u32);        // High 32 bits
+            self.vertices.push((v[i] & 0xFFFFFFFF) as u32); // Low 32 bits
         }
 
-        self.data.ipush(index);
-        self.data.ipush(index + 2);
-        self.data.ipush(index + 1);
-        self.data.ipush(index);
-        self.data.ipush(index + 3);
-        self.data.ipush(index + 2);
+        self.indices.push(index);
+        self.indices.push(index + 2);
+        self.indices.push(index + 1);
+        self.indices.push(index);
+        self.indices.push(index + 3);
+        self.indices.push(index + 2);
 
         index + 4
     }
+
 }

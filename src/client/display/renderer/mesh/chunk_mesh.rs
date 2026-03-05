@@ -1,7 +1,14 @@
+use std::collections::HashMap;
 use std::vec::Vec;
+use bitvec::order::Lsb0;
+use bitvec::prelude::BitVec;
+use bitvec::view::BitView;
 use gl::types::{GLuint};
 use gl::{TRIANGLES, UNSIGNED_INT};
 use glam::*;
+use zstd::compression_level_range;
+use shared::common::network::server::mesh_packet::MeshPacket;
+use shared::common::world::pos::chunkpos::ChunkPos;
 
 pub struct ChunkMesh {
     vao : GLuint,
@@ -77,6 +84,33 @@ impl ChunkMesh {
         gl::BindVertexArray(self.vao);
         gl::DrawElementsBaseVertex(TRIANGLES,self.nb_indices,UNSIGNED_INT, std::ptr::null(),0);
         gl::BindVertexArray(0);
+    }
+
+    fn decompress(vecs_bits: Vec<BitVec<u8>>, vlen : u32, ilen : u32) -> (Vec<u32>, Vec<u32>) {
+        let mut bits : BitVec<u8> = BitVec::new();
+        for vec_bits in vecs_bits {
+            bits.extend(vec_bits);
+        }
+        let data = zstd::bulk::decompress(bits.as_raw_slice(),(vlen + ilen) as usize * 8usize).expect("Cannot decompress");
+        let all_u32s: Vec<u32> = bytemuck::cast_slice::<u8, u32>(&data).to_vec();
+
+        // 3. Split the Vec into two
+        let mut vertices = all_u32s;
+        let indices = vertices.split_off(vlen as usize);
+
+        (vertices, indices)
+    }
+
+    pub fn from_packets(packets : &HashMap<u8,MeshPacket>) -> ChunkMesh {
+        let mut v = Vec::new();
+        let (mut vlen, mut ilen) = (0,0);
+        for i in 0..packets.len() as u8 {
+            let packet = packets.get(&i).unwrap();
+            v.push(packet.get_bits());
+            (vlen, ilen) = packet.get_lens();
+        }
+        let (vertices, indices) = Self::decompress(v, vlen, ilen);
+        ChunkMesh::new(vertices,indices)
     }
 
 }

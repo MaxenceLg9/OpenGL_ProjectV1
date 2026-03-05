@@ -1,3 +1,4 @@
-pub mod packet;
-pub mod request;
-pub mod response;
+pub mod client;
+pub mod server;
+pub mod packet_type;
+pub mod network_traits;

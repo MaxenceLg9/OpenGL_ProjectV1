@@ -47,6 +47,7 @@ impl Renderer {
             world: ClientWorld::new(),
             cursor: Cursor::new(),
         };
+        renderer.world.connect_to();
         renderer
     }
 

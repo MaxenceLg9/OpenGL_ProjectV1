@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 
+#[derive(Copy)]
 pub struct PUID {
     id : u32,
 }
