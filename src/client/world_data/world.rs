@@ -1,27 +1,40 @@
 use std::collections::HashMap;
 use std::net::{Ipv6Addr, SocketAddrV6};
+use std::ops::Deref;
 use std::sync::{Arc, RwLock};
+use glam::IVec3;
+use tokio::sync::mpsc::channel;
 use winit::window::Window;
 use shared::common::world::block::block::BlockType;
+use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
-use crate::client::display::renderer::mesh::chunk_mesh::ChunkMesh;
+use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 use crate::client::display::renderer::mesh::shader::shader::Shader;
 use crate::client::display::renderer::mesh::texture::texture_array::TextureArray;
+use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
+use crate::client::generation::mesh_generator::MeshGenerator;
 use crate::client::network::socket::ClientSocket;
+use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorld {
     socket : Option<ClientSocket>,
     player: ClientPlayer,
     chunk_shader : Shader,
-    meshes : Arc<RwLock<HashMap<ChunkPos,ChunkMesh>>>,
-    texture_array: TextureArray
+    meshes : Arc<RwLock<MeshMap>>,
+    chunks : Arc<RwLock<ChunkMap>>,
+    texture_array: TextureArray,
+    last_player_pos : IVec3,
+    generator: MeshGenerator,
+    mesh_receiver: crossbeam::channel::Receiver<ChunkMesh>
 }
 
 impl ClientWorld {
     pub unsafe fn new() -> ClientWorld {
         let texture_array = TextureArray::new("textures".to_string());
+        let cm = Arc::new(RwLock::new(ChunkMap::new()));
+        let (sx, rx) = crossbeam::channel::unbounded();
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/stone.png", BlockType::STONE.get_value() - 1).expect("Cannot add block to texture array");
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/dirt.png", BlockType::DIRT.get_value() - 1).expect("Cannot add block to texture array");
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/deepslate.png", BlockType::DEEPSLATE.get_value() - 1).expect("Cannot add block to texture array");
@@ -29,14 +42,18 @@ impl ClientWorld {
             socket : None,
             player: ClientPlayer::new(1.0,1.0,1.0),
             texture_array,
-            meshes: Arc::new(RwLock::new(HashMap::new())),
+            meshes: Arc::new(RwLock::new(MeshMap::new())),
+            last_player_pos : glam::ivec3(0,0,0),
+            chunks: cm.clone(),
+            generator: MeshGenerator::new(cm,sx),
+            mesh_receiver: rx,
             chunk_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/vertex.vert".to_string(), "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/fragment.frag".to_string()),
         }
     }
 
-    pub fn connect_to(&mut self){
+    pub fn connect_to(&mut self) {
         let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
-        self.socket = Some(ClientSocket::new(SocketAddrV6::new(ipv6_address, 25000, 0, 0).into(), self.meshes.clone()));
+        self.socket = Some(ClientSocket::new(SocketAddrV6::new(ipv6_address, 25000, 0, 0).into(), self.chunks.clone()));
         self.socket.as_mut().unwrap().send();
     }
 
@@ -44,7 +61,7 @@ impl ClientWorld {
         &mut self.player
     }
 
-    pub unsafe fn render(&self, window: &Window){
+    pub unsafe fn render(&self, window: &Window) {
         //    Logs::debug("Rendering world_data");
         let camera_pos: glam::Vec3 = self.player.get_coords();
         let camera_target: glam::Vec3 = camera_pos + self.player.get_direction();
@@ -74,17 +91,32 @@ impl ClientWorld {
         // iterating over the hashmap
         // let mut pos_to_remove = Vec::new();
         // iterating over all the meshes to render them / or remove the ones that are too far from the player
-        for (pos, mesh) in self.meshes.write().unwrap().iter_mut() {
+        for (pos, mesh) in self.meshes.write().unwrap().iter() {
             // small calculations for the 3d rendering
             let mut model = glam::Mat4::IDENTITY;
             model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
             self.chunk_shader.set_matrix4fv("uniform_model", model);
-            if !mesh.is_linked() {
-                mesh.link();
-            }
             mesh.draw();
         }
-        print_base!("len of meshes {}", self.meshes.read().unwrap().len());
-
+        // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
+    }
+    
+    pub fn tick(&mut self) {
+        unsafe {
+            for mut cm in self.mesh_receiver.try_recv() {
+                let m = cm.link();
+                self.meshes.write().unwrap().insert(cm.get_chunk_pos(),m);
+                print_base!("Linking {}", cm.get_chunk_pos().deref());
+            }
+        }
+        for (pos,chunk) in self.chunks.read().unwrap().iter() {
+            if !self.meshes.read().unwrap().contains_mesh(&pos) {
+                self.generator.create_mesh(pos.clone());
+            }
+        }
+        if self.last_player_pos != self.player.get_chunk_pos() {
+            self.last_player_pos = self.player.get_chunk_pos();
+            print_base!("New ChunkPos {}", self.last_player_pos);
+        }
     }
 }

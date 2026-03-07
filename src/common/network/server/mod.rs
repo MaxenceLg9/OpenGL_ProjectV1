@@ -1,2 +1,2 @@
-pub mod mesh_packet;
+pub mod chunk_packet;
 pub mod packet;

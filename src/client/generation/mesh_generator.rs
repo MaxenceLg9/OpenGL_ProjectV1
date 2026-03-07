@@ -1,0 +1,124 @@
+use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
+use std::sync::{Arc, Mutex, RwLock};
+use crossbeam::channel;
+use shared::common::world::chunk::chunk::Chunk;
+use shared::common::world::chunk::chunkmap::ChunkMap;
+use shared::common::world::pos::chunkpos::ChunkPos;
+use shared::print_base;
+use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
+
+pub struct MeshGenerator {
+    gen_crossbeam_sx: channel::Sender<ChunkPos>,
+    pos_register: Arc<Mutex<HashSet<ChunkPos>>>,
+}
+impl MeshGenerator {
+
+    pub fn new(chunk_map: Arc<RwLock<ChunkMap>>, sender : channel::Sender<ChunkMesh>) -> MeshGenerator {
+        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::unbounded::<ChunkPos>();
+        let pos_register = Arc::new(Mutex::new(HashSet::new()));
+
+        Self::start_build_meshes(gen_crossbeam_rx, sender, chunk_map);
+
+        Self {
+            gen_crossbeam_sx,
+            pos_register,
+        }
+    }
+
+    pub fn create_mesh(&mut self, chunk_pos: ChunkPos) {
+        let mut result = match self.pos_register.lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        if result.insert(chunk_pos) {
+            self.gen_crossbeam_sx.send(chunk_pos).expect("Error when sending chunk");
+        }
+        drop(result);
+    }
+
+    fn start_build_meshes(pos_receiver: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, chunk_map: Arc<RwLock<ChunkMap>>) {
+        std::thread::Builder::new()
+            .name("ChunkMesh_generator".to_string())
+            .spawn(move || {
+                Self::build_meshes(pos_receiver, mesh_sender, chunk_map);
+            }).unwrap();
+    }
+
+    fn build_meshes(pos_receiver: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, server_world_data: Arc<RwLock<ChunkMap>>) {
+        let mut chunks = HashMap::new();
+        let mut hash_set = HashSet::new();
+        let mut n = 0;
+        while let Ok(elt) = pos_receiver.recv() {
+
+            hash_set.insert(elt);
+            for pos in pos_receiver.try_iter() {
+                hash_set.insert(pos);
+            }
+
+            // iterating over the positions to build if possible the associated chunk
+            for chunk_pos in hash_set.clone().iter() {
+                // add the neighbours in chunks
+                let count = Self::add_neighbours_if_exist(chunk_pos, server_world_data.clone(), &mut chunks);
+                if count == 7 {
+                    let mesh = ChunkMesh::build_mesh(chunks.get(chunk_pos).unwrap(),&chunks);
+                    hash_set.remove(chunk_pos);
+                    if let Err(e) = mesh_sender.send(mesh) {
+                        print_base!("Error sending mesh: {:?}", e);
+                        return;
+                    }
+                    n += 1;
+                    // print_base!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
+                } else if count == 0 {
+                    hash_set.remove(chunk_pos);
+                }
+            }
+
+            chunks.clear();
+
+            // hash_set.retain(|p| {
+            //     Self::has_neighbours(p,server_world_data.clone()) == 0
+            // });
+        }
+    }
+
+    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, chunk_map: Arc<RwLock<ChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
+        let mut count = 0;
+        let pos_vec = Self::get_neighbours_chunks_pos(chunk_pos);
+
+        // checking every side of the chunk
+        let data = chunk_map.read().unwrap();
+        for p in pos_vec.iter() {
+            // the position is already in the map, no need to check if it exists
+            if !chunks.contains_key(p) {
+                // checking if the chunk exists in the world_data data as it doesn't exist in the map
+                let result = data.get(p);
+                // getting the object associated with the pos, checking that the chunk exists and adding it into the map
+                if result.is_none() {
+                    continue;
+                }
+                // the result is some, adding it into the map
+                chunks.entry(*p).or_insert(result.unwrap().clone());
+            }
+            count += 1;
+        }
+        for p in pos_vec.iter() {
+            if !chunks.contains_key(p) && count == 7 {
+                print_base!("Bug on pos {} at {}",chunk_pos.deref(), p.deref());
+            }
+        }
+        count
+    }
+
+    fn get_neighbours_chunks_pos(pos: &ChunkPos) -> Vec<ChunkPos> {
+        let mut v = Vec::new();
+        v.push(ChunkPos::new(glam::ivec3(pos.x - 1, pos.y, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x + 1, pos.y, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y - 1, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y + 1, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z - 1)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z + 1)));
+        v.push(pos.clone());
+        v
+    }
+}

@@ -8,12 +8,12 @@ use crate::common::network::client::packet::ClientPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
 use crate::common::network::network_traits::{ClientMessage, PacketTrait, ServerMessage, ServerPacketTrait};
 use crate::common::network::packet_type::{ClientPacketType, ServerPacketType};
-use crate::common::network::server::mesh_packet::MeshPacket;
+use crate::common::network::server::chunk_packet::ChunkPacket;
 
 pub enum ServerPacket {
     Correction(SamplePacket),
     BlockDestroy(SamplePacket),
-    Mesh(MeshPacket),
+    Chunk(ChunkPacket),
 }
 
 impl ServerPacket {
@@ -22,7 +22,7 @@ impl ServerPacket {
         // 4. Match and construct
         match p_type {
             ServerPacketType::Mesh => {
-                ServerPacket::Mesh(MeshPacket::from_bits(bits.to_bitvec()))
+                ServerPacket::Chunk(ChunkPacket::from_bits(bits.to_bitvec()))
             }
         }
     }
@@ -33,7 +33,7 @@ impl ServerPacket {
         match self {
             ServerPacket::BlockDestroy(p) => p,
             ServerPacket::Correction(p) => p,
-            ServerPacket::Mesh(p) => p,
+            ServerPacket::Chunk(p) => p,
         }
     }
 }

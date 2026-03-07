@@ -7,7 +7,7 @@ use shared::common::network::client::connection_packet::ConnectionPacket;
 use shared::common::network::client::packet::ClientPacket;
 use shared::print_base;
 use crate::client::network::socket::ClientSocket;
-use crate::client::world::ClientWorld;
+use client::world_data::world::ClientWorld;
 
 #[path="../client/mod.rs"] pub mod client;
 

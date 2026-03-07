@@ -1,58 +1,83 @@
-use shared::print_base;
+use crate::print_base;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc};
-use std::vec::Vec;
-use bitvec::order::Lsb0;
-use bitvec::prelude::BitVec;
-use bitvec::view::BitView;
-use glam::*;
-use zstd::compression_level_range;
+use std::sync::Arc;
+use gl::types::{GLint, GLuint};
+use gl::UNSIGNED_INT;
 use shared::common::display::vertex::vertex::Vertex;
-use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::network::server::packet::ServerPacket;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_debug;
-use crate::server::world_data::chunk::chunk::ServerChunk;
+use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 
-pub struct ServerChunkMesh {
+pub struct ChunkMesh {
     vertices: Vec<u32>,
     indices: Vec<u32>,
     chunk_pos: ChunkPos
 }
 
-impl ServerChunkMesh {
-    pub fn new(chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) -> ServerChunkMesh {
-        let mut chunk_mesh = Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            chunk_pos
-        };
-        chunk_mesh.build_mesh(chunks_map, chunk_pos, blocks);
-        chunk_mesh
-    }
+
+impl ChunkMesh {
 
     pub fn get_chunk_pos(&self) -> ChunkPos {
         self.chunk_pos
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.vertices.is_empty() && self.indices.is_empty()
     }
 
+    pub unsafe fn link(&mut self) -> Mesh {
+        let (mut vao, mut vbo, mut ebo) = (0,0,0);
+        Self::setup_mesh(&mut vao,&mut vbo,&mut ebo);
+        self.bind_data(&mut vbo,&mut ebo);
+        Mesh::new(vao,vbo,ebo, self.indices.len() as i32)
+    }
 
 
-    fn build_mesh(&mut self, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos, blocks : &Vec<u16>) {
 
-        self.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-        self.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
+    unsafe fn setup_mesh(vao: &mut GLuint, vbo: &mut GLuint, ebo: &mut GLuint) {
+
+        // 1. Create the objects (DSA style)
+        gl::CreateBuffers(1, vbo);
+        gl::CreateBuffers(1, ebo);
+        gl::CreateVertexArrays(1, vao);
+
+        // 2. Configure Attribute 0
+        gl::VertexArrayVertexBuffer(*vao, 0, *vbo, 0, 8);
+
+        gl::EnableVertexArrayAttrib(*vao, 0);
+        gl::EnableVertexArrayAttrib(*vao, 1);
+
+        // 3. Configure Attribute 1
+        gl::VertexArrayAttribIFormat(*vao, 0, 1, UNSIGNED_INT, 0);
+        gl::VertexArrayAttribIFormat(*vao, 1, 1, UNSIGNED_INT, 4);
+
+        gl::VertexArrayAttribBinding(*vao,0,0);
+        gl::VertexArrayAttribBinding(*vao,1,0);
+
+        gl::VertexArrayElementBuffer(*vao, *ebo);
+
+    }
+
+    unsafe fn bind_data(&self, vbo: &mut GLuint, ebo: &mut GLuint) {
+        gl::NamedBufferData(*vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _ , gl::STATIC_DRAW);
+        gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
+    }
+
+    pub fn build_mesh(chunk : &Arc<Chunk>, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>) -> ChunkMesh {
+        let mut chunk_mesh = Self {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            chunk_pos : chunk.get_chunk_pos()
+        };
+        chunk_mesh.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
+        chunk_mesh.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
         let mut index = 0;
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE{
-                    let voxel_id : u16 = blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z];
+                    let voxel_id : u16 = chunk.get_blocks()[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z];
 
                     if voxel_id == 0 {
                         continue; // skip empty blocks
@@ -60,75 +85,74 @@ impl ServerChunkMesh {
                     let mut v: [u64;4] = [0; 4];
                     let (ux, uy, uz) = (x as i32, y as i32, z as i32);
                     //front face
-                    if self.is_void(IBlockPos::from_ints(ux, uy, uz + 1), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy, uz + 1), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 1, 0).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 1, 1).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 1, 3).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 1, 2).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
                     // back face
-                    if self.is_void(IBlockPos::from_ints(ux, uy, uz - 1), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy, uz - 1), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 4, 2).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 4, 0).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 4, 1).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 4, 3).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
                     //top face
-                    if self.is_void(IBlockPos::from_ints(ux, uy + 1, uz), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy + 1, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 0, 2).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 0, 0).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 0, 1).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 0, 3).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
                     // bottom face
-                    if self.is_void(IBlockPos::from_ints(ux, uy - 1, uz), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy - 1, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 5, 1).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 5, 3).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 5, 2).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 5, 0).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
 
                     // right face
-                    if self.is_void(IBlockPos::from_ints(ux + 1, uy, uz), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux + 1, uy, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 2, 2).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 2, 0).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 1).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 3).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
 
                     // left face
-                    if self.is_void(IBlockPos::from_ints(ux - 1, uy, uz), blocks, chunks_map, chunk_pos) {
+                    if chunk_mesh.is_void(IBlockPos::from_ints(ux - 1, uy, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
                         v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 3, 0).unwrap();
                         v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 3, 1).unwrap();
                         v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 3, 3).unwrap();
                         v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 3, 2).unwrap();
 
-                        index = self.add_data(v, index);
+                        index = chunk_mesh.add_data(v, index);
                     }
                 }
             }
         }
-        if self.indices.len() == 0 {
-            return;
-        } else {
-            print_debug!("Created {} vertices in chunks", self.indices.len());
-        }
+        if chunk_mesh.indices.len() != 0 {
+            print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
+        };
+        chunk_mesh
     }
 
     fn is_void(&self, block_pos: IBlockPos, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos) -> bool {
@@ -165,5 +189,4 @@ impl ServerChunkMesh {
 
         index + 4
     }
-
 }

@@ -25,6 +25,7 @@ impl ClientPlayer {
     pub fn get_chunk_pos(&self) -> IVec3 {
         self.pos.as_ivec3() / CHUNK_SIZE as i32
     }
+    
     fn move_forward(&mut self, delta : f32, time : f32) {
         self.pos += self.direction * delta * 3.5 * self.get_speed(time);
         // println!("Pos : {},{},{}", self.pos.x, self.pos.y, self.pos.z);

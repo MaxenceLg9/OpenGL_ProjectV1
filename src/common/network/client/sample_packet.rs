@@ -1,7 +1,5 @@
 use std::fmt::{Display, Formatter};
-use std::sync::Arc;
 use bitvec::prelude::BitVec;
-use image::codecs::pnm::PnmSubtype::Bitmap;
 use crate::common::account::puid::PUID;
 use crate::common::network::network_traits::{ClientMessage, Message, ServerMessage};
 use crate::common::network::packet_type::{ClientPacketType, ServerPacketType};

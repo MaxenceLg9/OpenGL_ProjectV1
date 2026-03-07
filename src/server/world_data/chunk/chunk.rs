@@ -1,58 +1,50 @@
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc};
 use std::time::Instant;
+use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
-use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::math::noised_terrain_default;
 use crate::server::generation::mesh::chunk_mesh::ServerChunkMesh;
 use crate::server::world_data::block::block::BlockType;
 
-pub struct Chunk {
-    blocks : Vec<u16>,
-    chunk_pos: ChunkPos
+pub struct ServerChunk {
+    chunk: Chunk
 }
 
-impl Drop for Chunk {
+impl Drop for ServerChunk {
     fn drop(&mut self) {
     }
 }
 
-impl Chunk {
-    pub fn new(chunk_pos : ChunkPos) -> Chunk {
-        let mut chunk = Self {
-            blocks: Vec::new(),
-            chunk_pos
-        };
-        chunk.blocks.resize(CHUNK_SIZE.pow(3),BlockType::AIR.get_value());
-        // println!("Generating the chunk");
-        chunk.generate_chunk();
-        chunk
-    }
+impl ServerChunk {
 
-    pub fn generate_chunk(&mut self){
+    pub fn generate_chunk(chunk_pos: ChunkPos) -> Chunk {
         let time : Instant = Instant::now();
+        let mut blocks = Vec::new();
+        blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
         for x in 0..CHUNK_SIZE {
             for z in 0..CHUNK_SIZE {
-                let block_x = x as i32 + self.chunk_pos.x * CHUNK_SIZE as i32;
-                let block_z = z as i32 + self.chunk_pos.z * CHUNK_SIZE as i32;
+                let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
+                let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
                 let max_h : i32 = (noised_terrain_default(block_x, block_z) * 100.0 + 150.0) as i32;
-                let local_max_height = max_h - self.chunk_pos.y * CHUNK_SIZE as i32;
+                let local_max_height = max_h - chunk_pos.y * CHUNK_SIZE as i32;
                 for y in 0..local_max_height {
                     if y > (CHUNK_SIZE - 1) as i32 {
                         break;
                     }
-                    self.blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  self.generate_block((y + self.chunk_pos.y * CHUNK_SIZE as i32) as u16);
+                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  Self::generate_block((y + chunk_pos.y * CHUNK_SIZE as i32) as u16);
                 }
                 for y in local_max_height.max(0) as usize..CHUNK_SIZE - 1 {
-                    self.blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::AIR.get_value();
                 }
             }
-
         }
+        Chunk::new(chunk_pos,blocks)
         // print_debug!("Chunk created in {}ms",Instant::now().duration_since(time).as_millis());
     }
 
-    pub fn generate_block(&self,y : u16) -> u16 {
+    pub fn generate_block(y : u16) -> u16 {
         if y < 100 {
             BlockType::DEEPSLATE.get_value(); // Deepslate
         }
@@ -64,27 +56,27 @@ impl Chunk {
         }
     }
 
-    pub fn get_chunk_pos(&self) -> ChunkPos {
-        self.chunk_pos
-    }
 
-    pub fn get_block_at(&self, block_pos: IBlockPos) -> u16 {
-        if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 || block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 || block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
-            return 0; // out of bounds
-        }
-        self.blocks[ block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize]
-    }
+}
 
-    pub fn build_mesh(&self, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>) -> ServerChunkMesh {
-        ServerChunkMesh::new(chunks_map, self.chunk_pos, &self.blocks)
+impl Deref for ServerChunk {
+    type Target = Chunk;
+
+    fn deref(&self) -> &Self::Target {
+        &self.chunk
     }
 }
 
-impl Clone for Chunk {
+impl DerefMut for ServerChunk {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.chunk
+    }
+}
+
+impl Clone for ServerChunk {
     fn clone(&self) -> Self {
         Self {
-            blocks: self.blocks.clone(),
-            chunk_pos: self.chunk_pos.clone()
+            chunk: self.chunk.clone()
         }
     }
 }

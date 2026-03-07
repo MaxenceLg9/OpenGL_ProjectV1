@@ -1,6 +1,6 @@
 use bitvec::vec::BitVec;
 use strum::{Display, FromRepr};
-use crate::common::network::server::mesh_packet::MeshPacket;
+use crate::common::network::server::chunk_packet::ChunkPacket;
 
 #[derive(Clone, Copy, Debug, PartialEq, FromRepr, Display)]
 #[repr(u8)]
@@ -26,13 +26,13 @@ pub enum ServerPacketType {
 impl ServerPacketType {
     pub fn get_header_size(t : ServerPacketType) -> usize {
         match t {
-            ServerPacketType::Mesh => MeshPacket::get_header_size()
+            ServerPacketType::Mesh => ChunkPacket::get_header_size()
         }
     }
 
-    pub fn get_body_size(t : ServerPacketType, header : BitVec<u8>) -> usize {
+    pub fn get_body_size(t : ServerPacketType, header : &BitVec<u8>) -> usize {
         match t {
-            ServerPacketType::Mesh => MeshPacket::get_body_size(header)
+            ServerPacketType::Mesh => ChunkPacket::get_body_size(header)
         }
     }
 }

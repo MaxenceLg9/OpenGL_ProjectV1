@@ -27,15 +27,15 @@ impl Decoder for PacketCodec {
 
         // Step 4: Peek at header to find body size
         // (Assuming body size is at a fixed offset in your header)
-        let body_size = ServerPacketType::get_body_size(packet_type, src[1..header_size+1].view_bits::<Lsb0>().to_bitvec());
+        let body_size = ServerPacketType::get_body_size(packet_type, &src[1..header_size+1].view_bits::<Lsb0>().to_bitvec());
 
         // Step 5: Do we have the full packet?
         if src.len() < 1 + header_size + body_size {
             return Ok(None); // Still not enough
         }
-        src.advance(1);
+        // print_base!("Decoding packet");
         // Step 6: We have everything! Remove bytes from buffer and parse.
-        let full_packet_data = src.split_to(header_size + body_size);
+        let full_packet_data = src.split_to(header_size + body_size + 1);
         let packet = ServerPacket::from_bits(packet_type, full_packet_data.view_bits::<Lsb0>());
 
         Ok(Some(packet))

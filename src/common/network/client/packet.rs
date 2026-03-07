@@ -1,9 +1,7 @@
 use std::fmt::{Display, Formatter};
-use std::sync::Arc;
 use bitvec::field::BitField;
 use bitvec::order::Lsb0;
 use bitvec::prelude::{BitSlice, BitVec};
-use bitvec::view::BitView;
 use crate::common::account::puid::PUID;
 use crate::common::network::client::connection_packet::ConnectionPacket;
 use crate::common::network::client::sample_packet::SamplePacket;

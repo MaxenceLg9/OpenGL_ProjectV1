@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use crate::client::display::renderer::mesh::chunk_mesh::ChunkMesh;
+use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 
 pub struct MeshMap {
-    meshes: HashMap<ChunkPos, Arc<ChunkMesh>>,
+    meshes: HashMap<ChunkPos, Mesh>,
 }
 
 impl MeshMap {
@@ -16,13 +16,13 @@ impl MeshMap {
         }
     }
 
-    pub fn add_mesh(&mut self, pos : ChunkPos, mesh: ChunkMesh) -> bool {
+    pub fn add_mesh(&mut self, pos : ChunkPos, mesh: Mesh) -> bool {
         match self.meshes.entry(pos) {
             Entry::Occupied(_) => {
                 false
             }
             Entry::Vacant(slot) => {
-                slot.insert(Arc::new(mesh));
+                slot.insert(mesh);
                 true
             }
         }
@@ -32,8 +32,8 @@ impl MeshMap {
         self.meshes.contains_key(mesh_pos)
     }
 
-    pub fn get_mesh(&self, mesh_pos: &ChunkPos) -> Arc<ChunkMesh> {
-        self.meshes.get(mesh_pos).unwrap().clone()
+    pub fn get_mesh(&self, mesh_pos: &ChunkPos) -> &Mesh {
+        self.meshes.get(mesh_pos).unwrap()
     }
 
     pub fn remove_mesh(&mut self, mesh_pos : &ChunkPos) {
@@ -42,16 +42,16 @@ impl MeshMap {
 }
 
 impl Deref for MeshMap {
-    type Target = HashMap<ChunkPos,Arc<ChunkMesh>>;
+    type Target = HashMap<ChunkPos,Mesh>;
 
-    fn deref(&self) -> &HashMap<ChunkPos,Arc<ChunkMesh>> {
+    fn deref(&self) -> &HashMap<ChunkPos,Mesh> {
         &self.meshes
     }
 
 }
 
 impl DerefMut for MeshMap {
-    fn deref_mut(&mut self) -> &mut HashMap<ChunkPos,Arc<ChunkMesh>> {
+    fn deref_mut(&mut self) -> &mut HashMap<ChunkPos,Mesh> {
         &mut self.meshes
     }
 }

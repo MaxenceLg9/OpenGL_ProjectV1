@@ -14,7 +14,7 @@ use tokio::net::tcp::OwnedReadHalf;
 use zstd::zstd_safe::WriteBuf;
 use shared::common::network::client::packet;
 use shared::common::network::client::packet::ClientPacket;
-use shared::common::network::server::mesh_packet::MeshPacket;
+use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
 
 pub struct ServerSocket {
@@ -78,7 +78,7 @@ impl ServerSocket {
                     return;
                 }
             };
-            let mut cstate = ConnectionState::Stream;
+            let _cstate = ConnectionState::Stream;
             let mut buffer = [0; 1024];
             loop {
                 tokio::select! {
@@ -91,14 +91,13 @@ impl ServerSocket {
                         // implement TLS handshake
                         let p = Self::parse_request(buffer, n);
 
-                        cstate = Self::handle_packet(p,server_world_data.clone(), cstate);
-                        if cstate == ConnectionState::Quit {
+                        if Self::handle_packet(p,server_world_data.clone()) == ConnectionState::Quit {
                             break
                         }
                     }
                     //
                     Some(packet_data) = rx.recv() => {
-                        MeshPacket::from_bits(packet_data[1..].view_bits::<Lsb0>().to_bitvec());
+                        // ChunkPacket::from_bits(packet_data[1..].view_bits::<Lsb0>().to_bitvec());
                         writer.write_all(&packet_data).await.unwrap();
                     }
                 }
@@ -125,7 +124,7 @@ impl ServerSocket {
         }
     }
 
-    fn handle_packet(p: ClientPacket, server_world_data: Arc<ServerWorldData>, connection_state: ConnectionState) -> ConnectionState {
+    fn handle_packet(p: ClientPacket, server_world_data: Arc<ServerWorldData>) -> ConnectionState {
         match p {
             ClientPacket::Quit(_) => ConnectionState::Quit,
             _ => ConnectionState::Stream,

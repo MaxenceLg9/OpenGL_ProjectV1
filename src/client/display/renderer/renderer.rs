@@ -8,7 +8,7 @@ use winit::window::Window;
 use shared::print_debug;
 use shared::print_base;
 use crate::client::display::renderer::gui::Cursor;
-use crate::client::world::ClientWorld;
+use crate::client::world_data::world::ClientWorld;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub enum GlDisplayCreationState {
@@ -62,6 +62,7 @@ impl Renderer {
             gl::CullFace(gl::BACK); // Cull back faces
 
             self.world.render(window);
+            self.world.tick();
             print_debug!("Collecting meshes");
             self.cursor.draw_cursor(window);
         }

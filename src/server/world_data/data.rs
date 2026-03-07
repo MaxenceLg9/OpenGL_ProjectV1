@@ -7,13 +7,13 @@ use crossbeam::channel;
 use shared::common::account::puid::PUID;
 use shared::{print_base, print_debug};
 use crate::server::world_data::player::player::ServerPlayer;
-use crate::server::world_data::chunk::chunkmap::ChunkMap;
+use shared::common::world::chunk::chunkmap::ChunkMap;
 use crate::server::world_data::properties::{Difficulty, ServerWorldProperties};
 
 pub struct ServerWorldData {
     properties : ServerWorldProperties,
     chunks : Arc<RwLock<ChunkMap>>,
-    players : Arc<RwLock<HashMap<PUID, Arc<ServerPlayer>>>>,
+    players : Arc<RwLock<HashMap<PUID, ServerPlayer>>>,
 }
 
 impl ServerWorldData {
@@ -27,14 +27,9 @@ impl ServerWorldData {
     pub fn get_chunk_map(&self) -> Arc<RwLock<ChunkMap>> {
         self.chunks.clone()
     }
-    pub fn get_players(&self) -> Arc<RwLock<HashMap<PUID,Arc<ServerPlayer>>>> {
+    pub fn get_players(&self) -> Arc<RwLock<HashMap<PUID,ServerPlayer>>> {
         self.players.clone()
     }
-
-
-
-
-
     pub fn connect_player(&self, puid : PUID) -> Result<tokio::sync::mpsc::Receiver<Vec<u8>>,String> {
         // check if the player is new or already has data
         if false {
@@ -44,8 +39,9 @@ impl ServerWorldData {
             match self.players.write().unwrap().entry(puid) {
                 Entry::Occupied(_) => Err(format!("Player {} already exist", puid)),
                 Entry::Vacant(e) => {
-                    let (sx, rx) = tokio::sync::mpsc::channel(10);
-                    let player = Arc::new(ServerPlayer::new(1.0,1.0,1.0,sx));
+                    let (sx, rx) = tokio::sync::mpsc::channel(10000);
+                    let player = ServerPlayer::new(1.0,1.0,1.0,sx);
+                    // let arc_player = Arc::new(player);
 
                     e.insert(player);
                     Ok(rx)
@@ -53,7 +49,6 @@ impl ServerWorldData {
             }
         }
     }
-
     pub fn disconnect_player(&self, puid : &PUID) {
         // check if the player is new or already has data
         self.players.write().unwrap().remove(puid);

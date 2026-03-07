@@ -1,10 +1,9 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use shared::common::world::pos::chunkpos::ChunkPos;
-use crate::server::world_data::chunk::chunk::Chunk;
+use crate::common::world::chunk::chunk::Chunk;
+use crate::common::world::pos::chunkpos::ChunkPos;
 
 pub struct ChunkMap {
     chunks : HashMap<ChunkPos, Arc<Chunk>>,
