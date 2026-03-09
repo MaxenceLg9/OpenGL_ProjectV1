@@ -3,6 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use crate::common::account::puid::PUID;
 use crate::common::network::packet_type::{ClientPacketType, ServerPacketType};
+use crate::common::network::server::chunk_packet::ChunkPacket;
 
 pub trait ClientPacketTrait: PacketTrait {
     fn get_packet_type(&self) -> ClientPacketType;

@@ -1,8 +1,10 @@
 use std::fmt::{Display, Formatter};
+use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use crate::common::account::puid::PUID;
 use crate::common::network::network_traits::{ClientMessage, Message, ServerMessage};
 use crate::common::network::packet_type::{ClientPacketType, ServerPacketType};
+use crate::common::network::server::chunk_packet::ChunkPacket;
 
 pub struct  SamplePacket {
     puid: PUID,
@@ -46,6 +48,6 @@ impl Display for SamplePacket {
 
 impl ServerMessage for SamplePacket {
     fn get_packet_type(&self) -> ServerPacketType {
-        ServerPacketType::Mesh
+        ServerPacketType::Chunk
     }
 }

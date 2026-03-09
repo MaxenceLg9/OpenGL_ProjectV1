@@ -42,7 +42,6 @@ impl ServerWorldData {
                     let (sx, rx) = tokio::sync::mpsc::channel(10000);
                     let player = ServerPlayer::new(1.0,1.0,1.0,sx);
                     // let arc_player = Arc::new(player);
-
                     e.insert(player);
                     Ok(rx)
                 }

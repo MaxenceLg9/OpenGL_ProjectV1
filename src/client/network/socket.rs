@@ -1,13 +1,16 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::io::Error;
 use std::net::SocketAddrV6;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use bitvec::order::BitOrder;
 use tokio_stream::StreamExt;
 use bitvec::view::BitView;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::time::timeout;
 use tokio_util::codec::FramedRead;
 use shared::common::network::client::connection_packet::ConnectionPacket;
 use shared::common::network::client::packet::ClientPacket;
@@ -65,44 +68,12 @@ impl ClientSocket {
         let (reader, mut writer) = stream.into_split();
         let mut framed_reader = FramedRead::new(reader, PacketCodec);
         let _cstate = ConnectionState::Stream;
-        let mut temp : HashMap<ChunkPos,HashMap<u8, ChunkPacket>> = HashMap::new();
-        let mut n = 0;
+
         loop {
             tokio::select! {
-                    frame = framed_reader.next() => {
-                        match frame {
-                            Some(Ok(packet)) => {
-                                if let ServerPacket::Chunk(m) = packet  {
-                                    let total = m.get_total();
-                                    let chunk_pos = m.get_chunk_pos();
-                                    match temp.entry(m.get_chunk_pos()) {
-                                        Entry::Occupied(mut e) => {
-                                            e.get_mut().insert(m.get_indice(),m);
-                                        },
-                                        Entry::Vacant(e) => {
-                                            let mut submap = HashMap::new();
-                                            submap.insert(m.get_indice(),m);
-                                            e.insert(submap);
-                                        }
-                                    }
-                                    if temp.get(&chunk_pos).unwrap().len() as u8 == total {
-                                        n += 1;
-                                        let c = ChunkPacket::from_packets_to_chunk(temp.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-                                        // print_base!("Mesh at {} {},{}, {} chunks received", chunk_pos.deref(), c.ilen(), c.vlen(), n);
-                                        chunk_map.write().unwrap().add_chunk(c);
-                                    }
-                                    continue;
-                                }
-
-                                if Self::handle_packet(packet) == ConnectionState::Quit {
-                                    break;
-                                }
-                            },
-                            Some(Err(e)) => print_base!("Error on socket {}", e),
-                            None => {
-                                print_base!("Exit cause of EOF");
-                                break; // Connection closed or errorcreate_mesh
-                            }
+                    frame = timeout(Duration::from_secs(5), framed_reader.next()) => {
+                        if Self::handle_frame(frame, chunk_map.clone()) == ConnectionState::Quit {
+                            break;
                         }
                     }
                     Some(packet_data) = rx.recv() => {
@@ -113,15 +84,34 @@ impl ClientSocket {
         print_base!("Closed connection from {}",addr);
     }
 
-    fn handle_packet(p: ServerPacket) -> ConnectionState {
+    fn handle_packet(p: &ServerPacket, chunk_map: Arc<RwLock<ChunkMap>>) -> ConnectionState {
         match p {
-            ServerPacket::Chunk(_) => ConnectionState::Stream,
+            ServerPacket::Chunk(chunk_packet) => {
+                chunk_map.write().unwrap().add_temp(chunk_packet.clone());
+                ConnectionState::Stream
+            },
             _ => ConnectionState::Stream,
         }
     }
 
-    fn get_packet_type(buff : &[u8; 1]) -> ServerPacketType {
-        ServerPacketType::from_repr(buff[0]).unwrap()
+    fn handle_frame(frame : Result<Option<Result<ServerPacket,Error>>,tokio::time::error::Elapsed>, chunk_map: Arc<RwLock<ChunkMap>>) -> ConnectionState {
+        match frame {
+            Ok(Some(Ok(packet))) => {
+                Self::handle_packet(&packet, chunk_map)
+            },
+            Ok(Some(Err(e))) => {
+                print_base!("Error on socket {}", e);
+                ConnectionState::Quit
+            },
+            Ok(None) => {
+                print_base!("Exit cause of EOF");
+                ConnectionState::Quit
+            },
+            Err(e) => {
+                print_base!("Error due to timeout");
+                ConnectionState::Quit
+            }
+        }
     }
 }
 

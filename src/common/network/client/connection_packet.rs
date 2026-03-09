@@ -6,6 +6,7 @@ use bitvec::view::{BitView};
 use crate::common::account::puid::PUID;
 use crate::common::network::network_traits::{ClientMessage, Message};
 use crate::common::network::packet_type::ClientPacketType;
+use crate::print_base;
 
 pub struct ConnectionPacket {
     puid : PUID,
@@ -20,14 +21,11 @@ impl ConnectionPacket {
         }
     }
     pub fn from_bits(bits : BitVec<u8, Lsb0>) -> Self {
-        let (puid_bits, password_bits) = bits.split_at(32usize);
-
-        let puid = puid_bits.get(0..puid_bits.len()).unwrap().load_le::<u32>();
-
-
-        let vec = password_bits.to_bitvec().into_vec();
-        let pos = vec.iter().position(|&e| e == 0).unwrap_or(vec.len());
-        let password = String::from_utf8(vec[0..pos].to_vec()).unwrap();
+        let (packet_type , packet_content) = bits.split_at(8);
+        let (header, password_bits) = packet_content.split_at(64);
+        let puid = header[0..32].load_le::<u32>();
+        let password_size = header[32..64].load_le::<u32>();
+        let password = String::from_utf8(password_bits.to_bitvec().into_vec()[0..].to_vec()).unwrap();
         Self {
             puid : PUID::new(puid),
             password
@@ -38,7 +36,13 @@ impl ConnectionPacket {
         &self.puid
     }
 
+    pub(crate) fn get_header_size() -> usize {
+        8
+    }
 
+    pub fn get_body_size(header : &BitVec<u8>) -> usize {
+        header[32..64].load_le::<u32>() as usize
+    }
 
 }
 
@@ -51,9 +55,11 @@ impl Display for ConnectionPacket {
 impl Message for ConnectionPacket {
     fn serialize(&self, type_val : u8) -> BitVec<u8> {
         let mut bits = BitVec::new();
-        bits.extend_from_bitslice(type_val.view_bits::<Lsb0>());
-        bits.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
-        bits.extend_from_bitslice(self.password.as_bytes().view_bits::<Lsb0>());
+        bits.extend_from_bitslice(type_val.view_bits::<Lsb0>()); // 1B
+        bits.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>()); // 4B
+        bits.extend_from_bitslice((self.password.len() as u32).view_bits::<Lsb0>()); // 4B
+        print_base!("Len of passwd {}", self.password.len());
+        bits.extend_from_bitslice(self.password.as_bytes().view_bits::<Lsb0>()); // We don't know
         bits
     }
 }
