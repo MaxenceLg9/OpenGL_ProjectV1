@@ -34,7 +34,6 @@ impl ChunkMap {
         }
         if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
             let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-            // print_base!("Mesh at {} {},{}, {} chunks received", chunk_pos.deref(), c.ilen(), c.vlen(), n);
             self.add_chunk(c);
         }
     }

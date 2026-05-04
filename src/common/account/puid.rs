@@ -32,7 +32,7 @@ impl Eq for PUID {}
 
 impl Display for PUID {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-       f.write_str(&format!("{}", self.id))
+        write!(f,"PUID : {}",self.id)
     }
 }
 

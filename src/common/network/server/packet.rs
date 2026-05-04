@@ -1,62 +1,66 @@
-use std::fmt::{Display, Formatter};
-use bitvec::field::BitField;
+use crate::common::network::network_traits::ServerNetPacket;
+use crate::common::network::bit_cursor::BitCursor;
 use bitvec::order::Lsb0;
-use bitvec::prelude::{BitSlice, BitVec};
+use bitvec::prelude::{BitVec};
 use bitvec::view::BitView;
-use crate::common::network::client::connection_packet::ConnectionPacket;
-use crate::common::network::client::packet::ClientPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
-use crate::common::network::network_traits::{ClientMessage, PacketTrait, ServerMessage, ServerPacketTrait};
-use crate::common::network::packet_type::{ClientPacketType, ServerPacketType};
+use crate::common::network::packet_type::{ServerPacketType};
+use crate::common::network::packet_type::ServerPacketType::{BlockDestroyed, Chunk, Connect, Correction, GetPlayer, Quit};
 use crate::common::network::server::chunk_packet::ChunkPacket;
-use crate::common::network::server::player_packet::AskPlayerPacket;
+use crate::common::network::server::connection_packet::ConnectionPacket;
+use crate::common::network::server::quit_packet::QuitPacket;
+use crate::common::network::server::tick_player::GetPlayerPacket;
+use crate::print_base;
 
-pub enum ServerPacket {
-    Correction(SamplePacket),
-    BlockDestroy(SamplePacket),
-    Chunk(ChunkPacket),
-    PlayerPos(AskPlayerPacket)
-}
-
-impl ServerPacket {
-    pub fn from_bits(p_type : ServerPacketType, bits : &BitSlice<u8, Lsb0>) -> Self {
-
-        // 4. Match and construct
-        match p_type {
-            ServerPacketType::Chunk => ServerPacket::Chunk(ChunkPacket::from_bits(bits.to_bitvec())),
-            ServerPacketType::PlayerPos => ServerPacket::PlayerPos(AskPlayerPacket::from_bits(bits.to_bitvec()))
+macro_rules! register_packets {
+    ($enum_name:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
+        pub enum $enum_name {
+            $($variant_name($struct_type),)*
         }
-    }
-}
 
-impl ServerPacket {
-    pub fn inside(&self) -> &dyn ServerMessage {
-        match self {
-            ServerPacket::BlockDestroy(p) => p,
-            ServerPacket::Correction(p) => p,
-            ServerPacket::Chunk(p) => p,
-            ServerPacket::PlayerPos(p) => p,
+        impl $enum_name {
+            /// Takes the ID and the cursor, returns the specific packet variant
+            pub fn decode(vec: &Vec<u8>) -> Option<Self> {
+                let mut cursor = BitCursor::new(vec.view_bits::<Lsb0>());
+                let byte = cursor.read_bits::<u8>(8);
+                let result = ServerPacketType::from_repr(byte);
+                if result.is_none() {
+                    print_base!("There is no ServerPacketType from value {}", byte);
+                    return None
+                }
+                let server_packet_type = result.unwrap();
+
+                match server_packet_type {
+                    $( $struct_type::P_TYPE => Some($enum_name::$variant_name($struct_type::deserialize(&mut cursor))), )*
+                    _ => None,
+                }
+            }
+
+            /// Dispatches to the specific struct's serialize implementation
+            pub fn encode(&self) -> BitVec<u8, Lsb0> {
+                let mut vec = BitVec::new();
+                vec.extend_from_bitslice((self.get_packet_type() as u8).view_bits::<Lsb0>());
+                match self {
+                    $( $enum_name::$variant_name(p) => vec.extend(p.serialize()), )*
+                };
+                vec
+            }
+
+            pub fn get_packet_type(&self) -> ServerPacketType {
+                match self {
+                    $( $enum_name::$variant_name(p) => $packet_type, )*
+                }
+            }
         }
-    }
+    };
 }
 
-impl PacketTrait for ServerPacket {
-    fn serialize(&self) -> BitVec<u8> {
-
-        // Use the discriminant value directly
-        let type_val = self.get_packet_type() as u8;
-        self.inside().serialize(type_val)
-    }
-}
-
-impl Display for ServerPacket {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl ServerPacketTrait for ServerPacket {
-    fn get_packet_type(&self) -> ServerPacketType {
-        self.inside().get_packet_type()
-    }
-}
+// Usage:
+register_packets!(ServerPacket, {
+    Correction = {SamplePacket, Correction},
+    BlockDestroyed = {SamplePacket, BlockDestroyed},
+    Chunk = {ChunkPacket, Chunk},
+    GetPlayer = {GetPlayerPacket, GetPlayer},
+    Quit = {QuitPacket, Quit},
+    Connect = {ConnectionPacket, Connect}
+});

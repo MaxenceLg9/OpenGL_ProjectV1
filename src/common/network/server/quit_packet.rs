@@ -6,14 +6,12 @@ use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::{ServerNetPacket};
 use crate::common::network::packet_type::{ServerPacketType};
 
-pub struct  SamplePacket {
-    puid: PUID,
+pub struct QuitPacket {
 }
 
-impl SamplePacket {
+impl QuitPacket {
     pub fn new() -> Self {
         Self {
-            puid: PUID::new(0)
         }
     }
 
@@ -23,21 +21,21 @@ impl SamplePacket {
 
 }
 
-impl Display for SamplePacket {
+impl Display for QuitPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("")
     }
 }
 
-impl ServerNetPacket for SamplePacket {
-    const P_TYPE: ServerPacketType = ServerPacketType::Correction;
+impl ServerNetPacket for QuitPacket {
+    const P_TYPE: ServerPacketType = ServerPacketType::Quit;
 
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         BitVec::new()
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        SamplePacket::new()
+        QuitPacket::new()
     }
 
     fn get_packet_type(&self) -> ServerPacketType {

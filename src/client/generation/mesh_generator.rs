@@ -5,7 +5,7 @@ use crossbeam::channel;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::print_base;
+use shared::{print_base, print_debug};
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 
 pub struct MeshGenerator {
@@ -55,7 +55,6 @@ impl MeshGenerator {
             for pos in pos_receiver.try_iter() {
                 hash_set.insert(pos);
             }
-
             // iterating over the positions to build if possible the associated chunk
             for chunk_pos in hash_set.clone().iter() {
                 // add the neighbours in chunks
@@ -68,8 +67,9 @@ impl MeshGenerator {
                         return;
                     }
                     n += 1;
-                    // print_base!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
+                    print_debug!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
                 } else if count == 0 {
+                    print_debug!("Deleted pos {}",chunk_pos.deref());
                     hash_set.remove(chunk_pos);
                 }
             }

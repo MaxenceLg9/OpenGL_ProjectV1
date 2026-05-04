@@ -113,7 +113,7 @@ impl ApplicationHandler for App {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
-                self.renderer.as_mut().unwrap().get_world().get_player().key_callback(event);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().key_callback(event);
             },
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => {
@@ -133,7 +133,7 @@ impl ApplicationHandler for App {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 // print_base!("Mouse motion delta: {:?}", delta);
-                self.renderer.as_mut().unwrap().get_world().get_player().mouse_callback(delta.0,delta.1);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().mouse_callback(delta.0,delta.1);
             },
             _ => ()
         }
@@ -143,7 +143,7 @@ impl ApplicationHandler for App {
         let current_frame = std::time::Instant::now();
         let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
         self.last_frame = current_frame;
-        self.renderer.as_mut().unwrap().get_world().get_player().poll_keys(delta);
+        self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().poll_keys(delta);
 
         // print_base!("Waking up at {:?}fps", 1_f32 / delta);
 

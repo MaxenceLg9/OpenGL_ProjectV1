@@ -31,12 +31,12 @@ void unpack64(uint d1, uint d2) {
 }
 
 vec3 normal[] = {
-vec3( 0.0,  1.0,  0.0), // top
-vec3( 0.0,  0.0,  1.0), // front
-vec3( 1.0,  0.0,  0.0), // right
-vec3(-1.0,  0.0,  0.0), // left
-vec3( 0.0,  0.0, -1.0), // back
-vec3( 0.0, -1.0,  0.0)  // bottom
+    vec3( 0.0,  1.0,  0.0), // top
+    vec3( 0.0,  0.0,  1.0), // front
+    vec3( 1.0,  0.0,  0.0), // right
+    vec3(-1.0,  0.0,  0.0), // left
+    vec3( 0.0,  0.0, -1.0), // back
+    vec3( 0.0, -1.0,  0.0)  // bottom
 };
 
 void main() {

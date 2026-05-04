@@ -2,7 +2,6 @@ use std::any::Any;
 use std::ops::{Add, Deref, Mul};
 use bitvec::vec::BitVec;
 use glam::{IVec3};
-use crate::common::network::server::packet::ServerPacket::Chunk;
 use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
@@ -19,12 +18,22 @@ impl ChunkPos {
         Self { pos }
     }
 
+    pub fn from_i32(x : i32, y : i32, z : i32) -> Self {
+        Self { pos : glam::ivec3(x,y,z) }
+    }
+
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
         Self::new(block_pos.as_ivec3().div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
     pub fn get_vec3(&self) -> IVec3 {
         self.pos
+    }
+
+    pub fn deserialize(pos_bits : Vec<u8>) -> ChunkPos {
+        let raw_bytes = pos_bits[0..12].to_vec();
+        let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
+        ChunkPos::new(glam::IVec3::from_slice(coords))
     }
 }
 
@@ -35,11 +44,7 @@ impl PosTrait for ChunkPos {
         bits
     }
 
-    fn deserialize(pos_bits : BitVec<u8>) -> Box<dyn PosTrait> {
-        let raw_bytes = pos_bits[0..96].to_bitvec().into_vec();
-        let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        Box::new(ChunkPos::new(glam::IVec3::from_slice(coords)))
-    }
+
 
     fn as_any(&self) -> &dyn Any {
         self
@@ -80,5 +85,13 @@ impl Add<IBlockPos> for ChunkPos {
 
     fn add(self, rhs: IBlockPos) -> IBlockPos {
         IBlockPos::new((self * CHUNK_SIZE).pos + rhs.deref())
+    }
+}
+
+impl Add<ChunkPos> for ChunkPos {
+    type Output = ChunkPos;
+
+    fn add(self, rhs: ChunkPos) -> ChunkPos {
+        ChunkPos::new(self.pos + rhs.deref())
     }
 }

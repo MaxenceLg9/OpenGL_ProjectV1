@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
-use bitvec::field::BitField;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
-use bitvec::view::BitView;
+use bitvec::view::{AsBits, BitView};
 use zstd::compression_level_range;
-use crate::common::network::network_traits::{Message, ServerMessage};
+use crate::common::network::bit_cursor::BitCursor;
+use crate::common::network::network_traits::{ServerNetPacket};
 use crate::common::network::packet_type::ServerPacketType;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
@@ -68,6 +68,7 @@ impl ChunkPacket {
         vec
     }
 
+    // what's the purpose of the u8 in the map ?
     pub fn from_chunk_to_packets(chunk : &Chunk) -> HashMap<u8, ChunkPacket> {
         let mut packets = HashMap::new();
         let len = chunk.get_blocks().len();
@@ -109,46 +110,6 @@ impl ChunkPacket {
         let indices = Self::decompress(v, len);
         Chunk::new(chunk_pos,indices)
     }
-
-    fn serialize_header(&self) -> BitVec<u8> {
-        let mut bits = BitVec::new();
-        bits.extend(self.chunk_pos.serialize());// 12 bytes
-        bits.extend_from_bitslice(self.indice.view_bits::<Lsb0>()); // 1 byte
-        bits.extend_from_bitslice(self.total.view_bits::<Lsb0>()); // 1 byte
-        bits.extend_from_bitslice((self.bits.len() as u16 / 8).view_bits::<Lsb0>()); // 2 bytes
-        bits.extend_from_bitslice((self.len).view_bits::<Lsb0>()); // 4 bytes
-        bits
-    }
-    pub fn from_bits(bits : BitVec<u8, Lsb0>) -> ChunkPacket {
-        let (packet_type, packet) = bits.split_at(8);
-        let (header, content_bits) = packet.split_at(Self::get_header_size() * 8);
-        let (pos_bits , header) = header.split_at(12 * 8usize);
-        let raw_bytes = pos_bits[0..96].to_bitvec().into_vec();
-        let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        let chunk_pos = ChunkPos::new(glam::IVec3::from_slice(coords));
-        let i = header[0..8].load_le::<u8>();
-        let total = header[8..16].load_le::<u8>();
-        let slice = header[16..32].load_le::<u16>();
-        let len = header[32..64].load_le::<u32>();
-        // print_base!("Packet: {}/{}, ChunkPos : {}, Ilen : {}, Vlen {}, bytes {}", i + 1, len, chunk_pos.deref(), ilen, vlen, slice);
-        // let uncompressed = content_bits;
-        Self {
-            chunk_pos,
-            indice: i,
-            total,
-            len,
-            bits: content_bits.to_bitvec().clone(),
-        }
-    }
-
-    pub(crate) fn get_header_size() -> usize {
-        20
-    }
-
-    pub fn get_body_size(header : &BitVec<u8>) -> usize {
-        let (pos_bits , header) = header.split_at(12 * 8usize);
-        header[16..32].load_le::<u16>() as usize
-    }
 }
 
 impl Clone for ChunkPacket {
@@ -165,24 +126,45 @@ impl Clone for ChunkPacket {
 
 impl Display for ChunkPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.write_str("aa")
     }
 }
 
-impl Message for ChunkPacket {
-    fn serialize(&self, packet_type: u8) -> BitVec<u8> {
-        let mut bits: BitVec<u8> = BitVec::new();
+impl ServerNetPacket for ChunkPacket {
+    const P_TYPE: ServerPacketType = ServerPacketType::Chunk;
 
-        bits.extend_from_bitslice(packet_type.view_bits::<Lsb0>());// 1 byte (ServerPacketType)
-        bits.extend(self.serialize_header());
-        // print_base!("Packet: {}/{}, ChunkPos : {}, Ilen : {}, Vlen {}, bytes {}", self.indice + 1, self.len, self.chunk_pos.deref(), self.ilen, self.vlen, self.bits.len() / 8);
+    fn serialize(&self) -> BitVec<u8, Lsb0> {
+        let mut bits = BitVec::new();
+        bits.extend(self.chunk_pos.serialize());// 12 bytes
+        bits.extend_from_bitslice(self.indice.view_bits::<Lsb0>()); // 1 byte
+        bits.extend_from_bitslice(self.total.view_bits::<Lsb0>()); // 1 byte
+        bits.extend_from_bitslice((self.bits.len() as u16 / 8).view_bits::<Lsb0>()); // 2 bytes
+        bits.extend_from_bitslice((self.len).view_bits::<Lsb0>()); // 4 bytes
         bits.extend(self.bits.clone()); // 1000 bytes or fewer
         bits
     }
-}
 
-impl ServerMessage for ChunkPacket {
+    fn deserialize(cursor: &mut BitCursor) -> Self {
+        let raw_bytes = cursor.read_bytes(12).to_vec();
+        let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
+        let chunk_pos = ChunkPos::new(glam::IVec3::from_slice(coords));
+        let i = cursor.read_bits::<u8>(8);
+        let total = cursor.read_bits::<u8>(8);
+        let slice = cursor.read_bits::<u16>(16);
+        let len = cursor.read_bits::<u32>(32);
+        print_base!("Packet: {}/{}, ChunkPos : {}, Len : {}, bytes {}", i + 1, total, chunk_pos.deref(), len, slice);
+        // let uncompressed = content_bits;
+        Self {
+            chunk_pos,
+            indice: i,
+            total,
+            len,
+            bits: cursor.read_bytes(slice as usize).as_bits().to_bitvec(),
+        }
+
+    }
+
     fn get_packet_type(&self) -> ServerPacketType {
-        ServerPacketType::Chunk
+        Self::P_TYPE
     }
 }

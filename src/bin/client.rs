@@ -1,13 +1,7 @@
-use std::net::{Ipv6Addr, SocketAddrV6};
 use winit::event_loop::{ControlFlow, EventLoop};
 use glutin::config::{ConfigTemplateBuilder};
 use client::display::app::App;
-use shared::common::network::network_traits::{PacketTrait};
-use shared::common::network::client::connection_packet::ConnectionPacket;
-use shared::common::network::client::packet::ClientPacket;
 use shared::print_base;
-use crate::client::network::socket::ClientSocket;
-use client::world_data::world::ClientWorld;
 
 #[path="../client/mod.rs"] pub mod client;
 
