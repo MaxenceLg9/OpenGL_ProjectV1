@@ -38,10 +38,10 @@ impl ServerConnection {
             })
             .unwrap();
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>) {
-        let socket = tokio::net::UdpSocket::bind(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await.unwrap();
-        socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await.unwrap();
-        let addr = socket.peer_addr().unwrap();
+    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>) -> Result<(),Error> {
+        let socket = tokio::net::UdpSocket::bind(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
+        socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
+        let addr = socket.peer_addr()?;
         // let (psx, prx) = tokio::sync::mpsc::channel(10000);
         print_base!("ClientSocket connecting to {:?}", ipv6addr);
 
@@ -51,16 +51,22 @@ impl ServerConnection {
             rx,
             client_world_data
         };
-        con.connect().await;
+        con.connect().await?;
         con.handle_server().await;
         print_base!("Closed connection from {}", addr);
+        Ok(())
     }
 
-    async fn connect(&self) {
+    async fn connect(&self) -> Result<(),Error> {
         self.socket.send(ClientPacket::Login(LoginPacket::new(2000, "maxence".to_string())).encode().as_raw_slice()).await.expect("Panic when sending connection packet");
         let mut buff: [u8; 1024] = [0; 1024];
 
-        let bytes = self.socket.recv(&mut buff).await.unwrap();
+        let bytes = self.socket.recv(&mut buff).await?;
+        let Some(ServerPacket::Connect(packet)) = ServerPacket::decode(&buff[0..bytes].to_vec()) else {
+            return Err(Error::new(ErrorKind::InvalidData,"Expected Connect packet, got something else"));
+        };
+        self.client_world_data.get_player().write().unwrap().set_pos(packet.get_pos().clone());
+        Ok(())
 
     }
 
@@ -86,11 +92,12 @@ impl ServerConnection {
     fn receive(&mut self, frame : Result<Result<usize, Error>, tokio::time::error::Elapsed>, chunk_map: Arc<RwLock<ChunkMap>>, buff : [u8; 1024]) -> Result<(), Error> {
         match frame {
             Ok(Ok(size)) => {
-                /// trying to parse the raw bytes into a struct
+                // trying to parse the raw bytes into a struct
                 let packet = match ServerPacket::decode(&buff[0..size].to_vec()){
                     Some(p) => p,
                     None => return Err(Error::new(ErrorKind::StaleNetworkFileHandle,format!("Cannot parse the packet, invalid bytes {:?}", buff[0..size].to_vec()))),
                 };
+                // handling the packet as it is correct
                 self.handle_packet(&packet, chunk_map)
             }
             Ok(Err(e)) => {

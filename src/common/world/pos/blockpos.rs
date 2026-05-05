@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::ops::Deref;
+use std::ops::{Add, AddAssign, Deref};
 use bitvec::vec::BitVec;
 use glam::{Vec3};
 use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -33,6 +33,10 @@ impl BlockPos {
         let coords: &[f32] = bytemuck::cast_slice(&raw_bytes);
         BlockPos::new(glam::Vec3::from_slice(coords))
     }
+
+    pub fn as_vec3(&self) -> glam::Vec3 {
+        self.pos.clone()
+    }
 }
 impl PosTrait for BlockPos {
     fn serialize(&self) -> BitVec<u8> {
@@ -49,6 +53,34 @@ impl PosTrait for BlockPos {
         self
     }
 }
+
+impl Add<BlockPos> for BlockPos {
+    type Output = BlockPos;
+
+    fn add(self, rhs: BlockPos) -> Self::Output {
+        BlockPos::new(self.pos + rhs.pos)
+    }
+}
+
+impl AddAssign<BlockPos> for BlockPos {
+    fn add_assign(&mut self, rhs: Self) {
+        self.pos = self.pos + rhs.pos
+    }
+}
+
+impl AddAssign<Vec3> for BlockPos {
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.pos = self.pos + rhs
+    }
+}
+impl Add<glam::Vec3> for BlockPos {
+    type Output = BlockPos;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        BlockPos::new(self.pos + rhs)
+    }
+}
+
 
 impl Deref for BlockPos {
     type Target = glam::Vec3;

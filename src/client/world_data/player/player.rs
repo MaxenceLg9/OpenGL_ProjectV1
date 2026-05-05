@@ -7,7 +7,7 @@ use shared::common::world::pos::chunkpos::CHUNK_SIZE;
 use shared::print_base;
 
 pub struct ClientPlayer {
-    pos : glam::Vec3,
+    pos : BlockPos,
     direction : glam::Vec3,
     up : glam::Vec3,
     roll : f32,
@@ -26,9 +26,13 @@ impl ClientPlayer {
     pub fn get_chunk_pos(&self) -> IVec3 {
         self.pos.as_ivec3() / CHUNK_SIZE as i32
     }
+
+    pub fn set_pos(&mut self, pos : BlockPos) {
+        self.pos = pos;
+    }
     
     pub fn get_block_pos(&self) -> BlockPos {
-        BlockPos::new(self.pos)
+        self.pos
     }
     
     fn move_forward(&mut self, delta : f32, time : f32) {
@@ -75,7 +79,7 @@ impl ClientPlayer {
     pub fn new(x : f32, y : f32, z : f32) -> Self {
         print_base!("Creating player at {},{},{}", x, y, z);
         Self {
-            pos : glam::vec3(x, y, z),
+            pos : BlockPos::from_floats([x, y, z]),
             speed_multiplier: HashMap::new(),
             up: glam::vec3(0.0,1.0,0.0),
             direction: glam::vec3(1.0,0.0,1.0),
@@ -85,7 +89,7 @@ impl ClientPlayer {
         }
     }
 
-    pub fn get_coords(&self) -> glam::Vec3 {
+    pub fn get_coords(&self) -> BlockPos {
         self.pos
     }
 

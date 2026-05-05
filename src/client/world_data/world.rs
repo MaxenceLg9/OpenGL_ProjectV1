@@ -73,7 +73,7 @@ impl ClientWorld {
 
     pub unsafe fn render(&self, window: &Window) {
         //    Logs::debug("Rendering world_data");
-        let camera_pos: glam::Vec3 = self.get_player().read().unwrap().get_coords();
+        let camera_pos: glam::Vec3 = self.get_player().read().unwrap().get_coords().as_vec3();
         let camera_target: glam::Vec3 = camera_pos + self.get_player().read().unwrap().get_direction();
 
         // build view matrix

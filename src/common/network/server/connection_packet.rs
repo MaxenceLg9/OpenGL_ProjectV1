@@ -15,10 +15,10 @@ pub struct ConnectionPacket {
 }
 
 impl ConnectionPacket {
-    pub fn new() -> ConnectionPacket {
+    pub fn new(pos : BlockPos) -> ConnectionPacket {
         Self {
             token: [0;40],
-            pos: BlockPos::from_floats([0.0,0.0,0.0])
+            pos
         }
     }
 

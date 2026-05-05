@@ -51,7 +51,7 @@ impl ServerWorldData {
             match self.players.write().unwrap().entry(puid) {
                 Entry::Occupied(_) => Err(format!("Player {} already exist", puid)),
                 Entry::Vacant(e) => {
-                    let pos = BlockPos::new(Vec3::new(0.0,0.0,0.0));
+                    let pos = BlockPos::new(Vec3::new(100.0,200.0,100.0));
                     print_base!("Created player with {}", puid);
                     let player = Arc::new(RwLock::new(ServerPlayer::new(pos,sx)));
                     e.insert(player.clone());

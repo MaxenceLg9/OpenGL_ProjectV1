@@ -53,7 +53,7 @@ impl ClientConnection {
         let Ok((pos, player)) = server_world_data.connect_player(con_packet.get_puid().clone(), psx).inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", addr, e)) else {
             return;
         };
-        socket.send_to(ServerPacket::Connect(ConnectionPacket::new()).encode().as_raw_slice(),addr).await.unwrap();
+        socket.send_to(ServerPacket::Connect(ConnectionPacket::new(pos)).encode().as_raw_slice(),addr).await.unwrap();
 
 
         let mut client_connection = Self {
