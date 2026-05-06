@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::ptr::null;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -11,7 +10,7 @@ use shared::common::network::server::tick_player::GetPlayerPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base};
 use shared::common::account::puid::PUID;
-use shared::common::network::client::sample_packet::SamplePacket;
+use shared::common::network::network_traits::ServerNetPacket;
 use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::server::packet::ServerPacket;
@@ -28,6 +27,8 @@ pub struct ClientConnection {
     chunks_pos: ChunkPos,
     socket : Arc<tokio::net::UdpSocket>,
     prx : tokio::sync::mpsc::Receiver<ServerPacket>,
+    view_distance : u8,
+    chunks_to_load: HashSet<ChunkPos>,
     puid : PUID,
 }
 
@@ -50,7 +51,7 @@ impl ClientConnection {
         //     }
         // };
 
-        let Ok((pos, player)) = server_world_data.connect_player(con_packet.get_puid().clone(), psx).inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", addr, e)) else {
+        let Ok((pos, player, chunks_to_load)) = server_world_data.connect_player(con_packet.get_puid().clone(), psx).inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", addr, e)) else {
             return;
         };
         socket.send_to(ServerPacket::Connect(ConnectionPacket::new(pos)).encode().as_raw_slice(),addr).await.unwrap();
@@ -62,18 +63,21 @@ impl ClientConnection {
             packet_receiver,
             socket,
             server_world_data,
+            chunks_to_load,
             player,
             prx,
             addr,
+            view_distance: 0,
             puid: con_packet.get_puid().clone()
         };
-        client_connection.generate_chunks(pos.get_chunk_pos());
+        client_connection.generate_chunks();
         client_connection.handle_client().await;
     }
 
     pub async fn handle_client(&mut self) {
         let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_millis(20));
         let mut instant = Instant::now();
+        self.send_chunks();
         loop {
             tokio::select! {
                 // waiting till the socket receives data or timeout limit is reached
@@ -108,18 +112,32 @@ impl ClientConnection {
         self.server_world_data.disconnect_player(&self.puid);
     }
 
-    fn generate_chunks(&self, pos : ChunkPos) {
+    fn generate_chunks(&self) {
         let mut array: [ChunkPos; 20*20*20] = [ChunkPos::from_i32(0, 0, 0);20*20*20];
         let mut i = 0;
         for x in -10..10 {
             for y in -10..10 {
                 for z in -10..10 {
-                    array[i] = pos + ChunkPos::from_i32(x, y, z);
+                    array[i] = self.chunks_pos + ChunkPos::from_i32(x, y, z);
                     i += 1;
                 }
             }
         }
         self.server_world_data.get_generator().write().unwrap().schedule_chunks(array);
+    }
+
+    fn send_chunks(&mut self) {
+        let start = Instant::now();
+        for chunk_pos in self.chunks_to_load.clone() {
+            if let Some(chunk) = self.server_world_data.get_chunk_map().read().unwrap().get(&chunk_pos) {
+                let packets = ChunkPacket::from_chunk_to_packets(chunk);
+                for (_, packet) in packets {
+                    self.socket.try_send_to(ServerPacket::Chunk(packet).encode().as_raw_slice(),self.addr);
+                    self.chunks_loaded.insert(chunk_pos);
+                }
+            }
+        }
+        print_base!("Sent chunks in {}ms", Instant::now().duration_since(start).as_millis());
     }
 
     fn receive(&mut self, frame: &Option<ClientPacket>) -> Result<(), Error> {
@@ -154,7 +172,7 @@ impl ClientConnection {
                 self.player.write().unwrap().set_pos(p.get_pos());
                 if p.get_pos().get_chunk_pos() != self.chunks_pos {
                     self.chunks_pos = p.get_pos().get_chunk_pos();
-                    self.generate_chunks(self.chunks_pos);
+                    self.generate_chunks();
                     print_base!("New ChunkPos : {}", self.chunks_pos.deref());
                 }
                 Ok(())

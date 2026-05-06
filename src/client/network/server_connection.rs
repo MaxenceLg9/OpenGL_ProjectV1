@@ -1,18 +1,19 @@
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::net::{Ipv6Addr, SocketAddrV6};
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::sync::{Arc};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpStream, UdpSocket};
-use tokio::sync::mpsc::Sender;
+use tokio::net::{UdpSocket};
 use tokio::time::timeout;
 use shared::common::network::client::login_packet::LoginPacket;
 use shared::common::network::client::packet::ClientPacket;
 use shared::common::network::client::player_packet::UpdatePlayerPacket;
-use shared::common::network::packet_type::{ClientPacketType, ConnectionState, ServerPacketType};
+use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::server::packet::ServerPacket;
-use shared::common::world::chunk::chunkmap::ChunkMap;
+use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
 
@@ -20,6 +21,8 @@ pub struct ServerConnection {
     socket: UdpSocket,
     client_world_data: Arc<ClientWorldData>,
     rx : tokio::sync::mpsc::Receiver<ClientPacket>,
+    temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
+    start_time : Instant
 }
 
 impl ServerConnection {
@@ -48,7 +51,9 @@ impl ServerConnection {
 
         let mut con = Self {
             socket,
+            temp_chunks: HashMap::new(),
             rx,
+            start_time : Instant::now(),
             client_world_data
         };
         con.connect().await?;
@@ -72,10 +77,11 @@ impl ServerConnection {
 
     async fn handle_server(&mut self) {
         let mut buff : [u8; 1024] = [0; 1024];
+        self.start_time = Instant::now();
         loop {
             tokio::select! {
                     frame = timeout(Duration::from_secs(5), self.socket.recv(&mut buff)) => {
-                        if let Err(e) = self.receive(frame, self.client_world_data.get_chunks().clone(), buff) {
+                        if let Err(e) = self.receive(frame, buff) {
                             print_base!("Breaking due to error: {}", e);
                             break;
                         }
@@ -89,7 +95,7 @@ impl ServerConnection {
     }
 
 
-    fn receive(&mut self, frame : Result<Result<usize, Error>, tokio::time::error::Elapsed>, chunk_map: Arc<RwLock<ChunkMap>>, buff : [u8; 1024]) -> Result<(), Error> {
+    fn receive(&mut self, frame : Result<Result<usize, Error>, tokio::time::error::Elapsed>, buff : [u8; 1024]) -> Result<(), Error> {
         match frame {
             Ok(Ok(size)) => {
                 // trying to parse the raw bytes into a struct
@@ -98,7 +104,7 @@ impl ServerConnection {
                     None => return Err(Error::new(ErrorKind::StaleNetworkFileHandle,format!("Cannot parse the packet, invalid bytes {:?}", buff[0..size].to_vec()))),
                 };
                 // handling the packet as it is correct
-                self.handle_packet(&packet, chunk_map)
+                self.handle_packet(&packet)
             }
             Ok(Err(e)) => {
                 Err(e)
@@ -109,15 +115,33 @@ impl ServerConnection {
         }
     }
 
-    fn handle_packet(&mut self, p: &ServerPacket, chunk_map: Arc<RwLock<ChunkMap>>) -> Result<(), Error> {
+    fn handle_packet(&mut self, p: &ServerPacket) -> Result<(), Error> {
         match p {
             ServerPacket::Chunk(chunk_packet) => {
-                print_base!("Receiving packets {}",p.get_packet_type());
-                chunk_map.write().unwrap().add_temp(chunk_packet.clone());
+                // print_base!("Receiving packets {}",p.get_packet_type());
+                self.client_world_data.get_chunks().write().unwrap().add_temp(chunk_packet.clone());
+                // let total = chunk_packet.get_total();
+                // let chunk_pos = chunk_packet.get_chunk_pos();
+                // match self.temp_chunks.entry(chunk_packet.get_chunk_pos()) {
+                //     Entry::Occupied(mut e) => {
+                //         e.get_mut().insert(chunk_packet.get_indice(),chunk_packet.clone());
+                //     },
+                //     Entry::Vacant(e) => {
+                //         let mut submap = HashMap::new();
+                //         submap.insert(chunk_packet.get_indice(),chunk_packet.clone());
+                //         e.insert(submap);
+                //     }
+                // }
+                // if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
+                //     let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
+                //     self.client_world_data.get_chunks().write().unwrap().add_chunk(c);
+                //     // self.add_chunk(c);
+                // }
+                print_base!("Received packets in {}ms",Instant::now().duration_since(self.start_time).as_millis());
                 Ok(())
             },
             ServerPacket::GetPlayer(player_packet) => {
-                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_block_pos()));
+                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_block_pos(),10));
                 self.socket.try_send(&tick_packet.encode().into_vec())?;
                 Ok(())
             },

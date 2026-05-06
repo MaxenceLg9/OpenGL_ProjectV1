@@ -22,6 +22,14 @@ impl ChunkPos {
         Self { pos : glam::ivec3(x,y,z) }
     }
 
+    pub fn from_absolute(x : i32, y : i32, z : i32) -> Self {
+        Self { pos : glam::ivec3(x,y,z) - glam::ivec3(10,10,10)}
+    }
+
+    pub fn from_single_value(i : i32) -> ChunkPos {
+        Self::from_absolute(i / 400 % 20, i / 20 % 20, i % 20)
+    }
+
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
         Self::new(block_pos.as_ivec3().div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }

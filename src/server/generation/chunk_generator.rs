@@ -1,4 +1,5 @@
 use std::collections::{HashSet};
+use std::fmt::Error;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use crossbeam::channel as channel;
@@ -20,14 +21,22 @@ impl ChunkGenerator {
     pub fn new(chunk_map: Arc<RwLock<ChunkMap>>) -> ChunkGenerator {
         let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(1000);
         let (chunk_sx, chunk_rx) = channel::unbounded::<Chunk>();
-        let pos_register = HashSet::new();
+        let mut pos_register = HashSet::new();
 
         Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx);
         Self::start_receive_chunks(chunk_rx, chunk_map.clone());
-
+        Self::generate_base_chunks(&mut pos_register, &gen_crossbeam_sx);
         Self {
             gen_crossbeam_sx,
             pos_register,
+        }
+    }
+
+    fn generate_base_chunks(pos_register : &mut HashSet<ChunkPos>, gen_crossbeam_sx : &channel::Sender<ChunkPos>){
+        for i in 0..20*20*20 {
+            let pos : ChunkPos = ChunkPos::from_single_value(i);
+            pos_register.insert(pos);
+            gen_crossbeam_sx.send(pos).unwrap();
         }
     }
 
@@ -65,7 +74,7 @@ impl ChunkGenerator {
     /**
     Function to get the chunks newly generated and push them into the world_data and tick them
     */
-    fn receive_chunks(chunk_receiver : channel::Receiver<Chunk>, chunk_map: Arc<RwLock<ChunkMap>>) {
+    fn receive_chunks(chunk_receiver : channel::Receiver<Chunk>, arc_chunk_map: Arc<RwLock<ChunkMap>>) {
         let mut time = Instant::now();
         let mut chunks_vec : Vec<Chunk> = Vec::new();
         // waiting for a chunk to be sent
@@ -83,18 +92,18 @@ impl ChunkGenerator {
             // timer to avoid looping too much
             if Instant::now().duration_since(time).as_millis() > 100 && !chunks_vec.is_empty() {
                 // borrowing the lock
-                let mut lock = chunk_map.write().unwrap();
+                let mut chunk_map = arc_chunk_map.write().unwrap();
                 // iterating in the vector
                 for i in 0..chunks_vec.len() {
                     let chunk = chunks_vec.pop().unwrap();
                     let pos = chunk.get_chunk_pos();
                     // trying to add the chunk into the world_data map
-                    if lock.add_chunk(chunk.clone()) {
+                    if chunk_map.add_chunk(chunk.clone()) {
                         // if the chunk has been added, sending it to build the ChunkMesh
                     }
                     // removing the position from the register
                 }
-                drop(lock);
+                drop(chunk_map);
                 time = Instant::now();
             }
         }

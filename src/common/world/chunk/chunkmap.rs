@@ -8,33 +8,13 @@ use crate::common::world::pos::chunkpos::ChunkPos;
 
 pub struct ChunkMap {
     chunks : HashMap<ChunkPos, Arc<Chunk>>,
-    temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>
+
 }
 
 impl ChunkMap {
     pub fn new() -> Self {
         Self {
             chunks : HashMap::new(),
-            temp_chunks: HashMap::new()
-        }
-    }
-
-    pub fn add_temp(&mut self, m : ChunkPacket) {
-        let total = m.get_total();
-        let chunk_pos = m.get_chunk_pos();
-        match self.temp_chunks.entry(m.get_chunk_pos()) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().insert(m.get_indice(),m);
-            },
-            Entry::Vacant(e) => {
-                let mut submap = HashMap::new();
-                submap.insert(m.get_indice(),m);
-                e.insert(submap);
-            }
-        }
-        if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
-            let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-            self.add_chunk(c);
         }
     }
 
@@ -44,6 +24,7 @@ impl ChunkMap {
                 false
             }
             Entry::Vacant(slot) => {
+                // print_base!("Inserted {} chunk", chunk.get_chunk_pos().deref());
                 slot.insert(Arc::new(chunk));
                 true
             }

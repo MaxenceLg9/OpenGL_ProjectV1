@@ -3,56 +3,31 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex, RwLock};
 use crossbeam::channel;
 use shared::common::world::chunk::chunk::Chunk;
-use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base, print_debug};
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 
-pub struct MeshGenerator {
-    gen_crossbeam_sx: channel::Sender<ChunkPos>,
-    pos_register: Arc<Mutex<HashSet<ChunkPos>>>,
-}
+pub struct MeshGenerator;
+
 impl MeshGenerator {
 
-    pub fn new(chunk_map: Arc<RwLock<ChunkMap>>, sender : channel::Sender<ChunkMesh>) -> MeshGenerator {
-        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::unbounded::<ChunkPos>();
-        let pos_register = Arc::new(Mutex::new(HashSet::new()));
-
-        Self::start_build_meshes(gen_crossbeam_rx, sender, chunk_map);
-
-        Self {
-            gen_crossbeam_sx,
-            pos_register,
-        }
-    }
-
-    pub fn create_mesh(&mut self, chunk_pos: ChunkPos) {
-        let mut result = match self.pos_register.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-        if result.insert(chunk_pos) {
-            self.gen_crossbeam_sx.send(chunk_pos).expect("Error when sending chunk");
-        }
-        drop(result);
-    }
-
-    fn start_build_meshes(pos_receiver: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, chunk_map: Arc<RwLock<ChunkMap>>) {
+    pub fn start_build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, chunk_map: Arc<RwLock<ClientChunkMap>>) {
         std::thread::Builder::new()
             .name("ChunkMesh_generator".to_string())
             .spawn(move || {
-                Self::build_meshes(pos_receiver, mesh_sender, chunk_map);
+                Self::build_meshes(pos_to_mesh_rx, mesh_sender, chunk_map);
             }).unwrap();
     }
 
-    fn build_meshes(pos_receiver: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, server_world_data: Arc<RwLock<ChunkMap>>) {
+    fn build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, server_world_data: Arc<RwLock<ClientChunkMap>>) {
         let mut chunks = HashMap::new();
         let mut hash_set = HashSet::new();
         let mut n = 0;
-        while let Ok(elt) = pos_receiver.recv() {
+        while let Ok(elt) = pos_to_mesh_rx.recv() {
 
             hash_set.insert(elt);
-            for pos in pos_receiver.try_iter() {
+            for pos in pos_to_mesh_rx.try_iter() {
                 hash_set.insert(pos);
             }
             // iterating over the positions to build if possible the associated chunk
@@ -82,7 +57,7 @@ impl MeshGenerator {
         }
     }
 
-    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, chunk_map: Arc<RwLock<ChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
+    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
         let mut count = 0;
         let pos_vec = Self::get_neighbours_chunks_pos(chunk_pos);
 

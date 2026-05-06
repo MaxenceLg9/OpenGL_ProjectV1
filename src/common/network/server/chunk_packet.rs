@@ -58,8 +58,7 @@ impl ChunkPacket {
         let mut bits: BitVec<u8> = BitVec::new();
 
         let level = if compression_level_range().contains(&10) { 10 } else { compression_level_range().max().unwrap() };
-        let blocks_u8 = chunk.get_blocks().iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>();
-        let data = zstd::bulk::compress(blocks_u8.as_slice(),level).expect("Cannot compress");
+        let data = zstd::bulk::compress(chunk.serialize().as_slice(),level).expect("Cannot compress");
 
         bits.extend_from_bitslice(data.view_bits::<Lsb0>());
         for bit_chunk in bits.chunks(8000) {
@@ -92,8 +91,6 @@ impl ChunkPacket {
         }
         let data = zstd::bulk::decompress(bits.as_raw_slice(),len as usize * 8usize).expect("Cannot decompress");
         let vec: Vec<u16> = bytemuck::cast_slice::<u8, u16>(&data).to_vec();
-
-        // 3. Split the Vec into two
 
         vec
     }
@@ -152,7 +149,7 @@ impl ServerNetPacket for ChunkPacket {
         let total = cursor.read_bits::<u8>(8);
         let slice = cursor.read_bits::<u16>(16);
         let len = cursor.read_bits::<u32>(32);
-        print_base!("Packet: {}/{}, ChunkPos : {}, Len : {}, bytes {}", i + 1, total, chunk_pos.deref(), len, slice);
+        // print_base!("Packet: {}/{}, ChunkPos : {}, Len : {}, bytes {}", i + 1, total, chunk_pos.deref(), len, slice);
         // let uncompressed = content_bits;
         Self {
             chunk_pos,

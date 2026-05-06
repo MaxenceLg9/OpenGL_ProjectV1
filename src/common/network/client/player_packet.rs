@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
+use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::ClientNetPacket;
 use crate::common::network::packet_type::ClientPacketType;
@@ -8,19 +9,17 @@ use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 
 pub struct UpdatePlayerPacket {
-    block_pos: BlockPos
+    block_pos: BlockPos,
+    view_distance : u8,
 }
 
 impl UpdatePlayerPacket {
 
-    pub fn new(block_pos: BlockPos) -> UpdatePlayerPacket {
+    pub fn new(block_pos: BlockPos, view_distance : u8) -> UpdatePlayerPacket {
         Self {
-            block_pos
+            block_pos,
+            view_distance
         }
-    }
-
-    pub fn get_header_size() -> usize {
-        12
     }
 
     pub fn get_pos(&self) -> BlockPos {
@@ -40,11 +39,12 @@ impl ClientNetPacket for UpdatePlayerPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
         bits.extend(self.block_pos.serialize());
+        bits.extend(self.view_distance.view_bits::<Lsb0>());
         bits
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        Self::new(BlockPos::deserialize(cursor.read_bytes(12)))
+        Self::new(BlockPos::deserialize(cursor.read_bytes(12)), cursor.read_bits::<u8>(8))
     }
 
     fn get_packet_type() -> ClientPacketType {

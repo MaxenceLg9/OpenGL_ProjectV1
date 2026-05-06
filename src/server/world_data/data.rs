@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::format;
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::Receiver;
@@ -11,6 +11,7 @@ use shared::common::network::server::packet::ServerPacket;
 use crate::server::world_data::player::player::ServerPlayer;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::blockpos::BlockPos;
+use shared::common::world::pos::chunkpos::ChunkPos;
 use crate::server::generation::chunk_generator::ChunkGenerator;
 use crate::server::world_data::properties::{Difficulty, ServerWorldProperties};
 
@@ -42,20 +43,23 @@ impl ServerWorldData {
         self.generator.clone()
     }
 
-    pub fn connect_player(&self, puid : PUID, sx : tokio::sync::mpsc::Sender<ServerPacket>) -> Result<(BlockPos,Arc<RwLock<ServerPlayer>>) ,String> {
+    pub fn connect_player(&self, puid : PUID, sx : tokio::sync::mpsc::Sender<ServerPacket>) -> Result<(BlockPos,Arc<RwLock<ServerPlayer>>, HashSet<ChunkPos>) ,String> {
         // check if the player is new or already has data
         if false {
             Err(format!("Chut {}", puid))
         } else {
-
             match self.players.write().unwrap().entry(puid) {
                 Entry::Occupied(_) => Err(format!("Player {} already exist", puid)),
                 Entry::Vacant(e) => {
                     let pos = BlockPos::new(Vec3::new(100.0,200.0,100.0));
+                    let mut hashset = HashSet::new();
+                    for i in 0..20*20*20 {
+                        hashset.insert(ChunkPos::from_single_value(i) + (pos.get_chunk_pos() * -1));
+                    }
                     print_base!("Created player with {}", puid);
                     let player = Arc::new(RwLock::new(ServerPlayer::new(pos,sx)));
                     e.insert(player.clone());
-                    Ok((pos,player))
+                    Ok((pos,player,hashset))
                 }
             }
         }

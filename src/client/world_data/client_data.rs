@@ -1,16 +1,17 @@
 use std::sync::{Arc, RwLock};
 use shared::common::world::chunk::chunkmap::ChunkMap;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorldData {
     player: Arc<RwLock<ClientPlayer>>,
     meshes : Arc<RwLock<MeshMap>>,
-    chunks : Arc<RwLock<ChunkMap>>,
+    chunks : Arc<RwLock<ClientChunkMap>>,
 }
 
 impl ClientWorldData {
-    pub fn new(cm: Arc<RwLock<ChunkMap>>) -> ClientWorldData {
+    pub fn new(cm: Arc<RwLock<ClientChunkMap>>) -> ClientWorldData {
         Self {
             player: Arc::new(RwLock::new(ClientPlayer::new(1.0,1.0,1.0))),
             meshes: Arc::new(RwLock::new(MeshMap::new())),
@@ -26,7 +27,7 @@ impl ClientWorldData {
         self.meshes.clone()
     }
 
-    pub fn get_chunks(&self) -> Arc<RwLock<ChunkMap>> {
+    pub fn get_chunks(&self) -> Arc<RwLock<ClientChunkMap>> {
         self.chunks.clone()
     }
 }

@@ -28,6 +28,11 @@ impl Chunk {
         }
         self.blocks[ block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize]
     }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        let vec = self.blocks.iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>();
+        vec
+    }
 }
 
 impl Clone for Chunk {

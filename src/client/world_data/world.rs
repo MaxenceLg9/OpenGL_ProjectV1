@@ -19,6 +19,7 @@ use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::generation::mesh_generator::MeshGenerator;
 use crate::client::network::server_connection::ServerConnection;
 use crate::client::network::socket::ClientSocket;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
@@ -29,7 +30,6 @@ pub struct ClientWorld {
     texture_array: TextureArray,
     client_world_data: Arc<ClientWorldData>,
     last_player_pos : IVec3,
-    generator: MeshGenerator,
     mesh_receiver: crossbeam::channel::Receiver<ChunkMesh>,
     puid : PUID,
 }
@@ -37,18 +37,20 @@ pub struct ClientWorld {
 impl ClientWorld {
     pub unsafe fn new() -> ClientWorld {
         let texture_array = TextureArray::new("textures".to_string());
-        let cm = Arc::new(RwLock::new(ChunkMap::new()));
-        let (sx, rx) = crossbeam::channel::unbounded();
+        let (mesh_sender, mesh_receiver) = crossbeam::channel::unbounded();
+        let (pos_to_mesh_sx, pos_to_mesh_rx) = crossbeam::channel::unbounded();
+        let cm = Arc::new(RwLock::new(ClientChunkMap::new(pos_to_mesh_sx)));
+
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/stone.png", BlockType::STONE.get_value() - 1).expect("Cannot add block to texture array");
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/dirt.png", BlockType::DIRT.get_value() - 1).expect("Cannot add block to texture array");
         texture_array.add_texture("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/deepslate.png", BlockType::DEEPSLATE.get_value() - 1).expect("Cannot add block to texture array");
+        MeshGenerator::start_build_meshes(pos_to_mesh_rx, mesh_sender, cm.clone());
         Self {
             socket : None,
             texture_array,
-            client_world_data: Arc::new(ClientWorldData::new(cm.clone())),
+            client_world_data: Arc::new(ClientWorldData::new(cm)),
             last_player_pos : glam::ivec3(0,0,0),
-            generator: MeshGenerator::new(cm,sx),
-            mesh_receiver: rx,
+            mesh_receiver,
             puid: PUID::new(0),
             chunk_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/vertex.vert".to_string(), "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/fragment.frag".to_string()),
         }
@@ -118,23 +120,6 @@ impl ClientWorld {
                 let m = cm.link();
                 self.client_world_data.get_meshes().write().unwrap().insert(cm.get_chunk_pos(),m);
                 // print_base!("Linking {}", cm.get_chunk_pos().deref());
-            }
-        }
-        for (pos,chunk) in self.client_world_data.get_chunks().read().unwrap().iter() {
-            if !self.client_world_data.get_meshes().read().unwrap().contains_mesh(&pos) {
-                self.generator.create_mesh(pos.clone());
-            }
-        }
-        let pos = self.get_player().read().unwrap().get_chunk_pos();
-        let bpos = self.get_player().read().unwrap().get_block_pos();
-        for x in -5..10 {
-            for y in 0..10 {
-                for z in -5..10 {
-                    let pos = ChunkPos::new(glam::ivec3(x + pos.x,y,z + pos.z));
-                    if !self.client_world_data.get_chunks().read().unwrap().contains_chunk(&pos) {
-                        self.socket.as_mut().unwrap().send(ClientPacket::AskChunk(AskChunkPacket::new(self.puid, pos, bpos)));
-                    }
-                }
             }
         }
         if self.last_player_pos != self.get_player().read().unwrap().get_chunk_pos() {
