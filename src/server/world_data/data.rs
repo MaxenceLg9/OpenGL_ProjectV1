@@ -13,18 +13,19 @@ use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use crate::server::generation::chunk_generator::ChunkGenerator;
+use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::properties::{Difficulty, ServerWorldProperties};
 
 pub struct ServerWorldData {
     properties : ServerWorldProperties,
     generator : Arc<RwLock<ChunkGenerator>>,
-    chunks : Arc<RwLock<ChunkMap>>,
+    chunks : Arc<RwLock<ServerChunkMap>>,
     players : Arc<RwLock<HashMap<PUID, Arc<RwLock<ServerPlayer>>>>>,
 }
 
 impl ServerWorldData {
     pub fn new() -> Self {
-        let chunk_map = Arc::new(RwLock::new(ChunkMap::new()));
+        let chunk_map = Arc::new(RwLock::new(ServerChunkMap::new()));
         Self {
             properties : ServerWorldProperties::new("debug".to_string(),Difficulty::Easy),
             chunks : chunk_map.clone(),
@@ -32,8 +33,12 @@ impl ServerWorldData {
             players : Arc::new(RwLock::new(HashMap::new()))
         }
     }
-    pub fn get_chunk_map(&self) -> Arc<RwLock<ChunkMap>> {
+    pub fn get_chunk_map(&self) -> Arc<RwLock<ServerChunkMap>> {
         self.chunks.clone()
+    }
+
+    pub fn tick(&self) {
+        self.chunks.write().unwrap().tick();
     }
     pub fn get_players(&self) -> Arc<RwLock<HashMap<PUID, Arc<RwLock<ServerPlayer>>>>> {
         self.players.clone()
@@ -43,7 +48,7 @@ impl ServerWorldData {
         self.generator.clone()
     }
 
-    pub fn connect_player(&self, puid : PUID, sx : tokio::sync::mpsc::Sender<ServerPacket>) -> Result<(BlockPos,Arc<RwLock<ServerPlayer>>, HashSet<ChunkPos>) ,String> {
+    pub fn connect_player(&self, puid : PUID, sx : tokio::sync::mpsc::Sender<ServerPacket>) -> Result<(BlockPos,Arc<RwLock<ServerPlayer>>) ,String> {
         // check if the player is new or already has data
         if false {
             Err(format!("Chut {}", puid))
@@ -51,15 +56,11 @@ impl ServerWorldData {
             match self.players.write().unwrap().entry(puid) {
                 Entry::Occupied(_) => Err(format!("Player {} already exist", puid)),
                 Entry::Vacant(e) => {
-                    let pos = BlockPos::new(Vec3::new(100.0,200.0,100.0));
-                    let mut hashset = HashSet::new();
-                    for i in 0..20*20*20 {
-                        hashset.insert(ChunkPos::from_single_value(i) + (pos.get_chunk_pos() * -1));
-                    }
+                    let pos = BlockPos::new(Vec3::new(0.0,160.0,0.0));
                     print_base!("Created player with {}", puid);
-                    let player = Arc::new(RwLock::new(ServerPlayer::new(pos,sx)));
+                    let player = Arc::new(RwLock::new(ServerPlayer::new(pos,sx, puid)));
                     e.insert(player.clone());
-                    Ok((pos,player,hashset))
+                    Ok((pos,player))
                 }
             }
         }

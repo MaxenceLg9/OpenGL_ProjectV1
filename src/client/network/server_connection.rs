@@ -22,7 +22,7 @@ pub struct ServerConnection {
     client_world_data: Arc<ClientWorldData>,
     rx : tokio::sync::mpsc::Receiver<ClientPacket>,
     temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
-    start_time : Instant
+    start_time : Instant,
 }
 
 impl ServerConnection {
@@ -54,7 +54,7 @@ impl ServerConnection {
             temp_chunks: HashMap::new(),
             rx,
             start_time : Instant::now(),
-            client_world_data
+            client_world_data,
         };
         con.connect().await?;
         con.handle_server().await;
@@ -119,29 +119,11 @@ impl ServerConnection {
         match p {
             ServerPacket::Chunk(chunk_packet) => {
                 // print_base!("Receiving packets {}",p.get_packet_type());
-                self.client_world_data.get_chunks().write().unwrap().add_temp(chunk_packet.clone());
-                // let total = chunk_packet.get_total();
-                // let chunk_pos = chunk_packet.get_chunk_pos();
-                // match self.temp_chunks.entry(chunk_packet.get_chunk_pos()) {
-                //     Entry::Occupied(mut e) => {
-                //         e.get_mut().insert(chunk_packet.get_indice(),chunk_packet.clone());
-                //     },
-                //     Entry::Vacant(e) => {
-                //         let mut submap = HashMap::new();
-                //         submap.insert(chunk_packet.get_indice(),chunk_packet.clone());
-                //         e.insert(submap);
-                //     }
-                // }
-                // if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
-                //     let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-                //     self.client_world_data.get_chunks().write().unwrap().add_chunk(c);
-                //     // self.add_chunk(c);
-                // }
-                print_base!("Received packets in {}ms",Instant::now().duration_since(self.start_time).as_millis());
+                self.push_chunk_packet(chunk_packet);
                 Ok(())
             },
             ServerPacket::GetPlayer(player_packet) => {
-                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_block_pos(),10));
+                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_block_pos(),10, player_packet.get_id()));
                 self.socket.try_send(&tick_packet.encode().into_vec())?;
                 Ok(())
             },
@@ -151,5 +133,25 @@ impl ServerConnection {
             },
             _ => Ok(()),
         }
+    }
+
+    fn push_chunk_packet(&mut self, chunk_packet: &ChunkPacket) {
+        let total = chunk_packet.get_total();
+        let chunk_pos = chunk_packet.get_chunk_pos();
+        match self.temp_chunks.entry(chunk_packet.get_chunk_pos()) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().insert(chunk_packet.get_indice(),chunk_packet.clone());
+            },
+            Entry::Vacant(e) => {
+                let mut submap = HashMap::new();
+                submap.insert(chunk_packet.get_indice(),chunk_packet.clone());
+                e.insert(submap);
+            }
+        }
+        if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
+            let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
+            self.client_world_data.get_chunks().write().unwrap().add_chunk(c);
+        }
+        // print_base!("Received packets in {}ms",Instant::now().duration_since(self.start_time).as_millis());
     }
 }

@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::ops::{Add, Deref, Mul};
+use std::ops::{Add, Deref, Mul, Sub};
 use bitvec::vec::BitVec;
 use glam::{IVec3};
 use crate::common::world::pos::blockpos::BlockPos;
@@ -22,12 +22,12 @@ impl ChunkPos {
         Self { pos : glam::ivec3(x,y,z) }
     }
 
-    pub fn from_absolute(x : i32, y : i32, z : i32) -> Self {
-        Self { pos : glam::ivec3(x,y,z) - glam::ivec3(10,10,10)}
+    pub fn from_absolute(x : i32, y : i32, z : i32, range : i32) -> Self {
+        Self { pos : glam::ivec3(x,y,z) - glam::ivec3(range,range,range)}
     }
 
-    pub fn from_single_value(i : i32) -> ChunkPos {
-        Self::from_absolute(i / 400 % 20, i / 20 % 20, i % 20)
+    pub fn from_single_value(i : i32, range : i32) -> ChunkPos {
+        Self::from_absolute((i / range.pow(2)) % range, (i / range) % range, i % range, range / 2)
     }
 
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
@@ -101,5 +101,13 @@ impl Add<ChunkPos> for ChunkPos {
 
     fn add(self, rhs: ChunkPos) -> ChunkPos {
         ChunkPos::new(self.pos + rhs.deref())
+    }
+}
+
+impl Sub<ChunkPos> for ChunkPos {
+    type Output = ChunkPos;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        ChunkPos::new(self.pos - rhs.pos)
     }
 }

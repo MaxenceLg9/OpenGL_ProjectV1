@@ -1,27 +1,18 @@
-use std::collections::HashMap;
-use std::net::{Ipv6Addr, SocketAddrV6};
-use std::ops::Deref;
+use std::net::{Ipv6Addr};
 use std::sync::{Arc, RwLock};
 use glam::IVec3;
-use tokio::sync::mpsc::channel;
 use winit::window::Window;
 use shared::common::account::puid::PUID;
-use shared::common::network::client::ask_chunk::AskChunkPacket;
-use shared::common::network::client::packet::ClientPacket;
 use shared::common::world::block::block::BlockType;
-use shared::common::world::chunk::chunkmap::ChunkMap;
-use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
+use shared::common::world::pos::chunkpos::{CHUNK_SIZE};
 use shared::{print_base, print_debug};
-use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 use crate::client::display::renderer::mesh::shader::shader::Shader;
 use crate::client::display::renderer::mesh::texture::texture_array::TextureArray;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::generation::mesh_generator::MeshGenerator;
-use crate::client::network::server_connection::ServerConnection;
 use crate::client::network::socket::ClientSocket;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
-use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorld {
@@ -58,15 +49,6 @@ impl ClientWorld {
 
     pub fn connect_to(&mut self) {
         self.socket = Some(ClientSocket::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),self.client_world_data.clone()));
-
-        for x in -5..10 {
-            for y in 0..10 {
-                for z in -5..10 {
-                    self.socket.as_mut().unwrap().send(ClientPacket::AskChunk(AskChunkPacket::new(self.puid,ChunkPos::new(glam::ivec3(x,y,z)),self.client_world_data.get_player().read().unwrap().get_block_pos())))
-                }
-            }
-        }
-
     }
 
     pub fn get_player(&self) -> Arc<RwLock<ClientPlayer>> {

@@ -6,7 +6,7 @@ use crate::common::account::puid::PUID;
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::ClientNetPacket;
 use crate::common::network::packet_type::ClientPacketType;
-
+#[derive(Clone)]
 pub struct LoginPacket {
     puid: PUID,
     password: String,

@@ -8,7 +8,6 @@ use crate::common::world::pos::chunkpos::ChunkPos;
 
 pub struct ChunkMap {
     chunks : HashMap<ChunkPos, Arc<Chunk>>,
-
 }
 
 impl ChunkMap {
@@ -35,8 +34,8 @@ impl ChunkMap {
         self.chunks.contains_key(chunk_pos)
     }
 
-    pub fn get_chunk(&self, chunk_pos: &ChunkPos) -> Arc<Chunk> {
-        self.chunks.get(chunk_pos).unwrap().clone()
+    pub fn get_chunk(&self, chunk_pos: &ChunkPos) -> Option<&Arc<Chunk>> {
+        self.chunks.get(chunk_pos)
     }
 
     pub fn remove_chunk(&mut self, chunk_pos : &ChunkPos) {

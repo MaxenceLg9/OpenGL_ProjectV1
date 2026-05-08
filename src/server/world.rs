@@ -1,11 +1,6 @@
 use std::net::{Ipv6Addr, SocketAddrV6};
-use std::ops::Deref;
 use std::sync::{Arc};
-use crate::server::generation::chunk_generator::ChunkGenerator;
 use crate::server::network::socket::ServerSocket;
-use crossbeam::channel;
-use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::print_base;
 use crate::server::world_data::data::ServerWorldData;
 
 pub struct ServerWorld {
@@ -27,6 +22,7 @@ impl ServerWorld {
         self.socket.listen(self.data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into());
         loop {
             std::thread::sleep(std::time::Duration::from_millis(1000)); // ~20 ticks per second
+            self.data.tick();
             // print_base!("Len of chunks {}", self.data.get_chunk_map().read().unwrap().len());
         }
     }

@@ -14,6 +14,7 @@ use crate::print_base;
 
 macro_rules! register_packets {
     ($enum_name:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
+        #[derive(Clone)]
         pub enum $enum_name {
             $($variant_name($struct_type),)*
         }

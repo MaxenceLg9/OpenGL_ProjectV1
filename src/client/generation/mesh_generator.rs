@@ -42,7 +42,7 @@ impl MeshGenerator {
                         return;
                     }
                     n += 1;
-                    print_debug!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
+                    // print_base!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
                 } else if count == 0 {
                     print_debug!("Deleted pos {}",chunk_pos.deref());
                     hash_set.remove(chunk_pos);
@@ -57,17 +57,17 @@ impl MeshGenerator {
         }
     }
 
-    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
+    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
         let mut count = 0;
         let pos_vec = Self::get_neighbours_chunks_pos(chunk_pos);
 
         // checking every side of the chunk
-        let data = chunk_map.read().unwrap();
+        let chunk_map = arc_chunk_map.read().unwrap();
         for p in pos_vec.iter() {
             // the position is already in the map, no need to check if it exists
             if !chunks.contains_key(p) {
                 // checking if the chunk exists in the world_data data as it doesn't exist in the map
-                let result = data.get(p);
+                let result = chunk_map.get_chunk(p);
                 // getting the object associated with the pos, checking that the chunk exists and adding it into the map
                 if result.is_none() {
                     continue;

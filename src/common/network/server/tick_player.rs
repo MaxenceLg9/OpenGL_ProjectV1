@@ -1,20 +1,25 @@
 use std::fmt::Display;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
+use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::{ServerNetPacket};
 use crate::common::network::packet_type::ServerPacketType;
-
+#[derive(Clone)]
 pub struct GetPlayerPacket {
-
+    id : u16
 }
 
 impl GetPlayerPacket {
 
-    pub fn new() -> GetPlayerPacket {
+    pub fn new(id : u16) -> GetPlayerPacket {
         Self {
-
+            id
         }
+    }
+
+    pub fn get_id(&self) -> u16 {
+        self.id
     }
 }
 
@@ -28,11 +33,13 @@ impl ServerNetPacket for GetPlayerPacket {
     const P_TYPE: ServerPacketType = ServerPacketType::GetPlayer;
 
     fn serialize(&self) -> BitVec<u8, Lsb0> {
-        BitVec::new()
+        let mut bits =BitVec::new();
+        bits.extend_from_bitslice(self.id.view_bits::<Lsb0>());
+        bits
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        GetPlayerPacket::new()
+        GetPlayerPacket::new(cursor.read_bits::<u16>(16))
     }
 
     fn get_packet_type(&self) -> ServerPacketType {

@@ -65,7 +65,9 @@ impl ServerSocket {
                         print_base!("Connection {} finished", addr);
                     });
                 } else {
-                    map.get(&addr).unwrap().send(packet).await.unwrap();
+                    if let Err(e) = map.get(&addr).unwrap().send(packet).await {
+                        print_base!("Error when sending packet : {}",e);
+                    }
                 }
 
             }

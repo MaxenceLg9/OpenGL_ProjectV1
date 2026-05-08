@@ -1,3 +1,5 @@
+use std::time::{Instant, SystemTime};
+use shared::print_base;
 use crate::server::world::ServerWorld;
 
 #[cfg(feature = "dhat-heap")]
@@ -7,7 +9,7 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 pub fn main() -> Result<(), String> {
     // #[cfg(feature = "dhat-heap")]
     // let _profiler = dhat::Profiler::new_heap();
-
+    print_base!("Starting thread at {}", chrono::offset::Local::now());
     let mut server = ServerWorld::new();
     server.listen();
     Ok(())

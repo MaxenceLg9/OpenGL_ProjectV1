@@ -5,7 +5,7 @@ use crate::common::network::network_traits::ClientNetPacket;
 use crate::common::network::bit_cursor::BitCursor;
 use bitvec::order::Lsb0;
 use bitvec::prelude::{BitVec};
-use crate::common::network::client::ask_chunk::AskChunkPacket;
+use crate::common::network::client::default_packet::DefaultPacket;
 use crate::common::network::client::login_packet::LoginPacket;
 use crate::common::network::client::player_packet::UpdatePlayerPacket;
 use crate::common::network::packet_type::ClientPacketType;
@@ -13,6 +13,7 @@ use crate::common::network::packet_type::ClientPacketType::{AskChunk, Login, Upd
 
 macro_rules! register_packets {
     ($enum_name:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
+        #[derive(Clone)]
         pub enum $enum_name {
             $($variant_name($struct_type),)*
         }
@@ -64,7 +65,6 @@ macro_rules! register_packets {
 // Usage:
 register_packets!(ClientPacket, {
     Login = {LoginPacket, Login},
-    AskChunk = {AskChunkPacket, AskChunk},
-    Quit = {AskChunkPacket, Quit},
+    Quit = {DefaultPacket, Quit},
     UpdatePlayer = {UpdatePlayerPacket, UpdatePlayer},
 });

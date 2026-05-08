@@ -8,7 +8,7 @@ use crate::common::network::packet_type::ServerPacketType;
 use crate::common::network::packet_type::ServerPacketType::BlockDestroyed;
 use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
-
+#[derive(Clone)]
 pub struct ConnectionPacket {
     token : [u8; 40],
     pos : BlockPos,

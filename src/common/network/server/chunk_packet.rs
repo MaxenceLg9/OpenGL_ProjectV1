@@ -12,7 +12,7 @@ use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 use crate::print_base;
-
+#[derive(Clone)]
 pub struct ChunkPacket {
     chunk_pos: ChunkPos,
     indice : u8,
@@ -106,18 +106,6 @@ impl ChunkPacket {
         }
         let indices = Self::decompress(v, len);
         Chunk::new(chunk_pos,indices)
-    }
-}
-
-impl Clone for ChunkPacket {
-    fn clone(&self) -> Self {
-        Self {
-            chunk_pos: self.chunk_pos.clone(),
-            bits: self.bits.clone(),
-            len: self.len,
-            total: self.total,
-            indice: self.indice
-        }
     }
 }
 

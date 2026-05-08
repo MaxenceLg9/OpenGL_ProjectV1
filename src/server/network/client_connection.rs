@@ -10,8 +10,7 @@ use shared::common::network::server::tick_player::GetPlayerPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base};
 use shared::common::account::puid::PUID;
-use shared::common::network::network_traits::ServerNetPacket;
-use shared::common::network::server::chunk_packet::ChunkPacket;
+use shared::common::network::client::player_packet::UpdatePlayerPacket;
 use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::server::packet::ServerPacket;
 use shared::common::network::server::quit_packet::QuitPacket;
@@ -30,31 +29,23 @@ pub struct ClientConnection {
     view_distance : u8,
     chunks_to_load: HashSet<ChunkPos>,
     puid : PUID,
+    ping : Instant,
+    ping_id : Option<u16>
 }
 
 impl ClientConnection {
     pub async fn start(addr : SocketAddr, packet : ClientPacket, packet_receiver: mpsc::Receiver<ClientPacket>, socket : Arc<tokio::net::UdpSocket>, server_world_data: Arc<ServerWorldData>) {
-        let (psx, prx) = mpsc::channel::<ServerPacket>(1000);
+        let (psx, prx) = mpsc::channel::<ServerPacket>(10000);
         let ClientPacket::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", addr);
             return;
         };
 
-        // let (pos, player) = match server_world_data.connect_player(con_packet.get_puid().clone(), psx) {
-        //     Err(e) => {
-        //         print_base!("Connection {}: Got Error {}, returning", addr, e);
-        //         return;
-        //     }
-        //     Ok(res) => {
-        //         socket.send_to(ServerPacket::Connect(ConnectionPacket::new()).encode().as_raw_slice(),addr).await.unwrap();
-        //         res
-        //     }
-        // };
-
-        let Ok((pos, player, chunks_to_load)) = server_world_data.connect_player(con_packet.get_puid().clone(), psx).inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", addr, e)) else {
+        let Ok((pos, player)) = server_world_data.connect_player(con_packet.get_puid().clone(), psx).inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", addr, e)) else {
             return;
         };
         socket.send_to(ServerPacket::Connect(ConnectionPacket::new(pos)).encode().as_raw_slice(),addr).await.unwrap();
+
 
 
         let mut client_connection = Self {
@@ -63,26 +54,34 @@ impl ClientConnection {
             packet_receiver,
             socket,
             server_world_data,
-            chunks_to_load,
+            chunks_to_load : HashSet::new(),
             player,
             prx,
             addr,
-            view_distance: 0,
+            ping: Instant::now(),
+            ping_id: Some(0),
+            view_distance: 8,
             puid: con_packet.get_puid().clone()
         };
-        client_connection.generate_chunks();
         client_connection.handle_client().await;
     }
 
+    /// The Main Loop handling the connection to the client
+    /// Switching between receiving a packet from the main connection thread through the channel,
+    /// or between receiving a packet to send or the interval ticking to ask for player update
     pub async fn handle_client(&mut self) {
         let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_millis(20));
         let mut instant = Instant::now();
+        let mut id = 0;
+        self.generate_chunks();
+        self.get_chunks_to_load();
         self.send_chunks();
+
         loop {
             tokio::select! {
                 // waiting till the socket receives data or timeout limit is reached
-                bytes = self.packet_receiver.recv() => {
-                    if let Err(e) = self.receive(&bytes) {
+                packet = self.packet_receiver.recv() => {
+                    if let Err(e) = self.receive(&packet) {
                         print_base!("Exiting {} due to error {}", self.addr, e);
                         break;
                     } else {
@@ -94,16 +93,25 @@ impl ClientConnection {
                 Some(packet_data) = self.prx.recv() => {
                     // ChunkPacket::from_bits(packet_data[1..].view_bits::<Lsb0>().to_bitvec());
                     self.socket.send_to(packet_data.encode().as_raw_slice(), self.addr).await.unwrap();
+                    if let ServerPacket::Chunk(p) = packet_data {
+                        self.chunks_to_load.remove(&p.get_chunk_pos());
+                    };
                 }
 
                 // querying the player information at a constant interval
                 _ = heartbeat_interval.tick() => {
-                    // ask for the information of the player
+                    // checking if the timeout of 5 isn't elapsed
                     if instant.elapsed().gt(&Duration::from_secs(5)) {
                         print_base!("Exiting {} due to time elapsed", self.addr);
                         break;
                     }
-                    let packet = ServerPacket::GetPlayer(GetPlayerPacket::new());
+                    if self.ping_id.is_none() {
+                        self.ping_id = Some(id);
+                        self.ping = Instant::now();
+                    }
+                    // sending the packet to query the information of the player
+                    let packet = ServerPacket::GetPlayer(GetPlayerPacket::new(id));
+                    id += 1;
                     self.socket.send_to(packet.encode().as_raw_slice(),self.addr).await.unwrap();
                 }
             }
@@ -128,16 +136,13 @@ impl ClientConnection {
 
     fn send_chunks(&mut self) {
         let start = Instant::now();
-        for chunk_pos in self.chunks_to_load.clone() {
-            if let Some(chunk) = self.server_world_data.get_chunk_map().read().unwrap().get(&chunk_pos) {
-                let packets = ChunkPacket::from_chunk_to_packets(chunk);
-                for (_, packet) in packets {
-                    self.socket.try_send_to(ServerPacket::Chunk(packet).encode().as_raw_slice(),self.addr);
-                    self.chunks_loaded.insert(chunk_pos);
-                }
-            }
+        let arc_chunk_map = self.server_world_data.get_chunk_map().clone();
+        let mut chunk_map = arc_chunk_map.write().unwrap();
+        for chunk_pos in self.chunks_to_load.drain() {
+            self.chunks_loaded.insert(chunk_pos);
+            chunk_map.ask_for_chunks(chunk_pos,self.player.clone());
         }
-        print_base!("Sent chunks in {}ms", Instant::now().duration_since(start).as_millis());
+        // print_base!("Sent chunks in {}ms", Instant::now().duration_since(start).as_millis());
     }
 
     fn receive(&mut self, frame: &Option<ClientPacket>) -> Result<(), Error> {
@@ -151,33 +156,45 @@ impl ClientConnection {
         }
     }
 
+    fn get_chunks_to_load(&mut self) {
+        for i in 0..(self.view_distance as i32 * 2).pow(3) {
+            let pos = ChunkPos::from_single_value(i, self.view_distance as i32 * 2) + self.chunks_pos;
+            if !self.chunks_loaded.contains(&pos) {
+            self.chunks_to_load.insert(pos);
+            }
+        }
+        print_base!("len of chunks to load : {}",self.chunks_to_load.len());
+    }
+
     fn handle_packet(&mut self, packet : &ClientPacket) -> Result<(), Error> {
         match packet {
-            ClientPacket::Quit(_) => Ok(()),
-            ClientPacket::AskChunk(p) => {
-                // if the chunk isn't already loaded, send it
-                // print_debug!("Received request for chunk {}", p.get_chunk_pos().deref());
-                if !self.chunks_loaded.contains(&p.get_chunk_pos()) {
-                    let chunk_map = self.server_world_data.get_chunk_map();
-                    if let Some(chunk) = chunk_map.read().unwrap().get(&p.get_chunk_pos()) {
-                        for (_,packet) in ChunkPacket::from_chunk_to_packets(&chunk) {
-                            self.socket.try_send_to(ServerPacket::Chunk(packet).encode().as_raw_slice(), self.addr).expect("");
-                        }
-                        self.chunks_loaded.insert(p.get_chunk_pos().clone());
-                    }
-                }
-                Ok(())
-            },
+            // ClientPacket::Quit(_) => Ok(()),
             ClientPacket::UpdatePlayer(p) => {
-                self.player.write().unwrap().set_pos(p.get_pos());
-                if p.get_pos().get_chunk_pos() != self.chunks_pos {
-                    self.chunks_pos = p.get_pos().get_chunk_pos();
-                    self.generate_chunks();
-                    print_base!("New ChunkPos : {}", self.chunks_pos.deref());
+                self.update_player(p);
+                if Some(p.get_id()) == self.ping_id {
+                    print_base!("Ping of : {}ms",Instant::now().duration_since(self.ping).as_millis());
+                    self.ping_id = None;
                 }
                 Ok(())
             },
             _ => Ok(()),
+        }
+    }
+
+    /// update the client connection and the world data with the information from the player
+    /// schedule to load chunks if needed
+    fn update_player(&mut self, packet : &UpdatePlayerPacket) {
+        self.player.write().unwrap().set_pos(packet.get_pos());
+        if packet.get_pos().get_chunk_pos() != self.chunks_pos {
+            self.chunks_pos = packet.get_pos().get_chunk_pos();
+            self.generate_chunks();
+            self.get_chunks_to_load();
+            self.send_chunks();
+            print_base!("New ChunkPos : {}", self.chunks_pos.deref());
+        };
+        if self.view_distance != packet.get_view_distance() {
+            self.view_distance = packet.get_view_distance();
+            self.get_chunks_to_load();
         }
     }
 }

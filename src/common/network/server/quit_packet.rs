@@ -5,7 +5,7 @@ use crate::common::account::puid::PUID;
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::{ServerNetPacket};
 use crate::common::network::packet_type::{ServerPacketType};
-
+#[derive(Clone)]
 pub struct QuitPacket {
 }
 

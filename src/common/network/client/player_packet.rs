@@ -7,23 +7,33 @@ use crate::common::network::network_traits::ClientNetPacket;
 use crate::common::network::packet_type::ClientPacketType;
 use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
-
+#[derive(Clone)]
 pub struct UpdatePlayerPacket {
     block_pos: BlockPos,
     view_distance : u8,
+    id : u16
 }
 
 impl UpdatePlayerPacket {
 
-    pub fn new(block_pos: BlockPos, view_distance : u8) -> UpdatePlayerPacket {
+    pub fn new(block_pos: BlockPos, view_distance : u8, id : u16) -> UpdatePlayerPacket {
         Self {
             block_pos,
-            view_distance
+            view_distance,
+            id
         }
+    }
+    
+    pub fn get_id(&self) -> u16 {
+        self.id
     }
 
     pub fn get_pos(&self) -> BlockPos {
         self.block_pos
+    }
+    
+    pub fn get_view_distance(&self) -> u8 {
+        self.view_distance
     }
 }
 
@@ -40,11 +50,16 @@ impl ClientNetPacket for UpdatePlayerPacket {
         let mut bits = BitVec::new();
         bits.extend(self.block_pos.serialize());
         bits.extend(self.view_distance.view_bits::<Lsb0>());
+        bits.extend(self.id.view_bits::<Lsb0>());
         bits
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        Self::new(BlockPos::deserialize(cursor.read_bytes(12)), cursor.read_bits::<u8>(8))
+        Self::new(
+            BlockPos::deserialize(cursor.read_bytes(12)),
+            cursor.read_bits::<u8>(8),
+            cursor.read_bits::<u16>(16)
+        )
     }
 
     fn get_packet_type() -> ClientPacketType {
