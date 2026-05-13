@@ -9,13 +9,16 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{UdpSocket};
 use tokio::time::timeout;
 use shared::common::network::client::login_packet::LoginPacket;
-use shared::common::network::client::packet::ClientPacket;
+use shared::common::network::default_packet::ClientPacket;
 use shared::common::network::client::player_packet::UpdatePlayerPacket;
 use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::network::server::packet::ServerPacket;
+use shared::common::network::default_packet::ServerPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
+use tokio::sync::mpsc as tk;
+use crossbeam::channel as cb;
+use shared::common::world::chunk::chunk::Chunk;
 
 pub struct ServerConnection {
     socket: UdpSocket,
@@ -23,10 +26,11 @@ pub struct ServerConnection {
     rx : tokio::sync::mpsc::Receiver<ClientPacket>,
     temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
     start_time : Instant,
+    chunk_sender : cb::Sender<Chunk>
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>) {
+    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
@@ -36,12 +40,12 @@ impl ServerConnection {
                     .unwrap();
 
                 rt.block_on(async {
-                    ServerConnection::new(ipv6addr, rx, client_world_data).await;
+                    ServerConnection::new(ipv6addr, rx, client_world_data, chunk_sender).await;
                 });
             })
             .unwrap();
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>) -> Result<(),Error> {
+    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) -> Result<(),Error> {
         let socket = tokio::net::UdpSocket::bind(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
@@ -55,6 +59,7 @@ impl ServerConnection {
             rx,
             start_time : Instant::now(),
             client_world_data,
+            chunk_sender,
         };
         con.connect().await?;
         con.handle_server().await;
@@ -123,7 +128,7 @@ impl ServerConnection {
                 Ok(())
             },
             ServerPacket::GetPlayer(player_packet) => {
-                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_block_pos(),10, player_packet.get_id()));
+                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),10, player_packet.get_id()));
                 self.socket.try_send(&tick_packet.encode().into_vec())?;
                 Ok(())
             },
@@ -150,7 +155,8 @@ impl ServerConnection {
         }
         if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
             let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-            self.client_world_data.get_chunks().write().unwrap().add_chunk(c);
+            // self.client_world_data.get_chunks().write().unwrap().add_chunk(c.clone());
+            self.chunk_sender.send(c).expect("Cannot send the chunk to the map");
         }
         // print_base!("Received packets in {}ms",Instant::now().duration_since(self.start_time).as_millis());
     }
