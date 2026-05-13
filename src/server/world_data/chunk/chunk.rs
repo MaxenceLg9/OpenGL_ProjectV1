@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::process::abort;
 use std::sync::{Arc};
 use std::time::Instant;
+use bitvec::macros::internal::funty::Fundamental;
+use noise::Perlin;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
-use shared::math::noised_terrain_default;
+use shared::math::get_terrain_height;
+use shared::print_base;
 use crate::server::generation::mesh::chunk_mesh::ServerChunkMesh;
 use crate::server::world_data::block::block::BlockType;
 
@@ -19,24 +23,31 @@ impl Drop for ServerChunk {
 
 impl ServerChunk {
 
-    pub fn generate_chunk(chunk_pos: ChunkPos) -> Chunk {
+    pub fn generate_chunk(perlin : &Perlin, chunk_pos: ChunkPos) -> Chunk {
         let time : Instant = Instant::now();
         let mut blocks = Vec::new();
         blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
         for x in 0..CHUNK_SIZE {
             for z in 0..CHUNK_SIZE {
                 let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
+                let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
                 let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = (noised_terrain_default(block_x, block_z) * 100.0 + 150.0) as i32;
-                let local_max_height = max_h - chunk_pos.y * CHUNK_SIZE as i32;
-                for y in 0..local_max_height {
-                    if y > (CHUNK_SIZE - 1) as i32 {
-                        break;
-                    }
-                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  Self::generate_block((y + chunk_pos.y * CHUNK_SIZE as i32) as u16);
+                let max_h : i32 = get_terrain_height(perlin, block_x, block_z).as_i32();
+                // let max_h = (block_x.abs() + block_z.abs()) / 4;
+                if block_x < -130 && block_x > -145 && block_z < 485 && block_z > 470 {
+                    print_base!("Chunk: {}, Max_h: {}, x: {}, z: {}",chunk_pos.deref(), max_h, block_x, block_z);
                 }
-                for y in local_max_height.max(0) as usize..CHUNK_SIZE - 1 {
-                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                for y in 0..CHUNK_SIZE {
+                    let y_relative = y.as_i32() + chunk_pos.y * CHUNK_SIZE as i32;
+                    if y_relative > max_h {
+                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                    } else {
+                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  Self::generate_block((y_relative) as u16);
+
+                        if y_relative > max_h - 3 {
+                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] = BlockType::DIRT.get_value();
+                        }
+                    }
                 }
             }
         }
