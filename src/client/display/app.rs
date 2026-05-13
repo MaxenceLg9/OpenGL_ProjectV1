@@ -61,7 +61,6 @@ impl ApplicationHandler for App {
                 }
             },
         };
-
         let attrs = window.build_surface_attributes(Default::default()).expect("Failed to build surface attributes");
         let gl_surface = unsafe { gl_config.display().create_window_surface(&gl_config, &attrs).unwrap() };
         // The context needs to be current for the Renderer to set up shaders and
