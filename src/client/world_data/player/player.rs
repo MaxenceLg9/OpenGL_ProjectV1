@@ -3,7 +3,7 @@ use glam::IVec3;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use shared::common::world::pos::blockpos::BlockPos;
-use shared::common::world::pos::chunkpos::CHUNK_SIZE;
+use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
 
 pub struct ClientPlayer {
@@ -23,16 +23,12 @@ pub struct KeyState {
 
 impl ClientPlayer {
 
-    pub fn get_chunk_pos(&self) -> IVec3 {
-        self.pos.as_ivec3() / CHUNK_SIZE as i32
+    pub fn get_chunk_pos(&self) -> ChunkPos {
+        self.pos.get_chunk_pos()
     }
 
     pub fn set_pos(&mut self, pos : BlockPos) {
         self.pos = pos;
-    }
-    
-    pub fn get_block_pos(&self) -> BlockPos {
-        self.pos
     }
     
     fn move_forward(&mut self, delta : f32, time : f32) {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use gl::types::{GLchar, GLint, GLuint};
 
 pub struct Shader {
-    program: GLuint,
+    pub(crate) program: GLuint,
 }
 
 impl Shader {

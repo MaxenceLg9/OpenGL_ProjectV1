@@ -7,7 +7,7 @@ use crossbeam::channel;
 use glam::Vec3;
 use shared::common::account::puid::PUID;
 use shared::{print_base, print_debug};
-use shared::common::network::server::packet::ServerPacket;
+use shared::common::network::default_packet::ServerPacket;
 use crate::server::world_data::player::player::ServerPlayer;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::blockpos::BlockPos;
@@ -29,7 +29,7 @@ impl ServerWorldData {
         Self {
             properties : ServerWorldProperties::new("debug".to_string(),Difficulty::Easy),
             chunks : chunk_map.clone(),
-            generator : Arc::new(RwLock::new(ChunkGenerator::new(chunk_map))),
+            generator : Arc::new(RwLock::new(ChunkGenerator::new(chunk_map, 1))),
             players : Arc::new(RwLock::new(HashMap::new()))
         }
     }
@@ -56,7 +56,7 @@ impl ServerWorldData {
             match self.players.write().unwrap().entry(puid) {
                 Entry::Occupied(_) => Err(format!("Player {} already exist", puid)),
                 Entry::Vacant(e) => {
-                    let pos = BlockPos::new(Vec3::new(0.0,160.0,0.0));
+                    let pos = BlockPos::new(Vec3::new(32.0,160.0,32.0));
                     print_base!("Created player with {}", puid);
                     let player = Arc::new(RwLock::new(ServerPlayer::new(pos,sx, puid)));
                     e.insert(player.clone());

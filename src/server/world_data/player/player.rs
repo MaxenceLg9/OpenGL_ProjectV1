@@ -1,14 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::sync::mpsc::Receiver;
-use crossbeam::channel;
+use std::io::Error;
 use glam::{IVec3, Vec3};
-use winit::event::{ElementState, KeyEvent};
-use winit::keyboard::{KeyCode, PhysicalKey};
+use tokio::sync::mpsc::error::TrySendError;
 use shared::common::account::puid::PUID;
-use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::network::server::packet::ServerPacket;
+use shared::common::network::default_packet::ServerPacket;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -46,10 +41,8 @@ impl ServerPlayer {
         self.pos = pos;
     }
 
-    pub fn send_packet(&self, packet : ServerPacket) {
-        if let Err(e) = self.sender.try_send(packet) {
-            // print_base!("Sender of ServerPlayer is full!!!");
-        }
+    pub fn send_packet(&self, packet : ServerPacket) -> Result<(), TrySendError<ServerPacket>> {
+         self.sender.try_send(packet)
     }
 
     pub fn get_coords(&self) -> BlockPos {

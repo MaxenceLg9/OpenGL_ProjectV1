@@ -1,3 +1,5 @@
+use std::path::Path;
+use crossbeam::epoch::Pointable;
 use winit::event_loop::{ControlFlow, EventLoop};
 use glutin::config::{ConfigTemplateBuilder};
 use client::display::app::App;
@@ -15,6 +17,7 @@ pub fn main() -> Result<(), String> {
 
     let event_loop = EventLoop::new().expect("Failed to create event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
+
     // The template will match only the configurations supporting rendering
     // to windows.
     //
