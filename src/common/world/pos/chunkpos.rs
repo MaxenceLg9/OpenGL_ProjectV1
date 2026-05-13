@@ -22,12 +22,14 @@ impl ChunkPos {
         Self { pos : glam::ivec3(x,y,z) }
     }
 
+
     pub fn from_absolute(x : i32, y : i32, z : i32, range : i32) -> Self {
         Self { pos : glam::ivec3(x,y,z) - glam::ivec3(range,range,range)}
     }
 
+    // translate a i absolute value to x,y,z coordinates such i = range * range * x + range * y + z
     pub fn from_single_value(i : i32, range : i32) -> ChunkPos {
-        Self::from_absolute((i / range.pow(2)) % range, (i / range) % range, i % range, range / 2)
+        Self::from_absolute((i / range.pow(2)) % range, (i / range) % range, i % range, range.add(-1) / 2)
     }
 
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
@@ -42,6 +44,39 @@ impl ChunkPos {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
         ChunkPos::new(glam::IVec3::from_slice(coords))
+    }
+
+    pub fn lesser_then_or_equal(&self, chunk_pos: ChunkPos) -> bool {
+        self.x <= chunk_pos.x && self.y <= chunk_pos.y && self.z <= chunk_pos.z
+    }
+
+    pub fn not_inside(&self, center : ChunkPos, range : i32) -> bool {
+        let corners = vec![
+          ChunkPos::from_i32(range,range,range),
+          ChunkPos::from_i32(-range,range,range),
+          ChunkPos::from_i32(range,-range,range),
+          ChunkPos::from_i32(-range,-range,range),
+          ChunkPos::from_i32(range,range,-range),
+          ChunkPos::from_i32(-range,range,-range),
+          ChunkPos::from_i32(range,-range,-range),
+          ChunkPos::from_i32(-range,-range,-range),
+        ];
+        for corner in corners {
+
+        }
+        false
+    }
+
+    pub fn abs(&self) -> ChunkPos {
+        Self {
+            pos : self.pos.abs()
+        }
+    }
+
+    pub fn flattened(&self) -> ChunkPos {
+        Self {
+            pos : glam::ivec3(self.x, 0, self.y)
+        }
     }
 }
 
