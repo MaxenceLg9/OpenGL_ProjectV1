@@ -4,7 +4,7 @@ use bitvec::vec::BitVec;
 use bitvec::view::BitView;
 use crate::common::account::puid::PUID;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::ClientNetPacket;
+use crate::common::network::network_traits::{ClientNetPacket, NetPacket};
 use crate::common::network::packet_type::ClientPacketType;
 #[derive(Clone)]
 pub struct LoginPacket {
@@ -31,8 +31,7 @@ impl Display for LoginPacket {
     }
 }
 
-impl ClientNetPacket for LoginPacket {
-    const P_TYPE: ClientPacketType = ClientPacketType::Login;
+impl NetPacket for LoginPacket {
 
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
@@ -51,7 +50,4 @@ impl ClientNetPacket for LoginPacket {
         Self { puid: PUID::new(puid), password }
     }
 
-    fn get_packet_type() -> ClientPacketType {
-        Self::P_TYPE
-    }
 }

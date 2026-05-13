@@ -3,7 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{ServerNetPacket};
+use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
 use crate::common::network::packet_type::ServerPacketType;
 #[derive(Clone)]
 pub struct GetPlayerPacket {
@@ -29,9 +29,7 @@ impl Display for GetPlayerPacket {
     }
 }
 
-impl ServerNetPacket for GetPlayerPacket {
-    const P_TYPE: ServerPacketType = ServerPacketType::GetPlayer;
-
+impl NetPacket for GetPlayerPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits =BitVec::new();
         bits.extend_from_bitslice(self.id.view_bits::<Lsb0>());
@@ -40,9 +38,5 @@ impl ServerNetPacket for GetPlayerPacket {
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
         GetPlayerPacket::new(cursor.read_bits::<u16>(16))
-    }
-
-    fn get_packet_type(&self) -> ServerPacketType {
-        Self::P_TYPE
     }
 }

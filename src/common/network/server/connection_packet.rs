@@ -3,7 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::ServerNetPacket;
+use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
 use crate::common::network::packet_type::ServerPacketType;
 use crate::common::network::packet_type::ServerPacketType::BlockDestroyed;
 use crate::common::world::pos::blockpos::BlockPos;
@@ -37,9 +37,7 @@ impl Display for ConnectionPacket {
     }
 }
 
-impl ServerNetPacket for ConnectionPacket {
-    const P_TYPE: ServerPacketType = ServerPacketType::Connect;
-
+impl NetPacket for ConnectionPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
         bits.extend_from_bitslice(self.token.view_bits::<Lsb0>());
@@ -52,9 +50,5 @@ impl ServerNetPacket for ConnectionPacket {
             token: cursor.read_bytes(40).as_array().unwrap().to_owned(),
             pos: BlockPos::deserialize(cursor.read_bytes(12))
         }
-    }
-
-    fn get_packet_type(&self) -> ServerPacketType {
-        Self::P_TYPE
     }
 }

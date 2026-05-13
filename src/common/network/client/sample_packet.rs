@@ -3,7 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use crate::common::account::puid::PUID;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{ServerNetPacket};
+use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
 use crate::common::network::packet_type::{ServerPacketType};
 #[derive(Clone)]
 pub struct  SamplePacket {
@@ -29,18 +29,12 @@ impl Display for SamplePacket {
     }
 }
 
-impl ServerNetPacket for SamplePacket {
-    const P_TYPE: ServerPacketType = ServerPacketType::Correction;
-
+impl NetPacket for SamplePacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         BitVec::new()
     }
-
     fn deserialize(cursor: &mut BitCursor) -> Self {
         SamplePacket::new()
     }
 
-    fn get_packet_type(&self) -> ServerPacketType {
-        Self::P_TYPE
-    }
 }

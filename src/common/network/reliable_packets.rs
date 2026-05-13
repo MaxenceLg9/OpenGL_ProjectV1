@@ -2,25 +2,25 @@ use std::fmt::{Display, Formatter};
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{ClientNetPacket, NetPacket};
-use crate::common::network::packet_type::ClientPacketType;
-#[derive(Clone)]
-pub struct DefaultPacket;
+use crate::common::network::network_traits::NetPacket;
 
-impl Display for DefaultPacket {
+#[derive(Clone)]
+pub struct ReliablePacket {
+
+}
+
+impl Display for ReliablePacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"Default Packet")
+        write!(f,"Reliable packet")
     }
 }
 
-impl NetPacket for DefaultPacket {
-
+impl NetPacket for ReliablePacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
-        BitVec::new()
+        todo!()
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        Self
+        todo!()
     }
-
 }

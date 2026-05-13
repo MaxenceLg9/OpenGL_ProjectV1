@@ -6,7 +6,7 @@ use bitvec::prelude::BitVec;
 use bitvec::view::{AsBits, BitView};
 use zstd::compression_level_range;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{ServerNetPacket};
+use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
 use crate::common::network::packet_type::ServerPacketType;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
@@ -115,9 +115,7 @@ impl Display for ChunkPacket {
     }
 }
 
-impl ServerNetPacket for ChunkPacket {
-    const P_TYPE: ServerPacketType = ServerPacketType::Chunk;
-
+impl NetPacket for ChunkPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
         bits.extend(self.chunk_pos.serialize());// 12 bytes
@@ -147,9 +145,5 @@ impl ServerNetPacket for ChunkPacket {
             bits: cursor.read_bytes(slice as usize).as_bits().to_bitvec(),
         }
 
-    }
-
-    fn get_packet_type(&self) -> ServerPacketType {
-        Self::P_TYPE
     }
 }
