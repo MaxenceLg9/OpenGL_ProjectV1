@@ -12,6 +12,14 @@ name = "client"
 path = "src/bin/client.rs"
 
 [[bin]]
+name = "test"
+path = "src/bin/test.rs"
+
+[[bin]]
+name = "generation"
+path = "src/bin/test_generation.rs"
+
+[[bin]]
 name = "server"
 path = "src/bin/server.rs"
 
@@ -38,6 +46,9 @@ tokio-stream = "0.1.18"
 mlua = { version = "0.11.6", features = ["lua55"] }
 chrono = "0.4.44"
 async-channel = "2.5.0"
+md4 = "0.11.0"
+rand = "0.10.1"
+fontdue = "0.9.3"
 
 [features]
 dhat-heap = []
