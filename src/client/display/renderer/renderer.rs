@@ -42,12 +42,13 @@ impl Renderer {
         });
         gl::Enable(gl::DEBUG_OUTPUT);
         gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
+
         gl::DebugMessageCallback(Some(message_callback),std::ptr::null());
         let mut renderer = Self {
             world: ClientWorld::new(),
             cursor: Cursor::new(),
         };
-        renderer.world.connect_to();
+        renderer.world.load_characters();
         renderer
     }
 
@@ -60,6 +61,8 @@ impl Renderer {
             gl::Enable(gl::CULL_FACE);
             gl::FrontFace(gl::CW); // Counter-clockwise is front
             gl::CullFace(gl::BACK); // Cull back faces
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
             self.world.render(window);
             self.world.tick();
