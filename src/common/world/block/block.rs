@@ -4,9 +4,10 @@ pub enum BlockType {
     STONE = 2,
     DEEPSLATE = 3,
     PlatinumOre = 4,
-    IkrineBlock = 5,
+    IKRINEBLOCK = 5,
     IkrineOre = 6,
-    StoneBricks = 7
+    StoneBricks = 7,
+    GRASS = 8,
 }
 
 impl BlockType {
