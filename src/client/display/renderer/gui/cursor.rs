@@ -11,7 +11,7 @@ pub struct Cursor {
 
 impl Cursor {
     pub unsafe fn new() -> Cursor {
-        let shader = Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/vertex.vert".to_string(), "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/fragment.frag".to_string());
+        let shader = Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/fragment.frag");
         let mesh = Mesh::new(Cursor::vertices(),Cursor::indices(),Vec::new());
         Self {
             shader,

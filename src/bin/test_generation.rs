@@ -22,11 +22,12 @@ pub fn main() -> io::Result<()> {
     let perlin = Perlin::new(1);
     for x in 0..500 {
         for y in 0..500 {
-            let noises = get_erosion(&perlin, x.as_f64(), y.as_f64()) * 255.0;
-            let value = noises.as_u8();
+            let noises = get_erosion(&perlin, x as f64, y as f64) * 255.0;
+            let value = noises as u8;
             rgba_image.get_pixel_mut(x,y).0 = [value,value,value, 255];
         }
     }
     rgba_image.save_with_format("image.png",ImageFormat::Png).unwrap();
+    
     Ok(())
 }

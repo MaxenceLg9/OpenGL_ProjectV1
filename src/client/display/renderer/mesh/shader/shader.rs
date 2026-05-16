@@ -9,10 +9,10 @@ pub struct Shader {
 
 impl Shader {
 
-    pub unsafe fn new(vertex_path: String, fragment_path: String) -> Shader {
+    pub unsafe fn new(vertex_path: &str, fragment_path: &str) -> Shader {
 
-        let vertex_code = fs::read_to_string(vertex_path.clone()).expect(format!("Cannot read file {}",vertex_path).as_str());
-        let fragment_code = fs::read_to_string(fragment_path.clone()).expect(format!("Cannot read file {}",vertex_path).as_str());
+        let vertex_code = fs::read_to_string(vertex_path).expect(format!("Cannot read file {}",vertex_path).as_str());
+        let fragment_code = fs::read_to_string(fragment_path).expect(format!("Cannot read file {}",vertex_path).as_str());
 
         // vertex Shader
         let vertex : GLuint = Shader::compile_shader(vertex_code, gl::VERTEX_SHADER, "GL_VERTEX_SHADER").expect(format!("Cannot compile vertex shader {}", vertex_path).as_str());

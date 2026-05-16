@@ -1,6 +1,6 @@
 use std::net::{Ipv6Addr, SocketAddrV6};
 use std::sync::{Arc};
-use crate::server::network::network::Network;
+use crate::server::network::socket2::Socket;
 use crate::server::world_data::data::ServerWorldData;
 
 pub struct ServerWorld {
@@ -17,7 +17,7 @@ impl ServerWorld {
 
     pub fn listen(&mut self) {
         let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
-        Network::listen(self.data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into());
+        Socket::listen(self.data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into());
         loop {
             std::thread::sleep(std::time::Duration::from_millis(1000)); // ~20 ticks per second
             self.data.tick();

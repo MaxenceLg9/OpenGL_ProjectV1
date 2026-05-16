@@ -5,6 +5,7 @@ use crossbeam::channel;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base, print_debug};
+use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 
@@ -12,7 +13,7 @@ pub struct MeshGenerator;
 
 impl MeshGenerator {
 
-    pub fn start_build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, chunk_map: Arc<RwLock<ClientChunkMap>>) {
+    pub fn start_build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<(ChunkMesh, MeshText)>, chunk_map: Arc<RwLock<ClientChunkMap>>) {
         std::thread::Builder::new()
             .name("ChunkMesh_generator".to_string())
             .spawn(move || {
@@ -20,7 +21,7 @@ impl MeshGenerator {
             }).unwrap();
     }
 
-    fn build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<ChunkMesh>, server_world_data: Arc<RwLock<ClientChunkMap>>) {
+    fn build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<(ChunkMesh, MeshText)>, server_world_data: Arc<RwLock<ClientChunkMap>>) {
         let mut chunks = HashMap::new();
         let mut hash_set = HashSet::new();
         let mut n = 0;
@@ -65,7 +66,7 @@ impl MeshGenerator {
         let chunk_map = arc_chunk_map.read().unwrap();
         for p in pos_vec.iter() {
             // the position is already in the map, no need to check if it exists
-            if !chunks.contains_key(p) {
+            if !chunks.contains_key(p) && p.y >= -2 && p.y <= 9 {
                 // checking if the chunk exists in the world_data data as it doesn't exist in the map
                 let result = chunk_map.get_chunk(p);
                 // getting the object associated with the pos, checking that the chunk exists and adding it into the map
@@ -77,11 +78,11 @@ impl MeshGenerator {
             }
             count += 1;
         }
-        for p in pos_vec.iter() {
+/*        for p in pos_vec.iter() {
             if !chunks.contains_key(p) && count == 7 {
                 print_base!("Bug on pos {} at {}",chunk_pos.deref(), p.deref());
             }
-        }
+        }*/
         count
     }
 

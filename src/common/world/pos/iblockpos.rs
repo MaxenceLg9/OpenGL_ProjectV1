@@ -27,11 +27,11 @@ impl IBlockPos {
         (self.get_block_pos(),self.get_chunk_pos())
     }
 
-    fn get_chunk_pos(&self) -> ChunkPos {
+    pub fn get_chunk_pos(&self) -> ChunkPos {
         ChunkPos::new(self.pos.div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
-    fn get_block_pos(&self) -> IBlockPos {
+    pub fn get_block_pos(&self) -> IBlockPos {
         IBlockPos::new(self.pos.rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 

@@ -142,7 +142,7 @@ impl ApplicationHandler for App {
         let current_frame = std::time::Instant::now();
         let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
         self.last_frame = current_frame;
-        self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().poll_keys(delta);
+        self.renderer.as_mut().unwrap().get_world().poll_keys(delta);
 
         // print_base!("Waking up at {:?}fps", 1_f32 / delta);
 

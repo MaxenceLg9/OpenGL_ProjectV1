@@ -58,7 +58,6 @@ impl Text {
         s.use_shader();
 
         let projection = glam::Mat4::orthographic_rh_gl(0.0, 1920.0, 0.0, 1080.0, -1.0, 1.0);
-
         s.set_matrix4fv("projection", projection);
         gl::Uniform3f(gl::GetUniformLocation(s.program, CString::new("textColor").unwrap().as_bytes().as_ptr() as *const i8), color.x, color.y, color.z);
 

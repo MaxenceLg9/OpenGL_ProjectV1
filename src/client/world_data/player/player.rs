@@ -1,10 +1,11 @@
 use std::collections::{HashMap};
-use glam::IVec3;
+use std::sync::Arc;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
+use crate::client::world_data::client_data::ClientWorldData;
 
 pub struct ClientPlayer {
     pos : BlockPos,
@@ -138,7 +139,7 @@ impl ClientPlayer {
         }
     }
 
-    pub fn poll_keys(&mut self, time : f32) {
+    pub fn poll_keys(&mut self, time : f32, client_world_data: Arc<ClientWorldData>) {
         let keyboard = self.keyboard.clone();
         for elt in keyboard.iter() {
             match elt.1.current_state {
@@ -164,7 +165,10 @@ impl ClientPlayer {
                         },
                         PhysicalKey::Code(KeyCode::ShiftLeft) => {
                             self.add_speed_multiplier(0, 50.0);
-                        }
+                        },
+                        PhysicalKey::Code(KeyCode::F3) => {
+                            client_world_data.toggle_debug()
+                        },
                         _ => {}
                     }
                 }

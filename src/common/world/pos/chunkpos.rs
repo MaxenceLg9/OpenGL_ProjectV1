@@ -24,12 +24,12 @@ impl ChunkPos {
 
 
     pub fn from_absolute(x : i32, y : i32, z : i32, range : i32) -> Self {
-        Self { pos : glam::ivec3(x,y,z) - glam::ivec3(range,range,range)}
+        Self { pos : glam::ivec3(x,y,z) - glam::ivec3(range,0,range)}
     }
 
     // translate a i absolute value to x,y,z coordinates such i = range * range * x + range * y + z
     pub fn from_single_value(i : i32, range : i32) -> ChunkPos {
-        Self::from_absolute((i / range.pow(2)) % range, (i / range) % range, i % range, range.add(-1) / 2)
+        Self::from_absolute((i / range.pow(2)) % range, (i / range) % 7, i % range, range.add(-1) / 2)
     }
 
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
