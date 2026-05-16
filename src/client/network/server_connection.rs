@@ -1,36 +1,36 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::net::{Ipv6Addr, SocketAddrV6};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::ops::Deref;
 use std::sync::{Arc};
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
-use tokio::net::{UdpSocket};
 use tokio::time::timeout;
 use shared::common::network::client::login_packet::LoginPacket;
-use shared::common::network::default_packet::ClientPacket;
 use shared::common::network::client::player_packet::UpdatePlayerPacket;
 use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::network::default_packet::ServerPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
-use tokio::sync::mpsc as tk;
 use crossbeam::channel as cb;
+use shared::common::network::l5_packet::L5Packet;
+use shared::common::network::packet_type::UdpPacketType;
+use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::world::chunk::chunk::Chunk;
 
 pub struct ServerConnection {
-    socket: UdpSocket,
+    socket: CommonSocket,
     client_world_data: Arc<ClientWorldData>,
-    rx : tokio::sync::mpsc::Receiver<ClientPacket>,
+    rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>,
     temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
     start_time : Instant,
-    chunk_sender : cb::Sender<Chunk>
+    chunk_sender : cb::Sender<Chunk>,
+    addr : SocketAddr
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) {
+    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
@@ -40,13 +40,13 @@ impl ServerConnection {
                     .unwrap();
 
                 rt.block_on(async {
-                    ServerConnection::new(ipv6addr, rx, client_world_data, chunk_sender).await;
+                    ServerConnection::new(ipv6addr, rx, client_world_data, chunk_sender).await.unwrap();
                 });
             })
             .unwrap();
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<ClientPacket>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) -> Result<(),Error> {
-        let socket = tokio::net::UdpSocket::bind(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
+    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) -> Result<(),Error> {
+        let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
         // let (psx, prx) = tokio::sync::mpsc::channel(10000);
@@ -60,6 +60,7 @@ impl ServerConnection {
             start_time : Instant::now(),
             client_world_data,
             chunk_sender,
+            addr,
         };
         con.connect().await?;
         con.handle_server().await;
@@ -67,12 +68,12 @@ impl ServerConnection {
         Ok(())
     }
 
-    async fn connect(&self) -> Result<(),Error> {
-        self.socket.send(ClientPacket::Login(LoginPacket::new(2000, "maxence".to_string())).encode().as_raw_slice()).await.expect("Panic when sending connection packet");
+    async fn connect(&mut self) -> Result<(),Error> {
+        self.socket.send_to(L5Packet::Login(LoginPacket::new(2000, "maxence".to_string())),self.addr, UdpPacketType::Reliable).await.expect("Panic when sending connection packet");
         let mut buff: [u8; 1024] = [0; 1024];
 
-        let bytes = self.socket.recv(&mut buff).await?;
-        let Some(ServerPacket::Connect(packet)) = ServerPacket::decode(&buff[0..bytes].to_vec()) else {
+        let (packet, addr) = self.socket.recv_from().await?;
+        let L5Packet::Connect(packet) = packet else {
             return Err(Error::new(ErrorKind::InvalidData,"Expected Connect packet, got something else"));
         };
         self.client_world_data.get_player().write().unwrap().set_pos(packet.get_pos().clone());
@@ -85,31 +86,25 @@ impl ServerConnection {
         self.start_time = Instant::now();
         loop {
             tokio::select! {
-                    frame = timeout(Duration::from_secs(5), self.socket.recv(&mut buff)) => {
-                        if let Err(e) = self.receive(frame, buff) {
+                    frame = timeout(Duration::from_secs(5), self.socket.recv_from()) => {
+                        if let Err(e) = self.receive(frame, buff).await {
                             print_base!("Breaking due to error: {}", e);
                             break;
                         }
                     }
-                    Some(packet) = self.rx.recv() => {
+                    Some((packet, udp_type)) = self.rx.recv() => {
                         // print_base!("Sending packet {}",packet.get_packet_type());
-                        self.socket.send(packet.encode().as_raw_slice()).await.unwrap();
+                        self.socket.send_to(packet, self.addr, udp_type).await.unwrap();
                     }
                 }
         }
     }
 
 
-    fn receive(&mut self, frame : Result<Result<usize, Error>, tokio::time::error::Elapsed>, buff : [u8; 1024]) -> Result<(), Error> {
+    async fn receive(&mut self, frame : Result<Result<(L5Packet, SocketAddr), Error>, tokio::time::error::Elapsed>, buff : [u8; 1024]) -> Result<(), Error> {
         match frame {
-            Ok(Ok(size)) => {
-                // trying to parse the raw bytes into a struct
-                let packet = match ServerPacket::decode(&buff[0..size].to_vec()){
-                    Some(p) => p,
-                    None => return Err(Error::new(ErrorKind::StaleNetworkFileHandle,format!("Cannot parse the packet, invalid bytes {:?}", buff[0..size].to_vec()))),
-                };
-                // handling the packet as it is correct
-                self.handle_packet(&packet)
+            Ok(Ok((packet, addr))) => {
+                self.handle_packet(&packet).await
             }
             Ok(Err(e)) => {
                 Err(e)
@@ -120,19 +115,19 @@ impl ServerConnection {
         }
     }
 
-    fn handle_packet(&mut self, p: &ServerPacket) -> Result<(), Error> {
+    async fn handle_packet(&mut self, p: &L5Packet) -> Result<(), Error> {
         match p {
-            ServerPacket::Chunk(chunk_packet) => {
+            L5Packet::Chunk(chunk_packet) => {
                 // print_base!("Receiving packets {}",p.get_packet_type());
                 self.push_chunk_packet(chunk_packet);
                 Ok(())
             },
-            ServerPacket::GetPlayer(player_packet) => {
-                let tick_packet = ClientPacket::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),10, player_packet.get_id()));
-                self.socket.try_send(&tick_packet.encode().into_vec())?;
+            L5Packet::GetPlayer(player_packet) => {
+                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),10, player_packet.get_id()));
+                self.socket.send_to(tick_packet, self.addr, UdpPacketType::Simple).await?;
                 Ok(())
             },
-            ServerPacket::Connect(packet) => {
+            L5Packet::Connect(packet) => {
                 print_base!("Spawning on the world with coords : {}", packet.get_pos().deref());
                 Ok(())
             },

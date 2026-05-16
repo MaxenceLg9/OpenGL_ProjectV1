@@ -6,8 +6,7 @@ use bitvec::prelude::BitVec;
 use bitvec::view::{AsBits, BitView};
 use zstd::compression_level_range;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
-use crate::common::network::packet_type::ServerPacketType;
+use crate::common::network::network_traits::{L5PacketTrait};
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::pos_trait::PosTrait;
@@ -115,7 +114,7 @@ impl Display for ChunkPacket {
     }
 }
 
-impl NetPacket for ChunkPacket {
+impl L5PacketTrait for ChunkPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
         bits.extend(self.chunk_pos.serialize());// 12 bytes
@@ -146,4 +145,5 @@ impl NetPacket for ChunkPacket {
         }
 
     }
+
 }

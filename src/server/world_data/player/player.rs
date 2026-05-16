@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
-use std::io::Error;
 use glam::{IVec3, Vec3};
 use tokio::sync::mpsc::error::TrySendError;
 use shared::common::account::puid::PUID;
-use shared::common::network::default_packet::ServerPacket;
+use shared::common::network::l5_packet::L5Packet;
+use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -13,7 +13,7 @@ pub struct ServerPlayer {
     last_pos : BlockPos,
     pos : BlockPos,
     puid : PUID,
-    sender: tokio::sync::mpsc::Sender<ServerPacket>,
+    sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
 }
 
 impl ServerPlayer {
@@ -22,11 +22,11 @@ impl ServerPlayer {
         self.pos.as_ivec3() / CHUNK_SIZE as i32
     }
 
-    pub fn get_sender(&self) -> &tokio::sync::mpsc::Sender<ServerPacket> {
+    pub fn get_sender(&self) -> &tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)> {
         &self.sender
     }
 
-    pub fn new(pos : BlockPos, sender : tokio::sync::mpsc::Sender<ServerPacket>, puid : PUID) -> Self {
+    pub fn new(pos : BlockPos, sender : tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, puid : PUID) -> Self {
         print_base!("Creating player at {},{},{}", pos.x, pos.y, pos.z);
         Self {
             pos,
@@ -41,8 +41,8 @@ impl ServerPlayer {
         self.pos = pos;
     }
 
-    pub fn send_packet(&self, packet : ServerPacket) -> Result<(), TrySendError<ServerPacket>> {
-         self.sender.try_send(packet)
+    pub fn send_packet(&self, packet : L5Packet, udp_packet_type: UdpPacketType) -> Result<(), TrySendError<(L5Packet, UdpPacketType)>> {
+         self.sender.try_send((packet, udp_packet_type))
     }
 
     pub fn get_coords(&self) -> BlockPos {

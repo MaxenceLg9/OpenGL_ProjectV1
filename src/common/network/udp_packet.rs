@@ -1,26 +1,15 @@
-use crate::common::network::network_traits::NetPacket;
-use crate::common::network::network_traits::ServerNetPacket;
-use crate::common::network::bit_cursor::BitCursor;
-use bitvec::order::Lsb0;
-use bitvec::prelude::{BitVec};
+use crate::common::network::l5_packet::L5Packet;
+use crate::common::network::network_traits::UdpPacketTrait;
 use bitvec::view::BitView;
-use crate::common::network::client::sample_packet::SamplePacket;
-use crate::common::network::packet_type::{ServerPacketType};
-use crate::common::network::packet_type::ServerPacketType::{BlockDestroyed, Chunk, Connect, Correction, GetPlayer, ServerQuit as ServerQuit};
-use crate::common::network::server::chunk_packet::ChunkPacket;
-use crate::common::network::server::connection_packet::ConnectionPacket;
-use crate::common::network::server::quit_packet::QuitPacket;
-use crate::common::network::server::tick_player::GetPlayerPacket;
+use crate::common::network::bit_cursor::BitCursor;
+use bitvec::prelude::Lsb0;
+use bitvec::prelude::BitVec;
 use crate::print_base;
+use crate::common::network::packet_type::UdpPacketType;
+use crate::common::network::packet_type::UdpPacketType::{Ack, Reliable, Simple};
+use crate::common::network::reliable_packets::{AckPacket, ReliablePacket, SimplePacket};
 
-use crate::common::network::network_traits::ClientNetPacket;
-use crate::common::network::client::default_packet::DefaultPacket;
-use crate::common::network::client::login_packet::LoginPacket;
-use crate::common::network::client::player_packet::UpdatePlayerPacket;
-use crate::common::network::packet_type::ClientPacketType;
-use crate::common::network::packet_type::ClientPacketType::{Login, UpdatePlayer, ClientQuit as ClientQuit};
-
-macro_rules! register_packets {
+macro_rules! register_udp_packets {
     ($enum_name:ident, $enum_type:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
         #[derive(Clone)]
         pub enum $enum_name {
@@ -64,18 +53,9 @@ macro_rules! register_packets {
     };
 }
 
-// Usage:
-register_packets!(ServerPacket, ServerPacketType, {
-    Correction = {SamplePacket, Correction},
-    BlockDestroyed = {SamplePacket, BlockDestroyed},
-    Chunk = {ChunkPacket, Chunk},
-    GetPlayer = {GetPlayerPacket, GetPlayer},
-    Quit = {QuitPacket, ServerQuit},
-    Connect = {ConnectionPacket, Connect}
-});
 
-register_packets!(ClientPacket, ClientPacketType, {
-    Login = {LoginPacket, Login},
-    Quit = {DefaultPacket, ClientQuit},
-    UpdatePlayer = {UpdatePlayerPacket, UpdatePlayer},
+register_udp_packets!(UdpPacket, UdpPacketType, {
+    Reliable = {ReliablePacket, Reliable},
+    Simple = {SimplePacket, Simple},
+    Ack = {AckPacket, Ack},
 });

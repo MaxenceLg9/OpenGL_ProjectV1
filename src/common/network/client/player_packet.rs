@@ -3,8 +3,9 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{ClientNetPacket, NetPacket};
-use crate::common::network::packet_type::ClientPacketType;
+use crate::common::network::l5_packet::L5Packet;
+use crate::common::network::network_traits::{L5PacketTrait, UdpPacketTrait};
+use crate::common::network::packet_type::{ClientPacketType, L5PacketType};
 use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 #[derive(Clone)]
@@ -43,7 +44,7 @@ impl Display for UpdatePlayerPacket {
     }
 }
 
-impl NetPacket for UpdatePlayerPacket {
+impl L5PacketTrait for UpdatePlayerPacket {
 
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();

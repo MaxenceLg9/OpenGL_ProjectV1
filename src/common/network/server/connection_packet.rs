@@ -3,9 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{NetPacket, ServerNetPacket};
-use crate::common::network::packet_type::ServerPacketType;
-use crate::common::network::packet_type::ServerPacketType::BlockDestroyed;
+use crate::common::network::network_traits::{L5PacketTrait};
 use crate::common::world::pos::blockpos::BlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 #[derive(Clone)]
@@ -37,7 +35,7 @@ impl Display for ConnectionPacket {
     }
 }
 
-impl NetPacket for ConnectionPacket {
+impl L5PacketTrait for ConnectionPacket {
     fn serialize(&self) -> BitVec<u8, Lsb0> {
         let mut bits = BitVec::new();
         bits.extend_from_bitslice(self.token.view_bits::<Lsb0>());
