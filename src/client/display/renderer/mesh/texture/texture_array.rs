@@ -1,6 +1,5 @@
 use std::io;
-use std::sync::Arc;
-use gl::types::{GLuint, GLvoid};
+use gl::types::{GLenum, GLuint, GLvoid};
 use image::{ImageReader};
 use image::imageops::FilterType;
 use crate::client::display::renderer::mesh::shader::shader::Shader;
@@ -14,11 +13,15 @@ pub struct TextureArray {
 
 impl Drop for TextureArray {
     fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.texture)
+        };
+        // print_base!("Deleted texture");
 
     }
 }
 impl TextureArray {
-    pub unsafe fn new(name: String) -> TextureArray {
+    pub unsafe fn new(name: String, format : GLenum) -> TextureArray {
         let mut texture: u32 = 0;
 
         // 1. Create the texture object specifically as a 2D_ARRAY
@@ -36,9 +39,36 @@ impl TextureArray {
         // 3. Allocate immutable storage for the array
         gl::TextureStorage3D(texture,
                              1,// Mipmap levels
-                             gl::RGBA8,       // Internal format
+                             format,       // Internal format
                              TEXTURE_SIZE,    // Width
                              TEXTURE_SIZE,    // Height
+                             TEXTURE_ARRAY_SIZE // Depth (Number of layers)
+        );
+
+        Self { texture, name }
+    }
+
+    pub unsafe fn new_raw(name: String, format : GLenum, width : i32, height: i32) -> TextureArray {
+        let mut texture: u32 = 0;
+
+        // 1. Create the texture object specifically as a 2D_ARRAY
+        gl::CreateTextures(gl::TEXTURE_2D_ARRAY, 1, &mut texture);
+
+        // 2. Set parameters directly on the texture ID (No binding required!)
+        gl::TextureParameteri(texture, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TextureParameteri(texture, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+
+        // Note: You had REPEAT for filters in your snippet.
+        // Usually, you want NEAREST or LINEAR for filters.
+        gl::TextureParameteri(texture, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TextureParameteri(texture, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+        // 3. Allocate immutable storage for the array
+        gl::TextureStorage3D(texture,
+                             1,// Mipmap levels
+                             format,       // Internal format
+                             width,    // Width
+                             height,    // Height
                              TEXTURE_ARRAY_SIZE // Depth (Number of layers)
         );
 
@@ -68,6 +98,18 @@ impl TextureArray {
         gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, TEXTURE_SIZE, TEXTURE_SIZE, 1, gl::RGBA, gl::UNSIGNED_BYTE, image.to_rgba8().as_raw().as_ptr() as *const GLvoid);
         Ok(())
     }
+    pub unsafe fn add_raw(&self, bytes : &Vec<u8>, index : u16, format: GLenum, width : i32, height : i32) -> io::Result<()> {
+
+        gl::TextureParameteri(self.texture, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl::TextureParameteri(self.texture, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl::TextureParameteri(self.texture, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TextureParameteri(self.texture, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+        // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
+        gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, width, height, 1, format, gl::UNSIGNED_BYTE, bytes.as_ptr() as *const GLvoid);
+        Ok(())
+    }
+
     //
     pub unsafe fn use_textures(&self,shader : &Shader) {
         gl::ActiveTexture(gl::TEXTURE0);
