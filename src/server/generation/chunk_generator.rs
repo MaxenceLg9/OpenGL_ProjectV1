@@ -1,5 +1,5 @@
 use std::collections::{HashSet};
-use std::ops::Deref;
+use std::ops::{Deref, Mul};
 use std::sync::{Arc, RwLock};
 use std::thread::sleep;
 use std::time::{Duration};
@@ -35,8 +35,8 @@ impl ChunkGenerator {
     }
 
     fn generate_base_chunks(pos_register : &mut HashSet<ChunkPos>, gen_crossbeam_sx : channel::Sender<ChunkPos>){
-        let range: i32 = 2;
-        for i in 0..range.pow(3) {
+        let range: i32 = 20;
+        for i in 0..range.pow(2).mul(7) {
             let pos : ChunkPos = ChunkPos::from_single_value(i, range);
             pos_register.insert(pos);
             gen_crossbeam_sx.try_send(pos).unwrap();
@@ -120,7 +120,7 @@ impl ChunkGenerator {
     /// Method call to push the ChunkPos into the channel to generates the associated chunk
     pub fn schedule_chunks(&mut self, chunks_pos : [ChunkPos; 20*20*20]) {
         for chunk_pos in chunks_pos {
-            if !self.pos_register.contains(&chunk_pos) {
+            if !self.pos_register.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
                 if self.pos_register.insert(chunk_pos) {
                     self.gen_crossbeam_sx.try_send(chunk_pos).expect("Error when sending chunk");
                     // print_base!("Chunk generated {}", chunk_pos.deref());
