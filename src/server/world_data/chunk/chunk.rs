@@ -1,16 +1,10 @@
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::process::abort;
-use std::sync::{Arc};
 use std::time::Instant;
-use bitvec::macros::internal::funty::Fundamental;
 use noise::Perlin;
+use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::math::get_terrain_height;
-use shared::print_base;
-use crate::server::generation::mesh::chunk_mesh::ServerChunkMesh;
-use crate::server::world_data::block::block::BlockType;
 
 pub struct ServerChunk {
     chunk: Chunk
@@ -30,22 +24,28 @@ impl ServerChunk {
         for x in 0..CHUNK_SIZE {
             for z in 0..CHUNK_SIZE {
                 let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
-                let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
                 let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = get_terrain_height(perlin, block_x, block_z).as_i32();
+                let max_h : i32 = get_terrain_height(perlin, block_x, block_z) as i32;
                 // let max_h = (block_x.abs() + block_z.abs()) / 4;
                 if block_x < -130 && block_x > -145 && block_z < 485 && block_z > 470 {
-                    print_base!("Chunk: {}, Max_h: {}, x: {}, z: {}",chunk_pos.deref(), max_h, block_x, block_z);
+                    // print_base!("Chunk: {}, Max_h: {}, x: {}, z: {}",chunk_pos.deref(), max_h, block_x, block_z);
+                    for y in 0..CHUNK_SIZE {
+                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::IKRINEBLOCK.get_value();
+                    }
+                    continue;
                 }
-                for y in 0..CHUNK_SIZE {
-                    let y_relative = y.as_i32() + chunk_pos.y * CHUNK_SIZE as i32;
-                    if y_relative > max_h {
-                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                for y_relative in 0..CHUNK_SIZE {
+                    let y_absolute = y_relative as i32 + chunk_pos.y * CHUNK_SIZE as i32;
+                    if y_absolute > max_h {
+                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::AIR.get_value();
                     } else {
-                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] =  Self::generate_block((y_relative) as u16);
+                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] =  Self::generate_block(y_absolute, max_h);
 
-                        if y_relative > max_h - 3 {
-                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y as usize * CHUNK_SIZE + z] = BlockType::DIRT.get_value();
+                        if y_absolute > max_h - 3 {
+                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::DIRT.get_value();
+                        }
+                        if y_absolute > max_h - 1 {
+                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::GRASS.get_value();
                         }
                     }
                 }
@@ -55,7 +55,10 @@ impl ServerChunk {
         // print_debug!("Chunk created in {}ms",Instant::now().duration_since(time).as_millis());
     }
 
-    pub fn generate_block(y : u16) -> u16 {
+    pub fn generate_block(y : i32, max_h : i32) -> u16 {
+        if y > max_h - 1 {
+            BlockType::GRASS.get_value();
+        }
         if y < 100 {
             BlockType::DEEPSLATE.get_value(); // Deepslate
         }
