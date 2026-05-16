@@ -8,6 +8,7 @@ use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_debug;
+use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 
 pub struct ChunkMesh {
@@ -65,7 +66,7 @@ impl ChunkMesh {
         gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
-    pub fn build_mesh(chunk : &Arc<Chunk>, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>) -> ChunkMesh {
+    pub fn build_mesh(chunk : &Arc<Chunk>, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>) -> (ChunkMesh, MeshText) {
         let mut chunk_mesh = Self {
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -87,20 +88,20 @@ impl ChunkMesh {
                     //front face
                     if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy, uz + 1), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
-                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 1, 0).unwrap();
-                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 1, 1).unwrap();
-                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 1, 3).unwrap();
-                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 1, 2).unwrap();
+                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 1, 3).unwrap();
+                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 1, 2).unwrap();
+                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 1, 0).unwrap();
+                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 1, 1).unwrap();
 
                         index = chunk_mesh.add_data(v, index);
                     }
                     // back face
                     if chunk_mesh.is_void(IBlockPos::from_ints(ux, uy, uz - 1), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
-                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 4, 2).unwrap();
-                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 4, 0).unwrap();
-                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 4, 1).unwrap();
-                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 4, 3).unwrap();
+                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 4, 2).unwrap();
+                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 4, 0).unwrap();
+                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 4, 1).unwrap();
+                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 4, 3).unwrap();
 
                         index = chunk_mesh.add_data(v, index);
                     }
@@ -128,10 +129,10 @@ impl ChunkMesh {
                     // right face
                     if chunk_mesh.is_void(IBlockPos::from_ints(ux + 1, uy, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
-                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 2, 2).unwrap();
-                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 2, 0).unwrap();
-                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 1).unwrap();
-                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 3).unwrap();
+                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 2, 1).unwrap();
+                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 2, 3).unwrap();
+                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 2).unwrap();
+                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 0).unwrap();
 
                         index = chunk_mesh.add_data(v, index);
                     }
@@ -139,10 +140,10 @@ impl ChunkMesh {
                     // left face
                     if chunk_mesh.is_void(IBlockPos::from_ints(ux - 1, uy, uz), chunk.get_blocks(), chunks_map, chunk.get_chunk_pos()) {
 
-                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 3, 0).unwrap();
-                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 3, 1).unwrap();
-                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 3, 3).unwrap();
-                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 3, 2).unwrap();
+                        v[0] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 3, 3).unwrap();
+                        v[1] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 3, 2).unwrap();
+                        v[2] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 3, 0).unwrap();
+                        v[3] = Vertex::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 3, 1).unwrap();
 
                         index = chunk_mesh.add_data(v, index);
                     }
@@ -152,7 +153,8 @@ impl ChunkMesh {
         if chunk_mesh.indices.len() != 0 {
             print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
         };
-        chunk_mesh
+        let mesh_text = unsafe { MeshText::new(chunk_mesh.vertices.clone(), chunk_mesh.indices.clone()) };
+        (chunk_mesh, mesh_text)
     }
 
     fn is_void(&self, block_pos: IBlockPos, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Arc<Chunk>>, chunk_pos: ChunkPos) -> bool {
@@ -169,7 +171,9 @@ impl ChunkMesh {
         let sz = CHUNK_SIZE as i32;
 
         let (block_pos, chunk_pos) = ipos.as_split_pos();
-
+        if chunk_pos.y < -2 || chunk_pos.y > 9 {
+            return 0
+        }
         chunks_map.get(&chunk_pos).unwrap().get_block_at(block_pos)
     }
 

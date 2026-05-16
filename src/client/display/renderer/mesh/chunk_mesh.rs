@@ -18,8 +18,6 @@ use shared::print_debug;
 #[derive(Clone)]
 pub struct Mesh {
     vao : GLuint,
-    vbo : GLuint,
-    ebo : GLuint,
     nb_indices: i32,
 }
 
@@ -28,8 +26,6 @@ impl Mesh {
     pub fn new(vao : GLuint, vbo : GLuint, ebo : GLuint, nb_indices : i32) -> Mesh {
         Self {
             vao,
-            vbo,
-            ebo,
             nb_indices,
         }
     }
@@ -38,6 +34,9 @@ impl Mesh {
 
 
     pub unsafe fn draw(&self,) {
+        if self.nb_indices == 0 {
+            return;
+        }
         gl::BindVertexArray(self.vao);
         gl::DrawElementsBaseVertex(TRIANGLES,self.nb_indices,UNSIGNED_INT, std::ptr::null(),0);
         gl::BindVertexArray(0);
