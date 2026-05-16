@@ -27,6 +27,12 @@ impl<'a> BitCursor<'a> {
         vec
     }
 
+    pub fn read_all(&mut self) -> Vec<u8> {
+        let pos = self.pos;
+        self.pos = self.bits.len();
+        self.bits[pos..].to_bitvec().into_vec()
+    }
+
     /// Check how many bits are left
     pub fn remaining(&self) -> usize {
         self.bits.len() - self.pos
