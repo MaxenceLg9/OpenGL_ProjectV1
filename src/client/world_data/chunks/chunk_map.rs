@@ -37,8 +37,18 @@ impl ClientChunkMap {
     }
 
     fn add_chunk(&mut self, c : Chunk) {
+        print_base!("Sent chunk {}", c.get_chunk_pos().get_vec3());
         self.to_mesh.send(c.get_chunk_pos()).expect("Cannot send pos to mesh the chunk");
         self.chunk_map.add_chunk(c);
         // print_base!("Len of chunk_map is {}",self.chunk_map.len());
+    }
+
+}
+
+impl Deref for ClientChunkMap {
+    type Target = ChunkMap;
+
+    fn deref(&self) -> &Self::Target {
+        &self.chunk_map
     }
 }

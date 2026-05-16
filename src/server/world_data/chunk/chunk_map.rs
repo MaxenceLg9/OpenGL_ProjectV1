@@ -2,12 +2,13 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc::error::TrySendError;
 use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::network::default_packet::ServerPacket;
+use shared::common::network::l5_packet::L5Packet;
+use shared::common::network::packet_type::UdpPacketType::Reliable;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
+use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
 use crate::server::world_data::player::player::ServerPlayer;
 
@@ -41,9 +42,9 @@ impl ServerChunkMap {
         match self.asking_for_chunks.get(&chunk.get_chunk_pos()) {
             Some(v) => {
                 for (_, packet) in ChunkPacket::from_chunk_to_packets(&chunk) {
-                    let server_packet = ServerPacket::Chunk(packet);
+                    let server_packet = L5Packet::Chunk(packet);
                     for player in v {
-                        match player.read().unwrap().send_packet(server_packet.clone()) {
+                        match player.read().unwrap().send_packet(server_packet.clone(), Reliable) {
                             Ok(_) => {},
                             Err(e) => {
                                 print_base!("Error {}",e)
@@ -60,13 +61,14 @@ impl ServerChunkMap {
 
     pub fn tick(&mut self) {
         for (pos, v) in self.asking_for_chunks.clone().iter() {
-            match self.chunk_map.get(pos) {
+            match self.chunk_map.get_chunk(pos) {
                 None => {}
                 Some(chunk) => {
+                    print_base!("Sent chunk {}", chunk.get_chunk_pos().get_vec3());
                     for (_, packet) in ChunkPacket::from_chunk_to_packets(&chunk) {
-                        let server_packet = ServerPacket::Chunk(packet);
+                        let server_packet = L5Packet::Chunk(packet);
                         for player in v {
-                            match player.read().unwrap().send_packet(server_packet.clone()) {
+                            match player.read().unwrap().send_packet(server_packet.clone(), Reliable) {
                                 Ok(_) => {}
                                 Err(e) => {
                                     print_base!("Channel is full : {}",e.to_string());
@@ -106,11 +108,11 @@ impl ServerChunkMap {
 
     /// Iterator over all ChunkPos in a cube centered on `center` with half-size `vd`.
     fn cube_range(center: ChunkPos, vd: i32) -> impl Iterator<Item = ChunkPos> {
-        let (cx, cy, cz) = (center.x, center.y, center.z);
+        let (cx, cz) = (center.x, center.z);
         (-vd..=vd).flat_map(move |dx|
-            (-vd..=vd).flat_map(move |dy|
+            (-2..=10).flat_map(move |dy|
                 (-vd..=vd).map(move |dz|
-                    ChunkPos::from_i32(cx + dx, cy + dy, cz + dz)
+                    ChunkPos::from_i32(cx + dx, dy, cz + dz)
                 )
             )
         )
@@ -118,9 +120,8 @@ impl ServerChunkMap {
 
     /// O(1) membership test — no allocation, no iteration.
     fn in_cube(center: ChunkPos, vd: i32, p: ChunkPos) -> bool {
-        (p.x - center.x).abs() <= vd &&
-            (p.y - center.y).abs() <= vd &&
-            (p.z - center.z).abs() <= vd
+        (p.x - center.x).abs() < vd &&
+            (p.z - center.z).abs() < vd
     }
 }
 

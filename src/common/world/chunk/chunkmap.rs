@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::common::network::server::chunk_packet::ChunkPacket;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
+use crate::common::world::pos::iblockpos::IBlockPos;
 
 pub struct ChunkMap {
     chunks : HashMap<ChunkPos, Arc<Chunk>>,
@@ -18,6 +19,9 @@ impl ChunkMap {
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) -> bool {
+        if chunk.get_chunk_pos().y < -2 || chunk.get_chunk_pos().y > 9 {
+            return false;
+        }
         match self.chunks.entry(chunk.get_chunk_pos()) {
             Entry::Occupied(_) => {
                 false
@@ -27,6 +31,15 @@ impl ChunkMap {
                 slot.insert(Arc::new(chunk));
                 true
             }
+        }
+    }
+
+    pub fn get_block_at(&self, block_pos : IBlockPos) -> u16 {
+        match self.get_chunk(&block_pos.get_chunk_pos()) {
+            Some(e) => {
+                e.get_block_at(block_pos.get_block_pos())
+            },
+            None => 0,
         }
     }
 
@@ -40,20 +53,5 @@ impl ChunkMap {
 
     pub fn remove_chunk(&mut self, chunk_pos : &ChunkPos) {
         self.chunks.remove(chunk_pos);
-    }
-}
-
-impl Deref for ChunkMap {
-    type Target = HashMap<ChunkPos,Arc<Chunk>>;
-
-    fn deref(&self) -> &HashMap<ChunkPos,Arc<Chunk>> {
-        &self.chunks
-    }
-
-}
-
-impl DerefMut for ChunkMap {
-    fn deref_mut(&mut self) -> &mut HashMap<ChunkPos,Arc<Chunk>> {
-        &mut self.chunks
     }
 }
