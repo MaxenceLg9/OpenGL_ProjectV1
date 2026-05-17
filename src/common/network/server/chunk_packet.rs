@@ -60,7 +60,7 @@ impl ChunkPacket {
         let data = zstd::bulk::compress(chunk.serialize().as_slice(),level).expect("Cannot compress");
 
         bits.extend_from_bitslice(data.view_bits::<Lsb0>());
-        for bit_chunk in bits.chunks(8000) {
+        for bit_chunk in bits.chunks(10000) {
             vec.push(bit_chunk.to_bitvec());
         }
         vec
@@ -120,8 +120,8 @@ impl L5PacketTrait for ChunkPacket {
         bits.extend(self.chunk_pos.serialize());// 12 bytes
         bits.extend_from_bitslice(self.indice.view_bits::<Lsb0>()); // 1 byte
         bits.extend_from_bitslice(self.total.view_bits::<Lsb0>()); // 1 byte
-        bits.extend_from_bitslice((self.bits.len() as u16 / 8).view_bits::<Lsb0>()); // 2 bytes
-        bits.extend_from_bitslice((self.len).view_bits::<Lsb0>()); // 4 bytes
+        bits.extend((self.bits.len() as u16 / 8).view_bits::<Lsb0>()[0..12].to_bitvec()); // 2 bytes -> 10 bits
+        bits.extend(self.len.view_bits::<Lsb0>()[0..20].to_bitvec()); // 4 bytes -> 22 bits
         bits.extend(self.bits.clone()); // 1000 bytes or fewer
         bits
     }
@@ -132,8 +132,8 @@ impl L5PacketTrait for ChunkPacket {
         let chunk_pos = ChunkPos::new(glam::IVec3::from_slice(coords));
         let i = cursor.read_bits::<u8>(8);
         let total = cursor.read_bits::<u8>(8);
-        let slice = cursor.read_bits::<u16>(16);
-        let len = cursor.read_bits::<u32>(32);
+        let bits_len = cursor.read_bits::<u16>(12);
+        let len = cursor.read_bits::<u32>(20);
         // print_base!("Packet: {}/{}, ChunkPos : {}, Len : {}, bytes {}", i + 1, total, chunk_pos.deref(), len, slice);
         // let uncompressed = content_bits;
         Self {
@@ -141,7 +141,7 @@ impl L5PacketTrait for ChunkPacket {
             indice: i,
             total,
             len,
-            bits: cursor.read_bytes(slice as usize).as_bits().to_bitvec(),
+            bits: cursor.read_bytes(bits_len as usize).as_bits().to_bitvec(),
         }
 
     }
