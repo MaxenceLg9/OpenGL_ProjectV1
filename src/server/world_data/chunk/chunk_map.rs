@@ -64,7 +64,7 @@ impl ServerChunkMap {
             match self.chunk_map.get_chunk(pos) {
                 None => {}
                 Some(chunk) => {
-                    print_base!("Sent chunk {}", chunk.get_chunk_pos().get_vec3());
+                    // print_base!("Sent chunk {}", chunk.get_chunk_pos().get_vec3());
                     for (_, packet) in ChunkPacket::from_chunk_to_packets(&chunk) {
                         let server_packet = L5Packet::Chunk(packet);
                         for player in v {
@@ -82,12 +82,7 @@ impl ServerChunkMap {
         }
     }
 
-    pub fn compute_chunk_diff(
-        last_pos:          ChunkPos,
-        new_pos:           ChunkPos,
-        old_view_distance: i32,
-        new_view_distance: i32,
-    ) -> (Vec<ChunkPos> , Vec<ChunkPos>) {
+    pub fn compute_chunk_diff(last_pos:ChunkPos,new_pos:ChunkPos,old_view_distance: i32,new_view_distance: i32) -> (Vec<ChunkPos> , Vec<ChunkPos>) {
         // A cube is defined as all positions within [-vd, +vd] of a center.
         // (2*vd + 1)^3 total chunks, center always included.
         // let old_range = |pos: ChunkPos| cube_range(pos, old_view_distance);

@@ -69,8 +69,7 @@ impl ServerConnection {
     }
 
     async fn connect(&mut self) -> Result<(),Error> {
-        self.socket.send_to(L5Packet::Login(LoginPacket::new(2000, "maxence".to_string())),self.addr, UdpPacketType::Reliable).await.expect("Panic when sending connection packet");
-        let mut buff: [u8; 1024] = [0; 1024];
+        self.socket.send_to(L5Packet::Login(LoginPacket::new(2000, "maxence")),self.addr, UdpPacketType::Reliable).await.expect("Panic when sending connection packet");
 
         let (packet, addr) = self.socket.recv_from().await?;
         let L5Packet::Connect(packet) = packet else {
@@ -82,12 +81,11 @@ impl ServerConnection {
     }
 
     async fn handle_server(&mut self) {
-        let mut buff : [u8; 1024] = [0; 1024];
         self.start_time = Instant::now();
         loop {
             tokio::select! {
                     frame = timeout(Duration::from_secs(5), self.socket.recv_from()) => {
-                        if let Err(e) = self.receive(frame, buff).await {
+                        if let Err(e) = self.receive(frame).await {
                             print_base!("Breaking due to error: {}", e);
                             break;
                         }
@@ -101,7 +99,7 @@ impl ServerConnection {
     }
 
 
-    async fn receive(&mut self, frame : Result<Result<(L5Packet, SocketAddr), Error>, tokio::time::error::Elapsed>, buff : [u8; 1024]) -> Result<(), Error> {
+    async fn receive(&mut self, frame : Result<Result<(L5Packet, SocketAddr), Error>, tokio::time::error::Elapsed>) -> Result<(), Error> {
         match frame {
             Ok(Ok((packet, addr))) => {
                 self.handle_packet(&packet).await

@@ -12,7 +12,7 @@ use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::server::quit_packet::QuitPacket;
-use crate::server::network::socket2::ServerConnection;
+use crate::server::network::server_socket::ServerConnection;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
 use crate::server::world_data::player::player::ServerPlayer;
@@ -109,12 +109,12 @@ impl ClientConnection {
                 }
             }
         }
-        self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Reliable).await.expect("");
+        self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple).await.expect("");
         self.server_world_data.disconnect_player(&self.puid);
     }
 
     fn generate_chunks(&self) {
-        let mut array: [ChunkPos; 20*20*20] = [ChunkPos::from_i32(0, 0, 0);20*20*20];
+        let mut array: [ChunkPos; 20*13*20] = [ChunkPos::from_i32(0, 0, 0);20*13*20];
         let mut i = 0;
         for x in -10..10 {
             for y in -2..10 {

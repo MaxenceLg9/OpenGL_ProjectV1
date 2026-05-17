@@ -14,15 +14,19 @@ pub struct LoginPacket {
 }
 
 impl LoginPacket {
-    pub fn new(id: u32, password: String) -> Self {
+    pub fn new(id: u32, password: &str) -> Self {
         Self {
             puid: PUID::new(id),
-            password,
+            password : password.to_string(),
         }
     }
 
     pub fn get_puid(&self) -> &PUID {
         &self.puid
+    }
+
+    pub fn get_password(&self) -> &String {
+        &self.password
     }
 }
 

@@ -1,6 +1,6 @@
 use std::net::{Ipv6Addr, SocketAddrV6};
 use std::sync::{Arc};
-use crate::server::network::socket2::Socket;
+use crate::server::network::server_socket::Socket;
 use crate::server::world_data::data::ServerWorldData;
 
 pub struct ServerWorld {

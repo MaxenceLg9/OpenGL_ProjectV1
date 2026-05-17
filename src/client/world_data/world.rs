@@ -143,8 +143,10 @@ impl ClientWorld {
         let height = get_terrain_height(&perlin,x as i32,z as i32) as i32;
         let noise = perlin.get([x * 0.001, z * 0.001]);
         let function = default_function(noise.abs());
+        let binding = self.client_world_data.get_chunks().clone();
+        let chunk_map = binding.write().unwrap();
         self.text.render_text(&self.text_shader, &format!("Noise : {:.5}, Erosion {:.5}, Peaks & Valleys {:.5}, Default fn : {:.8}, Height {}", noise, erosion, continentalness, function, height), 20.0, 20.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {}, block is {}", camera_pos.as_ivec3(),  camera_pos.get_chunk_pos().get_vec3(), self.client_world_data.get_chunks().write().unwrap().get_block_at(IBlockPos::new(camera_pos.as_ivec3()))), 20.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.as_ivec3(),  camera_pos.get_chunk_pos().get_vec3(), chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(IBlockPos::new(camera_pos.as_ivec3()))), 20.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
     }
 
     pub fn tick(&mut self) {

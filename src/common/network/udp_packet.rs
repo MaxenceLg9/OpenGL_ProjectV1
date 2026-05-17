@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use crate::common::network::l5_packet::L5Packet;
 use crate::common::network::network_traits::UdpPacketTrait;
 use bitvec::view::BitView;
@@ -18,19 +19,19 @@ macro_rules! register_udp_packets {
 
         impl $enum_name {
             /// Takes the ID and the cursor, returns the specific packet variant
-            pub fn decode(vec: &Vec<u8>) -> Option<Self> {
+            pub fn decode(vec: &Vec<u8>) -> Result<Self, Error> {
                 let mut cursor = BitCursor::new(vec.view_bits::<Lsb0>());
                 let byte = cursor.read_bits::<u8>(8);
                 let result = $enum_type::from_repr(byte);
                 if result.is_none() {
                     print_base!("There is no ServerPacketType from value {}", byte);
-                    return None
+                    return Err(Error::new(ErrorKind::InvalidData, format!("There is no ServerPacketType from value {}", byte)));
+
                 }
                 let packet_type = result.unwrap();
 
                 match packet_type {
-                    $( $packet_type => Some($enum_name::$variant_name($struct_type::deserialize(&mut cursor))), )*
-                    _ => None,
+                    $( $packet_type => Ok($enum_name::$variant_name($struct_type::deserialize(&mut cursor))), )*
                 }
             }
 

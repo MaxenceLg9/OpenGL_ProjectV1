@@ -118,7 +118,7 @@ impl ChunkGenerator {
         }
     }
     /// Method call to push the ChunkPos into the channel to generates the associated chunk
-    pub fn schedule_chunks(&mut self, chunks_pos : [ChunkPos; 20*20*20]) {
+    pub fn schedule_chunks(&mut self, chunks_pos : [ChunkPos; 20*13*20]) {
         for chunk_pos in chunks_pos {
             if !self.pos_register.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
                 if self.pos_register.insert(chunk_pos) {

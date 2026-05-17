@@ -75,7 +75,7 @@ impl ChunkPos {
 
     pub fn flattened(&self) -> ChunkPos {
         Self {
-            pos : glam::ivec3(self.x, 0, self.y)
+            pos : glam::ivec3(self.x, 0, self.z)
         }
     }
 }

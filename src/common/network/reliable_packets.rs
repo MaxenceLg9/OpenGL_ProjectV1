@@ -44,7 +44,7 @@ impl UdpPacketTrait for ReliablePacket {
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
-        let ack = cursor.read_bits::<u32>(4);
+        let ack = cursor.read_bits::<u32>(32);
         Self {
             ack,
             l5_packet : L5Packet::decode(cursor.read_all()).unwrap(),
@@ -123,7 +123,7 @@ impl UdpPacketTrait for AckPacket {
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
         Self {
-            ack: cursor.read_bits::<u32>(4)
+            ack: cursor.read_bits::<u32>(32)
         }
     }
 }
