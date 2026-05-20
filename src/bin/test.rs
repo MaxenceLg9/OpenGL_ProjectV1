@@ -1,6 +1,5 @@
 use std::io::{Error, ErrorKind};
-use log::log;
-use shared::common::account::puid::PUID;
+use bitvec::macros::internal::funty::Fundamental;
 use shared::common::network::client::login_packet::LoginPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::L5PacketType;
@@ -72,12 +71,18 @@ pub fn test_chunk_loading() -> Result<(), String> {
     assert!(v1.is_empty());
     assert_eq!(v2.len(), 0);
 
-    let view_distance : i32 = 10;
-    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::from_i32(0,0,0),ChunkPos::from_i32(-5,2,-5),4,view_distance);
-    for v in v1.iter() {
+    let view_distance : i32 = 5;
+    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::from_i32(0,0,0),ChunkPos::from_i32(0,0,0),0,view_distance);
+    for i in 0..v1.len()-1 {
+        // print!("{}",v1[i].get_vec3().abs());
+        let x_abs = v1[i].x.abs();
+        let x1_abs = v1[i + 1].x.abs();
+        let z_abs = v1[i].z.abs();
+        let z1_abs = v1[i + 1].z.abs();
+        print_base!("{}<={}&&{}<={}",x_abs,x1_abs,z_abs,z1_abs);
 
+        assert!((x_abs <= x1_abs || z_abs <= z1_abs));
     }
-    assert!(v1.contains(&ChunkPos::from_i32(-2,3,-9)));
     assert_eq!(v2.len(), 0);
     Ok(())
 }
