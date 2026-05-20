@@ -114,16 +114,7 @@ impl ClientConnection {
     }
 
     fn generate_chunks(&self) {
-        let mut array: [ChunkPos; 20*13*20] = [ChunkPos::from_i32(0, 0, 0);20*13*20];
-        let mut i = 0;
-        for x in -10..10 {
-            for y in -2..10 {
-                for z in -10..10 {
-                    array[i] = self.chunks_pos.flattened() + ChunkPos::from_i32(x, y, z);
-                    i += 1;
-                }
-            }
-        }
+        let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(self.chunks_pos,20, self.server_world_data.get_generator().read().unwrap().get_chunks_generated());
         self.server_world_data.get_generator().write().unwrap().schedule_chunks(array);
     }
 
