@@ -24,7 +24,7 @@ impl ChunkGenerator {
     pub fn new(chunk_map: Arc<RwLock<ServerChunkMap>>, seed : u32) -> ChunkGenerator {
         let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(20000);
         let mut chunks_generated = HashSet::new();
-        let (chunk_sx, chunk_rx) = tokio::sync::mpsc::channel::<Chunk>(10000);
+        let (chunk_sx, chunk_rx) = channel::bounded::<Chunk>(10000);
         Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx, Arc::new(Perlin::new(seed)));
         Self::start_receive_chunks(chunk_rx, chunk_map.clone());
         Self::generate_base_chunks(&mut chunks_generated, gen_crossbeam_sx.clone());
@@ -43,7 +43,7 @@ impl ChunkGenerator {
         for i in 0..range.pow(2).mul(7) {
             let pos : ChunkPos = ChunkPos::from_single_value(i, range);
             pos_register.insert(pos);
-            gen_crossbeam_sx.try_send(pos).unwrap();
+            gen_crossbeam_sx.send(pos).unwrap();
             // if let Err(e) = gen_crossbeam_sx.send(pos) {
             //     print_base!("Got error {}",e);
             // }
@@ -51,7 +51,7 @@ impl ChunkGenerator {
     }
 
     /// Function that creates 8 threads that will generate the chunks from the pos sent through the channel
-    fn start_generate_chunk(gen_crossbeam_rx: channel::Receiver<ChunkPos>, chunk_sender: tokio::sync::mpsc::Sender<Chunk>, perlin: Arc<Perlin>) {
+    fn start_generate_chunk(gen_crossbeam_rx: channel::Receiver<ChunkPos>, chunk_sender: channel::Sender<Chunk>, perlin: Arc<Perlin>) {
         for i in 0..WORLD_THREADS {
             let crossbeam_receiver = gen_crossbeam_rx.clone();
             let sender = chunk_sender.clone();
@@ -65,10 +65,10 @@ impl ChunkGenerator {
     }
 
     /// Thread that pulls the position from the multi-crossbeam receiver and generates chunks and send them back to another channel
-    fn thread_generate_chunk(crossbeam_receiver: channel::Receiver<ChunkPos>, sender: tokio::sync::mpsc::Sender<Chunk>, perlin: Arc<Perlin>) {
+    fn thread_generate_chunk(crossbeam_receiver: channel::Receiver<ChunkPos>, sender: channel::Sender<Chunk>, perlin: Arc<Perlin>) {
         while let Ok(elt) = crossbeam_receiver.recv() {
             let chunk = ServerChunk::generate_chunk(perlin.deref(),elt);
-            if let Err(e) = sender.try_send(chunk) {
+            if let Err(e) = sender.send(chunk) {
                 print_base!("Error sending chunk: {:?}", e);
                 return;
             }
@@ -76,15 +76,9 @@ impl ChunkGenerator {
         }
     }
 
-    fn start_receive_chunks(chunk_receiver : tokio::sync::mpsc::Receiver<Chunk>, chunk_map: Arc<RwLock<ServerChunkMap>>) {
+    fn start_receive_chunks(chunk_receiver : channel::Receiver<Chunk>, chunk_map: Arc<RwLock<ServerChunkMap>>) {
         std::thread::Builder::new().name("chunk_receiver".to_string()).spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-            rt.block_on(async {
-                Self::receive_chunks(chunk_receiver, chunk_map).await;
-            });
+            Self::receive_chunks(chunk_receiver, chunk_map);
             print_base!("Thread exited");
         }).unwrap();
     }
@@ -92,35 +86,15 @@ impl ChunkGenerator {
     /**
     Function to get the chunks newly generated and push them into the world_data and tick them
     */
-    async fn receive_chunks(mut chunk_receiver: tokio::sync::mpsc::Receiver<Chunk>, arc_chunk_map: Arc<RwLock<ServerChunkMap>>) {
-        let mut chunks_vec : Vec<Chunk> = Vec::new();
+    fn receive_chunks(chunk_receiver: channel::Receiver<Chunk>, arc_chunk_map: Arc<RwLock<ServerChunkMap>>) {
         // waiting for a chunk to be sent
-        let mut tick = tokio::time::interval(Duration::from_millis(100));
-        loop {
-            tokio::select! {
-                chunk = chunk_receiver.recv() => {
-                    match chunk {
-                        Some(chunk) => {
-                            chunks_vec.push(chunk);
-                        }
-                        None => return,
-                    }
-                }
-                // timer to avoid looping too much
-                _ = tick.tick() => {
-                    if !chunks_vec.is_empty() {
-                        // borrowing the lock
-                        let mut chunk_map = arc_chunk_map.write().unwrap();
-                        // iterating in the vector
-                        while let Some(chunk) = chunks_vec.pop() {
-                            chunk_map.add_chunk(chunk.clone());
-                        }
-                        drop(chunk_map);
-                    }
-                }
-            }
+        while let Ok(chunk) = chunk_receiver.recv() {
+            let mut chunk_map = arc_chunk_map.write().unwrap();
+            // iterating in the vector
+            chunk_map.add_chunk(chunk.clone());
         }
     }
+
     /// Method call to push the ChunkPos into the channel to generates the associated chunk
     pub fn schedule_chunks(&mut self, chunks_pos : Vec<ChunkPos>) {
         for chunk_pos in chunks_pos {
