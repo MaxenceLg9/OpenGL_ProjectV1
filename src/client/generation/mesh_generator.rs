@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, RwLock};
-use crossbeam::channel;
+use crossbeam::channel as cb;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base, print_debug};
@@ -13,15 +13,20 @@ pub struct MeshGenerator;
 
 impl MeshGenerator {
 
-    pub fn start_build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<(ChunkMesh, MeshText)>, chunk_map: Arc<RwLock<ClientChunkMap>>) {
-        std::thread::Builder::new()
-            .name("ChunkMesh_generator".to_string())
-            .spawn(move || {
-                Self::build_meshes(pos_to_mesh_rx, mesh_sender, chunk_map);
-            }).unwrap();
+    pub fn start_build_meshes(pos_to_mesh_rx: cb::Receiver<ChunkPos>, mesh_sender: cb::Sender<(ChunkMesh, MeshText)>, chunk_map: Arc<RwLock<ClientChunkMap>>) {
+        for i in 0..4 {
+            let clone_map = chunk_map.clone();
+            let sender_clone = mesh_sender.clone();
+            let receiver_clone = pos_to_mesh_rx.clone();
+            std::thread::Builder::new()
+                .name("ChunkMesh_generator".to_string())
+                .spawn(move || {
+                    Self::build_meshes(receiver_clone, sender_clone, clone_map);
+                }).unwrap();
+        }
     }
 
-    fn build_meshes(pos_to_mesh_rx: channel::Receiver<ChunkPos>, mesh_sender: channel::Sender<(ChunkMesh, MeshText)>, server_world_data: Arc<RwLock<ClientChunkMap>>) {
+    fn build_meshes(pos_to_mesh_rx: cb::Receiver<ChunkPos>, mesh_sender: cb::Sender<(ChunkMesh, MeshText)>, server_world_data: Arc<RwLock<ClientChunkMap>>) {
         let mut chunks = HashMap::new();
         let mut hash_set = HashSet::new();
         let mut n = 0;
