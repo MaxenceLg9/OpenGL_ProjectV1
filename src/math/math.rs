@@ -35,6 +35,10 @@ pub fn get_terrain_height(perlin: &Perlin, x: i32, y: i32) -> f64 {
 pub fn get_erosion(perlin: &Perlin, x : f64, y : f64) -> f64 {
     let f = 0.001;
     let e_noise = perlin.get([x * f, y * f]);
+    compute_erosion(e_noise)
+}
+
+pub fn compute_erosion(e_noise : f64) -> f64 {
     if e_noise < 0.0 {
         0.2 + 0.2 * default_function(1.0 + e_noise)
     } else if e_noise < 0.5 {
@@ -60,7 +64,7 @@ pub fn peaks_and_valleys(perlin : &Perlin, x : f64, y : f64) -> f64 {
     let mut f = 0.01;
     let mut ret = 0.0_f64;
     for i in 0..4 {
-        ret += alpha(ret, i) * perlin.get([x.mul(f), y.mul(f), 0.0]);
+        ret += alpha(ret, i) * perlin.get([x.mul(f), y.mul(f)]);
         f *= 2.0;
     }
     ret

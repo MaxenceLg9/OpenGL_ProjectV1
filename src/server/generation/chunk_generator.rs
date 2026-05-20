@@ -17,21 +17,25 @@ const WORLD_THREADS : u32 = 8;
 
 pub struct ChunkGenerator {
     gen_crossbeam_sx: channel::Sender<ChunkPos>,
-    pos_register: HashSet<ChunkPos>,
+    chunks_generated: HashSet<ChunkPos>,
 }
 
 impl ChunkGenerator {
     pub fn new(chunk_map: Arc<RwLock<ServerChunkMap>>, seed : u32) -> ChunkGenerator {
-        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(8000);
-        let mut pos_register = HashSet::new();
+        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(20000);
+        let mut chunks_generated = HashSet::new();
         let (chunk_sx, chunk_rx) = tokio::sync::mpsc::channel::<Chunk>(10000);
         Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx, Arc::new(Perlin::new(seed)));
         Self::start_receive_chunks(chunk_rx, chunk_map.clone());
-        Self::generate_base_chunks(&mut pos_register, gen_crossbeam_sx.clone());
+        Self::generate_base_chunks(&mut chunks_generated, gen_crossbeam_sx.clone());
         Self {
             gen_crossbeam_sx,
-            pos_register,
+            chunks_generated,
         }
+    }
+
+    pub fn get_chunks_generated(&self) -> HashSet<ChunkPos> {
+        self.chunks_generated.clone()
     }
 
     fn generate_base_chunks(pos_register : &mut HashSet<ChunkPos>, gen_crossbeam_sx : channel::Sender<ChunkPos>){
@@ -118,10 +122,10 @@ impl ChunkGenerator {
         }
     }
     /// Method call to push the ChunkPos into the channel to generates the associated chunk
-    pub fn schedule_chunks(&mut self, chunks_pos : [ChunkPos; 20*13*20]) {
+    pub fn schedule_chunks(&mut self, chunks_pos : Vec<ChunkPos>) {
         for chunk_pos in chunks_pos {
-            if !self.pos_register.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
-                if self.pos_register.insert(chunk_pos) {
+            if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
+                if self.chunks_generated.insert(chunk_pos) {
                     self.gen_crossbeam_sx.try_send(chunk_pos).expect("Error when sending chunk");
                     // print_base!("Chunk generated {}", chunk_pos.deref());
                 }
