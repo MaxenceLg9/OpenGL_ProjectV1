@@ -67,8 +67,8 @@ impl ChunkPacket {
     }
 
     // what's the purpose of the u8 in the map ?
-    pub fn from_chunk_to_packets(chunk : &Chunk) -> HashMap<u8, ChunkPacket> {
-        let mut packets = HashMap::new();
+    pub fn from_chunk_to_packets(chunk : &Chunk) -> Vec<ChunkPacket> {
+        let mut packets = Vec::new();
         let len = chunk.get_blocks().len();
         let chunk_pos : ChunkPos = chunk.get_chunk_pos();
         let bytes_vec: Vec<BitVec<u8>> = Self::compress(chunk);
@@ -78,7 +78,7 @@ impl ChunkPacket {
         for i in 0..total {
             let slice= bytes_vec.get(i as usize).expect("Cannot get vector");
             let packet = ChunkPacket::new(chunk_pos, i, total, len as u32, slice);
-            packets.insert(i,packet);
+            packets.push(packet);
         }
         packets
     }
