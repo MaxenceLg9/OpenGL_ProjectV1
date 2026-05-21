@@ -39,10 +39,10 @@ impl IBlockPos {
         self.x as usize * CHUNK_SIZE * CHUNK_SIZE + self.y as usize * CHUNK_SIZE + self.z as usize
     }
 
-    fn deserialize(pos_bits : BitVec<u8>) -> Box<dyn PosTrait> {
-        let raw_bytes = pos_bits[0..96].to_bitvec().into_vec();
+    pub fn deserialize(pos_bits : Vec<u8>) -> Self {
+        let raw_bytes = pos_bits[0..96].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        Box::new(ChunkPos::new(glam::IVec3::from_slice(coords)))
+        IBlockPos::new(glam::IVec3::from_slice(coords))
     }
 }
 impl PosTrait for IBlockPos {

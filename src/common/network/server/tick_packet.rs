@@ -3,9 +3,7 @@ use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::l5_packet::L5Packet;
 use crate::common::network::network_traits::{L5PacketTrait};
-use crate::common::network::packet_type::{L5PacketType, ServerPacketType};
 #[derive(Clone)]
 pub struct GetPlayerPacket {
     id : u16
@@ -31,10 +29,8 @@ impl Display for GetPlayerPacket {
 }
 
 impl L5PacketTrait for GetPlayerPacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits =BitVec::new();
-        bits.extend_from_bitslice(self.id.view_bits::<Lsb0>());
-        bits
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend_from_bitslice(self.id.view_bits::<Lsb0>());
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {

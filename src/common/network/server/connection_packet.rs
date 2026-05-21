@@ -36,11 +36,9 @@ impl Display for ConnectionPacket {
 }
 
 impl L5PacketTrait for ConnectionPacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits = BitVec::new();
-        bits.extend_from_bitslice(self.token.view_bits::<Lsb0>());
-        bits.extend(self.pos.serialize());
-        bits
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend_from_bitslice(self.token.view_bits::<Lsb0>());
+        vec.extend(self.pos.serialize());
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {

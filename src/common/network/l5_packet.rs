@@ -9,7 +9,7 @@ use crate::common::network::client::login_packet::LoginPacket;
 use crate::common::network::client::player_packet::UpdatePlayerPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
 use crate::common::network::packet_type::L5PacketType;
-use crate::common::network::packet_type::L5PacketType::{BlockDestroyed, Chunk, Connect, Correction, GetPlayer, Quit, Login, TLS, UpdatePlayer};
+use crate::common::network::packet_type::L5PacketType::{Chunk, Connect, Correction, GetPlayer, Quit, Login, TLS, UpdatePlayer, Block};
 use crate::common::network::server::chunk_packet::ChunkPacket;
 use crate::common::network::server::connection_packet::ConnectionPacket;
 use crate::common::network::server::quit_packet::QuitPacket;
@@ -47,7 +47,7 @@ macro_rules! register_packets {
                 let mut vec = BitVec::new();
                 vec.extend_from_bitslice((self.get_packet_type() as u8).view_bits::<Lsb0>());
                 match self {
-                    $( $enum_name::$variant_name(p) => vec.extend(p.serialize()), )*
+                    $( $enum_name::$variant_name(p) => p.serialize(&mut vec), )*
                 };
                 vec
             }
@@ -63,7 +63,7 @@ macro_rules! register_packets {
 
 register_packets!(L5Packet, L5PacketType, {
     Correction = {SamplePacket, Correction},
-    BlockDestroyed = {SamplePacket, BlockDestroyed},
+    Block = {SamplePacket, Block},
     Chunk = {ChunkPacket, Chunk},
     GetPlayer = {GetPlayerPacket, GetPlayer},
     Quit = {QuitPacket, Quit},

@@ -67,7 +67,7 @@ impl ClientConnection {
     /// or between receiving a packet to send or the interval ticking to ask for player update
     pub async fn handle_client(&mut self) {
         let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_millis(20));
-        let mut instant = Instant::now();
+        let mut instant = Instant::now() + Duration::from_secs(5);
         let mut id = 0;
         self.generate_chunks();
         Self::load_chunks(self.server_world_data.get_chunk_map().clone(), self.player.clone(), self.chunks_pos,self.chunks_pos,0,10);
@@ -80,7 +80,7 @@ impl ClientConnection {
                         print_base!("Exiting {} due to error {}", self.socket_receiver.get_addr(), e);
                         break;
                     } else {
-                        instant = Instant::now();
+                        instant = Instant::now() + Duration::from_secs(5);
                     }
                 }
 
@@ -94,7 +94,7 @@ impl ClientConnection {
                 // querying the player information at a constant interval
                 _ = heartbeat_interval.tick() => {
                     // checking if the timeout of 5 isn't elapsed
-                    if instant.elapsed().gt(&Duration::from_secs(5)) {
+                    if Instant::now() > instant {
                         print_base!("Exiting {} due to time elapsed", self.socket_receiver.get_addr());
                         break;
                     }
@@ -114,7 +114,7 @@ impl ClientConnection {
     }
 
     fn generate_chunks(&self) {
-        let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(self.chunks_pos,20, self.server_world_data.get_generator().read().unwrap().get_chunks_generated());
+        let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(self.chunks_pos,8, self.server_world_data.get_generator().read().unwrap().get_chunks_generated());
         self.server_world_data.get_generator().write().unwrap().schedule_chunks(array);
     }
 

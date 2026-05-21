@@ -13,13 +13,9 @@ impl Display for DefaultPacket {
 }
 
 impl L5PacketTrait for DefaultPacket {
-
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        BitVec::new()
-    }
+    fn serialize(&self, _: &mut BitVec<u8>) { todo!() }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
         Self
     }
-
 }

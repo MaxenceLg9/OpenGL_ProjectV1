@@ -115,15 +115,13 @@ impl Display for ChunkPacket {
 }
 
 impl L5PacketTrait for ChunkPacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits = BitVec::new();
-        bits.extend(self.chunk_pos.serialize());// 12 bytes
-        bits.extend_from_bitslice(self.indice.view_bits::<Lsb0>()); // 1 byte
-        bits.extend_from_bitslice(self.total.view_bits::<Lsb0>()); // 1 byte
-        bits.extend((self.bits.len() as u16 / 8).view_bits::<Lsb0>()[0..12].to_bitvec()); // 2 bytes -> 10 bits
-        bits.extend(self.len.view_bits::<Lsb0>()[0..20].to_bitvec()); // 4 bytes -> 22 bits
-        bits.extend(self.bits.clone()); // 1000 bytes or fewer
-        bits
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend(self.chunk_pos.serialize());// 12 bytes
+        vec.extend_from_bitslice(self.indice.view_bits::<Lsb0>()); // 1 byte
+        vec.extend_from_bitslice(self.total.view_bits::<Lsb0>()); // 1 byte
+        vec.extend((self.bits.len() as u16 / 8).view_bits::<Lsb0>()[0..12].to_bitvec()); // 2 bytes -> 10 bits
+        vec.extend(self.len.view_bits::<Lsb0>()[0..20].to_bitvec()); // 4 bytes -> 22 bits
+        vec.extend(self.bits.clone()); // 1000 bytes or fewer
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {

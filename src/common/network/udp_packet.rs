@@ -40,7 +40,7 @@ macro_rules! register_udp_packets {
                 let mut vec = BitVec::new();
                 vec.extend_from_bitslice((self.get_packet_type() as u8).view_bits::<Lsb0>());
                 match self {
-                    $( $enum_name::$variant_name(p) => vec.extend(p.serialize()), )*
+                    $( $enum_name::$variant_name(p) => p.serialize(&mut vec), )*
                 };
                 vec
             }

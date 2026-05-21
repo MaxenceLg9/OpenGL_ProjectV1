@@ -36,11 +36,9 @@ impl Display for ReliablePacket {
 }
 
 impl UdpPacketTrait for ReliablePacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits = BitVec::new();
-        bits.extend_from_bitslice(self.ack.view_bits::<Lsb0>());
-        bits.extend(self.l5_packet.encode());
-        bits
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend_from_bitslice(self.ack.view_bits::<Lsb0>());
+        vec.extend(self.l5_packet.encode());
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
@@ -78,8 +76,8 @@ impl Display for SimplePacket {
 }
 
 impl UdpPacketTrait for SimplePacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        self.l5_packet.encode()
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend(self.l5_packet.encode())
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
@@ -115,10 +113,8 @@ impl Display for AckPacket {
 }
 
 impl UdpPacketTrait for AckPacket {
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits = BitVec::new();
-        bits.extend(self.ack.view_bits::<Lsb0>());
-        bits
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend(self.ack.view_bits::<Lsb0>());
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Self {

@@ -4,9 +4,7 @@ use bitvec::vec::BitVec;
 use bitvec::view::BitView;
 use crate::common::account::puid::PUID;
 use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::l5_packet::L5Packet;
-use crate::common::network::network_traits::{L5PacketTrait, UdpPacketTrait};
-use crate::common::network::packet_type::{ClientPacketType, L5PacketType};
+use crate::common::network::network_traits::{L5PacketTrait};
 #[derive(Clone)]
 pub struct LoginPacket {
     puid: PUID,
@@ -37,15 +35,13 @@ impl Display for LoginPacket {
 }
 
 impl L5PacketTrait for LoginPacket {
-
-    fn serialize(&self) -> BitVec<u8, Lsb0> {
-        let mut bits = BitVec::new();
-        bits.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+        vec.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
         let pass_bytes = self.password.as_bytes();
-        bits.extend_from_bitslice(&(pass_bytes.len() as u32).view_bits::<Lsb0>());
-        bits.extend_from_bitslice(pass_bytes.view_bits::<Lsb0>());
-        bits
+        vec.extend_from_bitslice(&(pass_bytes.len() as u32).view_bits::<Lsb0>());
+        vec.extend_from_bitslice(pass_bytes.view_bits::<Lsb0>());
     }
+
 
     fn deserialize(cursor: &mut BitCursor) -> Self {
         let puid = cursor.read_bits::<u32>(32);

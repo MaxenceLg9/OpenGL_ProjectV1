@@ -121,7 +121,7 @@ impl ServerConnection {
                 Ok(())
             },
             L5Packet::GetPlayer(player_packet) => {
-                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),10, player_packet.get_id()));
+                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),8, player_packet.get_id()));
                 self.socket.send_to(tick_packet, self.addr, UdpPacketType::Simple).await?;
                 Ok(())
             },
