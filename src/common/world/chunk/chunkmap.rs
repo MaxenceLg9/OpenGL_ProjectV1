@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use crate::common::world::block::block::BlockType;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::iblockpos::IBlockPos;
@@ -31,6 +32,10 @@ impl ChunkMap {
                 true
             }
         }
+    }
+
+    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) {
+        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type);
     }
 
     pub fn get_block_at(&self, block_pos : IBlockPos) -> u16 {

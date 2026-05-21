@@ -1,3 +1,5 @@
+#[derive(Clone,Copy,Eq, PartialEq)]
+#[repr(u16)]
 pub enum BlockType {
     AIR = 0,
     DIRT = 1,

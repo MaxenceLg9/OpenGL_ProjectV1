@@ -20,8 +20,8 @@ impl Chunk {
         }
     }
 
-    pub fn destroy_block(&mut self, iblock_pos: IBlockPos) -> bool {
-        self.blocks[iblock_pos.get_block_pos().get_offset()] = BlockType::AIR.get_value();
+    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> bool {
+        self.blocks[iblock_pos.get_block_pos().get_offset()] = block_type.get_value();
         true
     }
     pub fn get_chunk_pos(&self) -> ChunkPos {

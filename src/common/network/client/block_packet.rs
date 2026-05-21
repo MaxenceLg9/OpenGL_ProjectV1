@@ -9,6 +9,7 @@ use crate::common::network::network_traits::L5PacketTrait;
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 
+#[derive(Clone)]
 pub struct BlockPacket {
     interaction_type : BlockInteraction,
     pos : IBlockPos,

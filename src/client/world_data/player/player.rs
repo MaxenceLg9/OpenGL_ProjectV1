@@ -1,9 +1,16 @@
 use std::collections::{HashMap};
+use std::collections::hash_map::Entry;
+use std::ops::Deref;
 use std::sync::Arc;
-use winit::event::{ElementState, KeyEvent};
+use winit::event::{ElementState, KeyEvent, MouseButton};
 use winit::keyboard::{KeyCode, PhysicalKey};
+use shared::common::network::client::block_packet::{BlockInteraction, BlockPacket};
+use shared::common::network::l5_packet::L5Packet;
+use shared::common::network::packet_type::UdpPacketType;
+use shared::common::world::block::block::BlockType;
 use shared::common::world::pos::blockpos::BlockPos;
-use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
+use shared::common::world::pos::chunkpos::{ChunkPos};
+use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
 
@@ -13,13 +20,14 @@ pub struct ClientPlayer {
     up : glam::Vec3,
     roll : f32,
     speed_multiplier: HashMap<i32, f32>,
-    keyboard : HashMap<PhysicalKey,KeyState>,
+    keyboard : HashMap<PhysicalKey,KeyState<ElementState>>,
+    mouse : HashMap<MouseButton,KeyState<ElementState>>,
     fov : f32,
 }
 
-pub struct KeyState {
-    last_state: ElementState,
-    current_state: ElementState,
+pub struct KeyState<T> {
+    last_state: T,
+    current_state: T,
 }
 
 impl ClientPlayer {
@@ -82,7 +90,8 @@ impl ClientPlayer {
             direction: glam::vec3(1.0,0.0,1.0),
             fov: 140_f32,
             roll: 0_f32,
-            keyboard: HashMap::new()
+            keyboard: HashMap::new(),
+            mouse: HashMap::new(),
         }
     }
 
@@ -126,16 +135,33 @@ impl ClientPlayer {
         self.move_camera(xoffset * sensitivity, yoffset * sensitivity);
     }
 
-    pub fn key_callback(&mut self, input : KeyEvent) {
-        if self.keyboard.contains_key(&input.physical_key) {
-            let key_state = self.keyboard.get_mut(&input.physical_key).unwrap();
-            key_state.last_state = key_state.current_state;
-            key_state.current_state = input.state;
-        } else {
-            self.keyboard.insert(input.physical_key, KeyState {
-                last_state: input.state,
-                current_state: input.state,
-            });
+    pub fn button_callback(&mut self, mouse_button: MouseButton, element_state: ElementState) {
+        match self.mouse.entry(mouse_button) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().last_state = e.get_mut().current_state;
+                e.get_mut().current_state = element_state;
+            }
+            Entry::Vacant(e) => {
+                e.insert(KeyState {
+                   last_state : element_state,
+                    current_state : element_state
+                });
+            }
+        }
+    }
+
+    pub fn keyboard_callback(&mut self, input : KeyEvent) {
+        match self.keyboard.entry(input.physical_key) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().last_state = e.get_mut().current_state;
+                e.get_mut().current_state = input.state;
+            }
+            Entry::Vacant(e) => {
+                e.insert(KeyState {
+                    last_state : input.state,
+                    current_state : input.state
+                });
+            }
         }
     }
 
@@ -166,9 +192,6 @@ impl ClientPlayer {
                         PhysicalKey::Code(KeyCode::ShiftLeft) => {
                             self.add_speed_multiplier(0, 50.0);
                         },
-                        PhysicalKey::Code(KeyCode::F3) => {
-                            client_world_data.toggle_debug()
-                        },
                         _ => {}
                     }
                 }
@@ -177,6 +200,32 @@ impl ClientPlayer {
                         PhysicalKey::Code(KeyCode::ShiftLeft) => {
                             self.remove_speed_multiplier(0)
                         },
+                        PhysicalKey::Code(KeyCode::F3) => {
+                            if elt.1.last_state == ElementState::Pressed {
+                                client_world_data.toggle_debug();
+                            }
+                        },
+                        _ => ()
+                    }
+                }
+            }
+        }
+        let mouse = self.mouse.clone();
+        for elt in mouse.iter() {
+            match elt.1.current_state {
+                ElementState::Pressed => {
+                    match elt.0 {
+                        MouseButton::Left => {
+                            print_base!("Destroying block at {}",self.pos.get_absolute_iblock_pos().deref());
+                            client_world_data.get_chunks().write().unwrap().set_block(self.pos.get_absolute_iblock_pos(), BlockType::AIR);
+                            // let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::DESTROY, self.pos.get_iblock_pos()));
+                            // client_world_data.send(packet, UdpPacketType::Simple);
+                        },
+                        _ => {}
+                    }
+                }
+                ElementState::Released => {
+                    match elt.0 {
                         _ => ()
                     }
                 }
@@ -207,8 +256,8 @@ impl ClientPlayer {
     }
 }
 
-impl Clone for KeyState {
-    fn clone(&self) -> KeyState {
+impl Clone for KeyState<ElementState> {
+    fn clone(&self) -> KeyState<ElementState> {
         Self {
             current_state: self.current_state.clone(),
             last_state: self.last_state.clone(),

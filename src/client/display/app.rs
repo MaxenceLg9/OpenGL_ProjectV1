@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 use std::time::{Instant};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
-use winit::event::{DeviceEvent, DeviceId, WindowEvent};
+use winit::event::{ButtonId, DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::{KeyCode};
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes};
@@ -112,7 +112,7 @@ impl ApplicationHandler for App {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
-                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().key_callback(event);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().keyboard_callback(event);
             },
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => {
@@ -123,7 +123,9 @@ impl ApplicationHandler for App {
                     window.set_cursor_visible(false);
                 }
             },
-
+            WindowEvent::MouseInput {device_id, state, button} => {
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().button_callback(button,state);
+            },
             _ => (),
         }
     }
@@ -134,7 +136,7 @@ impl ApplicationHandler for App {
                 // print_base!("Mouse motion delta: {:?}", delta);
                 self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().mouse_callback(delta.0,delta.1);
             },
-            _ => ()
+            _ => {}
         }
     }
 

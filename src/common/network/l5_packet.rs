@@ -5,6 +5,7 @@ use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
 use bitvec::prelude::Lsb0;
 use bitvec::prelude::BitVec;
+use crate::common::network::client::block_packet::BlockPacket;
 use crate::common::network::client::login_packet::LoginPacket;
 use crate::common::network::client::player_packet::UpdatePlayerPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
@@ -63,7 +64,7 @@ macro_rules! register_packets {
 
 register_packets!(L5Packet, L5PacketType, {
     Correction = {SamplePacket, Correction},
-    Block = {SamplePacket, Block},
+    Block = {BlockPacket, Block},
     Chunk = {ChunkPacket, Chunk},
     GetPlayer = {GetPlayerPacket, GetPlayer},
     Quit = {QuitPacket, Quit},

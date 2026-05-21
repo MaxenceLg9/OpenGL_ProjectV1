@@ -76,15 +76,18 @@ impl MeshMap {
         let mut text_mesh = meshes.1;
         text_mesh.link();
         match self.text_meshes.entry(pos) {
-            Entry::Occupied(_) => {
+            Entry::Occupied(mut slot) => {
+                print_base!("Reinserting mesh");
+                slot.insert(text_mesh);
             }
             Entry::Vacant(slot) => {
                 slot.insert(text_mesh);
             }
         };
         match self.meshes.entry(pos) {
-            Entry::Occupied(_) => {
-                false
+            Entry::Occupied(mut slot) => {
+                slot.insert(mesh);
+                true
             }
             Entry::Vacant(slot) => {
                 slot.insert(mesh);
