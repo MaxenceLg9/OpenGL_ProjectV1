@@ -4,7 +4,8 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::Ordering;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use crossbeam::channel::internal::SelectHandle;
 use noise::{NoiseFn, Perlin};
 use winit::window::Window;
 use shared::common::account::puid::PUID;
@@ -26,14 +27,14 @@ use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorld {
-    sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
     client_world_data: Arc<ClientWorldData>,
     last_player_pos : ChunkPos,
     mesh_receiver: crossbeam::channel::Receiver<(ChunkMesh, MeshText)>,
     text_shader : Shader,
     text : Text,
     puid : PUID,
-    characters : HashMap<char,Character>
+    characters : HashMap<char,Character>,
+    last_frame : Instant,
 }
 
 impl ClientWorld {
@@ -46,16 +47,16 @@ impl ClientWorld {
         let chunk_map = Arc::new(RwLock::new(ClientChunkMap::new(pos_to_mesh_sx, chunk_receiver)));
 
         MeshGenerator::start_build_meshes(pos_to_mesh_rx, mesh_sender, chunk_map.clone());
-        let client_world_data = Arc::new(ClientWorldData::new(chunk_map));
+        let client_world_data = Arc::new(ClientWorldData::new(chunk_map, sender));
 
         ServerConnection::start(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), receiver, client_world_data.clone(), chunk_sender);
         Self {
-            sender,
             client_world_data,
             last_player_pos : ChunkPos::new(glam::ivec3(0,0,0)),
             mesh_receiver,
             puid: PUID::new(0),
             text: Text::new(),
+            last_frame : Instant::now(),
             characters : HashMap::new(),
             text_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag"),
         }
@@ -66,8 +67,7 @@ impl ClientWorld {
     }
 
     pub unsafe fn load_characters(&mut self) {
-        // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr());
-
+        // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
         print_base!("Debug");
         // Keep this! OpenGL needs it for 1-byte (RED) alignment
         unsafe { gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1); }
@@ -126,13 +126,14 @@ impl ClientWorld {
         self.client_world_data.get_player()
     }
 
-    pub unsafe fn render(&self, window: &Window) {
+    pub unsafe fn render(&mut self, window: &Window) {
+        let period = Instant::now() - self.last_frame;
+        self.last_frame = Instant::now();
         let camera_pos: BlockPos = self.get_player().read().unwrap().get_coords();
 
         self.client_world_data.get_meshes().write().unwrap().render(&self.get_player().read().unwrap(), window, self.client_world_data.debug.load(Ordering::Relaxed));
 
 
-        sleep(Duration::from_millis(20));
         // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
         // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
         let perlin = Perlin::new(1);
@@ -146,13 +147,13 @@ impl ClientWorld {
         let binding = self.client_world_data.get_chunks().clone();
         let chunk_map = binding.write().unwrap();
         self.text.render_text(&self.text_shader, &format!("Noise : {:.5}, Erosion {:.5}, Peaks & Valleys {:.5}, Default fn : {:.8}, Height {}", noise, erosion, continentalness, function, height), 20.0, 20.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.as_ivec3(),  camera_pos.get_chunk_pos().get_vec3(), chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(IBlockPos::new(camera_pos.as_ivec3()))), 20.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("{} FPS",1.0 / period.as_secs_f64()), 1900.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
     }
 
     pub fn tick(&mut self) {
         unsafe {
-            while let Ok(cm) = self.mesh_receiver.try_recv() {
-
+            while !self.mesh_receiver.is_empty() && let Ok(cm) = self.mesh_receiver.recv() {
                 self.client_world_data.get_meshes().write().unwrap().add_mesh(cm);
                 // print_base!("Linking {}", cm.get_chunk_pos().deref());
             }
