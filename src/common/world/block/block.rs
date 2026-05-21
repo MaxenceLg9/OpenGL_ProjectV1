@@ -10,6 +10,14 @@ pub enum BlockType {
     GRASS = 8,
 }
 
+pub enum BlockLevel {
+    DIAMOND,
+    IRON,
+    COBALT,
+    STONE,
+    WOOD
+}
+
 impl BlockType {
     pub fn get_value(self) -> u16 {
         let value = self as u16;
