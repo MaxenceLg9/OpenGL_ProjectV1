@@ -35,10 +35,6 @@ impl ServerWorldData {
 
     pub fn tick(&self) {
         self.chunks.write().unwrap().tick();
-        // let block_pos = IBlockPos::from_ints(-140,108,476);
-        // let b1 = self.get_chunk_map().write().unwrap().get_block_at(block_pos);
-        // let block_pos = IBlockPos::from_ints(-140,109,476);
-        // let b2 = self.get_chunk_map().write().unwrap().get_block_at(block_pos);
     }
     pub fn get_players(&self) -> Arc<RwLock<HashMap<PUID, Arc<RwLock<ServerPlayer>>>>> {
         self.players.clone()

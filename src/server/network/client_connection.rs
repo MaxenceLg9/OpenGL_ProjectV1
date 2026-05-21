@@ -87,7 +87,7 @@ impl ClientConnection {
                 // if a packet is scheduled to be sent
                 Some((packet, udp_type)) = self.prx.recv() => {
                     // ChunkPacket::from_bits(packet_data[1..].view_bits::<Lsb0>().to_bitvec());
-                    self.socket_receiver.send(packet, udp_type).await;
+                    self.socket_receiver.send(packet, udp_type).await.expect("MMMH Burger King");
                 }
 
 

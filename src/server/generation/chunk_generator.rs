@@ -1,12 +1,8 @@
 use std::collections::{HashSet};
 use std::ops::{Deref, Mul};
 use std::sync::{Arc, RwLock};
-use std::thread::sleep;
-use std::time::{Duration};
 use crossbeam::channel as channel;
-use md4::digest::typenum::Pow;
 use noise::Perlin;
-use tokio::task::JoinHandle;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
@@ -22,7 +18,7 @@ pub struct ChunkGenerator {
 
 impl ChunkGenerator {
     pub fn new(chunk_map: Arc<RwLock<ServerChunkMap>>, seed : u32) -> ChunkGenerator {
-        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(20000);
+        let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(1000);
         let mut chunks_generated = HashSet::new();
         let (chunk_sx, chunk_rx) = channel::bounded::<Chunk>(10000);
         Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx, Arc::new(Perlin::new(seed)));
@@ -100,8 +96,7 @@ impl ChunkGenerator {
         for chunk_pos in chunks_pos {
             if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
                 if self.chunks_generated.insert(chunk_pos) {
-                    self.gen_crossbeam_sx.try_send(chunk_pos).expect("Error when sending chunk");
-                    // print_base!("Chunk generated {}", chunk_pos.deref());
+                    self.gen_crossbeam_sx.send(chunk_pos).expect("Error when sending chunk");
                 }
             }
         }

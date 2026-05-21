@@ -26,10 +26,6 @@ impl ClientChunkMap {
         }
     }
 
-    pub fn get_chunk(&self, pos : &ChunkPos) -> Option<&Arc<Chunk>> {
-        self.chunk_map.get_chunk(pos)
-    }
-
     pub fn tick(&mut self) {
         while let Ok(chunk) = self.chunk_receiver.try_recv() {
             self.add_chunk(chunk)

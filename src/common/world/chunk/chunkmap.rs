@@ -2,13 +2,12 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use crate::common::network::server::chunk_packet::ChunkPacket;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::iblockpos::IBlockPos;
 
 pub struct ChunkMap {
-    chunks : HashMap<ChunkPos, Arc<Chunk>>,
+    chunks : HashMap<ChunkPos, Chunk>,
 }
 
 impl ChunkMap {
@@ -28,7 +27,7 @@ impl ChunkMap {
             }
             Entry::Vacant(slot) => {
                 // print_base!("Inserted {} chunk", chunk.get_chunk_pos().deref());
-                slot.insert(Arc::new(chunk));
+                slot.insert(chunk);
                 true
             }
         }
@@ -47,8 +46,12 @@ impl ChunkMap {
         self.chunks.contains_key(chunk_pos)
     }
 
-    pub fn get_chunk(&self, chunk_pos: &ChunkPos) -> Option<&Arc<Chunk>> {
+    pub fn get_chunk(&self, chunk_pos: &ChunkPos) -> Option<&Chunk> {
         self.chunks.get(chunk_pos)
+    }
+
+    pub fn get_chunk_mut(&mut self, chunk_pos: &ChunkPos) -> Option<&mut Chunk> {
+        self.chunks.get_mut(chunk_pos)
     }
 
     pub fn remove_chunk(&mut self, chunk_pos : &ChunkPos) {

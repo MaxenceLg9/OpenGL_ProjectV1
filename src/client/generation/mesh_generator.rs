@@ -41,7 +41,7 @@ impl MeshGenerator {
                 // add the neighbours in chunks
                 let count = Self::add_neighbours_if_exist(chunk_pos, server_world_data.clone(), &mut chunks);
                 if count == 7 {
-                    let mesh = ChunkMesh::build_mesh(chunks.get(chunk_pos).unwrap(),&chunks);
+                    let mesh = ChunkMesh::build_mesh(chunks.get(chunk_pos).unwrap(),&chunks, chunk_pos.clone());
                     hash_set.remove(chunk_pos);
                     if let Err(e) = mesh_sender.send(mesh) {
                         print_base!("Error sending mesh: {:?}", e);
@@ -63,7 +63,7 @@ impl MeshGenerator {
         }
     }
 
-    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Arc<Chunk>>) -> u8 {
+    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
         let mut count = 0;
         let pos_vec = Self::get_neighbours_chunks_pos(chunk_pos);
 
@@ -79,7 +79,7 @@ impl MeshGenerator {
                     continue;
                 }
                 // the result is some, adding it into the map
-                chunks.entry(*p).or_insert(result.unwrap().clone());
+                chunks.entry(*p).or_insert(result.unwrap().get_blocks().clone());
             }
             count += 1;
         }

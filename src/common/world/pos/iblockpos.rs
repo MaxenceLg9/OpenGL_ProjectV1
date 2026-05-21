@@ -35,6 +35,10 @@ impl IBlockPos {
         IBlockPos::new(self.pos.rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
+    pub fn get_offset(&self) -> usize {
+        self.x as usize * CHUNK_SIZE * CHUNK_SIZE + self.y as usize * CHUNK_SIZE + self.z as usize
+    }
+
     fn deserialize(pos_bits : BitVec<u8>) -> Box<dyn PosTrait> {
         let raw_bytes = pos_bits[0..96].to_bitvec().into_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);

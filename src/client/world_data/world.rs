@@ -41,7 +41,7 @@ impl ClientWorld {
         let (mesh_sender, mesh_receiver) = crossbeam::channel::unbounded();
         let (chunk_sender, chunk_receiver) = crossbeam::channel::unbounded();
         let (pos_to_mesh_sx, pos_to_mesh_rx) = crossbeam::channel::unbounded();
-        let (sender, receiver) = tokio::sync::mpsc::channel(100000);
+        let (sender, receiver) = tokio::sync::mpsc::channel(1000);
 
         let chunk_map = Arc::new(RwLock::new(ClientChunkMap::new(pos_to_mesh_sx, chunk_receiver)));
 

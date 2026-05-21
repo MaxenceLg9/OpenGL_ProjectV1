@@ -1,3 +1,4 @@
+use crate::common::world::block::block::BlockType;
 use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use crate::common::world::pos::iblockpos::IBlockPos;
 
@@ -18,6 +19,11 @@ impl Chunk {
             chunk_pos
         }
     }
+
+    pub fn destroy_block(&mut self, iblock_pos: IBlockPos) -> bool {
+        self.blocks[iblock_pos.get_block_pos().get_offset()] = BlockType::AIR.get_value();
+        true
+    }
     pub fn get_chunk_pos(&self) -> ChunkPos {
         self.chunk_pos
     }
@@ -26,7 +32,7 @@ impl Chunk {
         if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 || block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 || block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
             return 0; // out of bounds
         }
-        self.blocks[ block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize]
+        self.blocks[block_pos.get_offset()]
     }
 
     pub fn serialize(&self) -> Vec<u8> {

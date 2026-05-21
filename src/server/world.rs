@@ -19,7 +19,7 @@ impl ServerWorld {
         let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
         Socket::listen(self.data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into());
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(1000)); // ~20 ticks per second
+            std::thread::sleep(std::time::Duration::from_millis(20)); // ~20 ticks per second
             self.data.tick();
             // print_base!("Len of chunks {}", self.data.get_chunk_map().read().unwrap().len());
         }
