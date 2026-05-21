@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::ops::{Add, AddAssign, Deref};
+use bitvec::macros::internal::funty::Fundamental;
 use bitvec::vec::BitVec;
-use glam::{Vec3};
+use glam::{IVec3, Vec3};
 use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
@@ -24,9 +25,34 @@ impl BlockPos {
         ChunkPos::from_block_pos(self)
     }
 
-    pub fn get_iblock_pos(&self) -> IBlockPos {
-        IBlockPos::new(self.pos.as_ivec3().rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+    pub fn get_relative_block_pos(&self) -> IBlockPos {
+        IBlockPos::new(self.as_ivec3().rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
+
+    pub fn get_absolute_iblock_pos(&self) -> IBlockPos {
+        IBlockPos::new(self.as_ivec3())
+    }
+
+    pub fn as_ivec3(&self) -> IVec3 {
+        let mut pos = IVec3::new(0,0,0);
+        if self.x < 0.0 {
+            pos.x = self.x.floor() as i32;
+        } else {
+            pos.x = self.x.trunc() as i32;
+        }
+        if self.y < 0.0 {
+            pos.y = self.y.floor() as i32;
+        } else {
+            pos.y = self.y.trunc() as i32;
+        }
+        if self.z < 0.0 {
+            pos.z = self.z.floor() as i32;
+        } else {
+            pos.z = self.z.trunc() as i32;
+        }
+        pos
+    }
+
 
     pub fn deserialize(pos_bits : Vec<u8>) -> BlockPos {
         let raw_bytes = pos_bits[0..12].to_vec();
