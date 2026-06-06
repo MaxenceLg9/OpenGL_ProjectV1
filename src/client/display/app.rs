@@ -14,8 +14,12 @@ use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, SwapInterval::*, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
+use winit::monitor::{MonitorHandle, VideoModeHandle};
 use shared::{print_base, print_debug};
 use crate::client::display::renderer::renderer::{gl_config_picker, GlDisplayCreationState, Renderer};
+
+const FPS: u64 = 240;
+const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / FPS);
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -39,7 +43,7 @@ impl ApplicationHandler for App {
                 // window.set_fullscreen(fullscreen_mode);
                 print_base!("Picked a config with {} samples", gl_config.num_samples());
 
-                // Mark the display as initialized to not recreate it on resume, since the
+                // Mark the display as initialised to not recreate it on resume, since the
                 // display is valid until we explicitly destroy it.
                 self.gl_display = GlDisplayCreationState::Init;
 
@@ -51,7 +55,7 @@ impl ApplicationHandler for App {
                 print_base!("Recreating window in `resumed`");
                 // Pick the config which we already use for the context.
                 let gl_config = self.gl_context.as_ref().unwrap().config();
-                match glutin_winit::finalize_window(event_loop, window_attributes(), &gl_config) {
+                match glutin_winit::finalize_window(event_loop, window_attributes(Some(&self.state.as_ref().unwrap().window)), &gl_config) {
                     Ok(window) => (window, gl_config),
                     Err(err) => {
                         self.exit_state = Err(err.into());
@@ -104,7 +108,6 @@ impl ApplicationHandler for App {
                     state.gl_surface.swap_buffers(context).expect("Failed to swap buffers");
 
                     // Tell winit to loop immediately (for 60+ FPS)
-                    state.window.request_redraw();
                     // state.window.set_fullscreen(window_attributes().fullscreen);
                     self.redraw_time = Instant::now() - instant;
                 }
@@ -146,15 +149,13 @@ impl ApplicationHandler for App {
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         let current_frame = std::time::Instant::now();
-        let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
-        self.last_frame = current_frame;
-        self.renderer.as_mut().unwrap().get_world().poll_keys(delta);
-
-        // print_base!("Waking up at {:?}fps", 1_f32 / delta);
-
-        if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
-            window.request_redraw();
-
+        if current_frame - self.last_frame >= FRAME_DURATION {
+            let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
+            self.renderer.as_mut().unwrap().get_world().poll_keys(delta);
+            self.last_frame = current_frame;
+            if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
+                window.request_redraw();
+            }
         }
         _event_loop.set_control_flow(ControlFlow::Poll);
     }
@@ -232,13 +233,25 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
     }
 }
 
-pub fn window_attributes() -> WindowAttributes {
+pub fn window_attributes(option_window: Option<&Window>) -> WindowAttributes {
     // Wayland fix: Get the first available monitor since "Primary" is usually None
+    if let Some(window) = option_window {
+        for monitor in window.available_monitors() {
+            for modes in monitor.video_modes() {
+                print_base!("Initialised window with Exclusive mode");
+                return Window::default_attributes()
+                    .with_transparent(false)
+                    .with_maximized(true)
+                    .with_fullscreen(Some(Fullscreen::Exclusive(modes)))
+                    .with_title("OpenGL HF");
+            }
+        }
+    }
     Window::default_attributes()
         .with_transparent(false)
         .with_maximized(true)
         .with_fullscreen(Some(Fullscreen::Borderless(None)))
-        .with_title("OpenGL hf")
+        .with_title("OpenGL HF")
 }
 
 pub struct App {
@@ -257,7 +270,7 @@ impl App {
     pub fn new(template: ConfigTemplateBuilder) -> Self {
         Self {
             template,
-            gl_display: GlDisplayCreationState::Builder(Box::new(DisplayBuilder::new().with_window_attributes(Some(window_attributes())))),
+            gl_display: GlDisplayCreationState::Builder(Box::new(DisplayBuilder::new().with_window_attributes(Some(window_attributes(None))))),
             exit_state: Ok(()),
             gl_context: None,
             state: None,
