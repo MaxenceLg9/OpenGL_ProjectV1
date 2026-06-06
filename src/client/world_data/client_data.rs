@@ -8,7 +8,7 @@ use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorldData {
     player: Arc<RwLock<ClientPlayer>>,
-    meshes : Arc<RwLock<MeshMap>>,
+    // meshes : Arc<RwLock<MeshMap>>,
     chunks : Arc<RwLock<ClientChunkMap>>,
     sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
     pub debug : AtomicBool
@@ -20,7 +20,7 @@ impl ClientWorldData {
         bool.store(false,Ordering::Relaxed);
         Self {
             player: Arc::new(RwLock::new(ClientPlayer::new(1.0,1.0,1.0))),
-            meshes: Arc::new(RwLock::new(MeshMap::new())),
+            // meshes: Arc::new(RwLock::new(MeshMap::new())),
             chunks: cm.clone(),
             sender,
             debug: bool
@@ -39,9 +39,9 @@ impl ClientWorldData {
         self.player.clone()
     }
 
-    pub fn get_meshes(&self) -> Arc<RwLock<MeshMap>> {
-        self.meshes.clone()
-    }
+    // pub fn get_meshes(&self) -> Arc<RwLock<MeshMap>> {
+    //     self.meshes.clone()
+    // }
 
     pub fn get_chunks(&self) -> Arc<RwLock<ClientChunkMap>> {
         self.chunks.clone()

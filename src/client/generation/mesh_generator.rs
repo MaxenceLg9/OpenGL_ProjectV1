@@ -5,6 +5,7 @@ use crossbeam::channel as cb;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{print_base, print_debug};
+use shared::common::world::chunk::chunkmap::ChunkMap;
 use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
@@ -41,13 +42,14 @@ impl MeshGenerator {
                 // add the neighbours in chunks
                 let count = Self::add_neighbours_if_exist(chunk_pos, server_world_data.clone(), &mut chunks);
                 if count == 7 {
-                    let mesh = ChunkMesh::build_mesh(chunks.get(chunk_pos).unwrap(),&chunks, chunk_pos.clone());
-                    hash_set.remove(chunk_pos);
-                    if let Err(e) = mesh_sender.send(mesh) {
-                        print_base!("Error sending mesh: {:?}", e);
-                        return;
+                    if let Some(meshes) = ChunkMesh::build_mesh(&chunks, chunk_pos.clone()) {
+                        hash_set.remove(chunk_pos);
+                        if let Err(e) = mesh_sender.send(meshes) {
+                            print_base!("Error sending mesh: {:?}", e);
+                            return;
+                        }
+                        n += 1;
                     }
-                    n += 1;
                     // print_base!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
                 } else if count == 0 {
                     print_debug!("Deleted pos {}",chunk_pos.deref());
@@ -65,7 +67,7 @@ impl MeshGenerator {
 
     fn add_neighbours_if_exist(chunk_pos: &ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
         let mut count = 0;
-        let pos_vec = Self::get_neighbours_chunks_pos(chunk_pos);
+        let pos_vec = ChunkMap::get_neighbours_chunks_pos(chunk_pos);
 
         // checking every side of the chunk
         let chunk_map = arc_chunk_map.read().unwrap();
@@ -89,17 +91,5 @@ impl MeshGenerator {
             }
         }*/
         count
-    }
-
-    fn get_neighbours_chunks_pos(pos: &ChunkPos) -> Vec<ChunkPos> {
-        let mut v = Vec::new();
-        v.push(ChunkPos::new(glam::ivec3(pos.x - 1, pos.y, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x + 1, pos.y, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y - 1, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y + 1, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z - 1)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z + 1)));
-        v.push(pos.clone());
-        v
     }
 }

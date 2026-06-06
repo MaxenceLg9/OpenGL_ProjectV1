@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::ops::{Add, AddAssign, Deref};
+use std::ops::{Add, AddAssign, Deref, Sub};
 use bitvec::macros::internal::funty::Fundamental;
 use bitvec::vec::BitVec;
 use glam::{IVec3, Vec3};
@@ -104,6 +104,22 @@ impl Add<glam::Vec3> for BlockPos {
 
     fn add(self, rhs: Vec3) -> Self::Output {
         BlockPos::new(self.pos + rhs)
+    }
+}
+
+impl Sub<BlockPos> for BlockPos{
+    type Output = BlockPos;
+
+    fn sub(self, rhs: BlockPos) -> Self::Output {
+        BlockPos::new(self.pos - rhs.pos)
+    }
+}
+
+impl Sub<Vec3> for BlockPos{
+    type Output = Vec3;
+
+    fn sub(self, rhs: Vec3) -> Self::Output {
+        self.pos - rhs
     }
 }
 

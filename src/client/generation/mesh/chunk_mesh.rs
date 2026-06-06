@@ -66,12 +66,13 @@ impl ChunkMesh {
         gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
-    pub fn build_mesh(blocks: &Vec<u16>, chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> (ChunkMesh, MeshText) {
+    pub fn build_mesh(chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> Option<(ChunkMesh, MeshText)> {
         let mut chunk_mesh = Self {
             vertices: Vec::new(),
             indices: Vec::new(),
             chunk_pos
         };
+        let blocks = chunks_map.get(&chunk_pos)?;
         chunk_mesh.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
         chunk_mesh.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
         let mut index = 0;
@@ -150,11 +151,12 @@ impl ChunkMesh {
                 }
             }
         }
-        if chunk_mesh.indices.len() != 0 {
-            print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
+        if chunk_mesh.indices.len() == 0 {
+            return None
         };
+        print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
         let mesh_text = unsafe { MeshText::new(chunk_mesh.vertices.clone(), chunk_mesh.indices.clone()) };
-        (chunk_mesh, mesh_text)
+        Some((chunk_mesh, mesh_text))
     }
 
     fn is_void(&self, block_pos: IBlockPos, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> bool {

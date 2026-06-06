@@ -21,6 +21,9 @@ impl Chunk {
     }
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> bool {
+        if self.blocks[iblock_pos.get_block_pos().get_offset()] == block_type.get_value() {
+            return false;
+        }
         self.blocks[iblock_pos.get_block_pos().get_offset()] = block_type.get_value();
         true
     }

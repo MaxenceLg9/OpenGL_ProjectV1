@@ -17,6 +17,18 @@ impl ChunkMap {
             chunks : HashMap::new(),
         }
     }
+    
+    pub fn get_neighbours_chunks_pos(pos: &ChunkPos) -> Vec<ChunkPos> {
+        let mut v = Vec::new();
+        v.push(ChunkPos::new(glam::ivec3(pos.x - 1, pos.y, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x + 1, pos.y, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y - 1, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y + 1, pos.z)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z - 1)));
+        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z + 1)));
+        v.push(pos.clone());
+        v
+    }
 
     pub fn add_chunk(&mut self, chunk: Chunk) -> bool {
         if chunk.get_chunk_pos().y < -2 || chunk.get_chunk_pos().y > 9 {
@@ -34,8 +46,8 @@ impl ChunkMap {
         }
     }
 
-    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) {
-        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type);
+    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> bool {
+        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type)
     }
 
     pub fn get_block_at(&self, block_pos : IBlockPos) -> u16 {

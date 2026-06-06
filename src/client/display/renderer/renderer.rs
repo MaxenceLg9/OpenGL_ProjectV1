@@ -1,4 +1,5 @@
 use std::os::raw::c_void;
+use std::time::Duration;
 use gl::types::{GLchar, GLenum, GLsizei, GLuint};
 use glutin::config::Config;
 use glutin::display::GlDisplay;
@@ -52,7 +53,7 @@ impl Renderer {
         renderer
     }
 
-    pub fn draw(&mut self, window: &Window) {
+    pub fn draw(&mut self, window: &Window, redraw_time : Duration) {
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -64,7 +65,7 @@ impl Renderer {
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
-            self.world.render(window);
+            self.world.render(window, redraw_time);
             self.world.tick();
             print_debug!("Collecting meshes");
             self.cursor.draw_cursor(window);

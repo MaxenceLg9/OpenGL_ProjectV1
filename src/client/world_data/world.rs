@@ -24,17 +24,24 @@ use crate::client::generation::mesh_generator::MeshGenerator;
 use crate::client::network::server_connection::ServerConnection;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
+use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
+
+pub struct Stats {
+    render_time : Duration,
+    tick_time : Duration,
+}
 
 pub struct ClientWorld {
     client_world_data: Arc<ClientWorldData>,
-    last_player_pos : ChunkPos,
     mesh_receiver: crossbeam::channel::Receiver<(ChunkMesh, MeshText)>,
     text_shader : Shader,
     text : Text,
     puid : PUID,
+    stats : Stats,
     characters : HashMap<char,Character>,
     last_frame : Instant,
+    meshes : MeshMap,
 }
 
 impl ClientWorld {
@@ -52,18 +59,22 @@ impl ClientWorld {
         ServerConnection::start(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), receiver, client_world_data.clone(), chunk_sender);
         Self {
             client_world_data,
-            last_player_pos : ChunkPos::new(glam::ivec3(0,0,0)),
             mesh_receiver,
             puid: PUID::new(0),
             text: Text::new(),
+            stats : Stats {
+              render_time: Duration::from_secs(0),
+              tick_time: Duration::from_secs(0)
+            },
+            meshes : MeshMap::new(),
             last_frame : Instant::now(),
             characters : HashMap::new(),
             text_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag"),
         }
     }
 
-    pub fn poll_keys(&self, time : f32) {
-        self.client_world_data.get_player().write().unwrap().poll_keys(time, self.client_world_data.clone());
+    pub fn poll_keys(&mut self, time : f32) {
+        self.client_world_data.get_player().write().unwrap().poll_keys(time, self.client_world_data.clone(), &mut self.meshes);
     }
 
     pub unsafe fn load_characters(&mut self) {
@@ -126,12 +137,13 @@ impl ClientWorld {
         self.client_world_data.get_player()
     }
 
-    pub unsafe fn render(&mut self, window: &Window) {
+    pub unsafe fn render(&mut self, window: &Window, redraw_time : Duration) {
+        let instant = Instant::now();
         let period = Instant::now() - self.last_frame;
         self.last_frame = Instant::now();
-        let camera_pos: BlockPos = self.get_player().read().unwrap().get_coords();
+        let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_pos_info();
 
-        self.client_world_data.get_meshes().write().unwrap().render(&self.get_player().read().unwrap(), window, self.client_world_data.debug.load(Ordering::Relaxed));
+        let n = self.meshes.render(camera_pos.as_vec3(), up, direction, fov, window, self.client_world_data.debug.load(Ordering::Relaxed));
 
 
         // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
@@ -146,23 +158,22 @@ impl ClientWorld {
         let function = default_function(noise.abs());
         let binding = self.client_world_data.get_chunks().clone();
         let chunk_map = binding.write().unwrap();
-        self.text.render_text(&self.text_shader, &format!("Noise : {:.5}, Erosion {:.5}, Peaks & Valleys {:.5}, Default fn : {:.8}, Height {}", noise, erosion, continentalness, function, height), 20.0, 20.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("{} FPS",1.0 / period.as_secs_f64()), 1900.0, 1040.0, 0.5, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        // self.text.render_text(&self.text_shader, &format!("Noise : {:.5}, Erosion {:.5}, Peaks & Valleys {:.5}, Default fn : {:.8}, Height {}", noise, erosion, continentalness, function, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction, chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("{:.4} FPS, Rendering {} chunk meshes", 1.0 / period.as_secs_f64(), n), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.stats.render_time = Instant::now() - instant;
     }
 
     pub fn tick(&mut self) {
+        let instant = Instant::now();
         unsafe {
             while !self.mesh_receiver.is_empty() && let Ok(cm) = self.mesh_receiver.recv() {
-                self.client_world_data.get_meshes().write().unwrap().add_mesh(cm);
+                self.meshes.add_mesh(cm);
                 // print_base!("Linking {}", cm.get_chunk_pos().deref());
             }
         }
         self.client_world_data.get_chunks().write().unwrap().tick();
-        if self.last_player_pos != self.get_player().read().unwrap().get_chunk_pos() {
-            self.last_player_pos = self.get_player().read().unwrap().get_chunk_pos();
-
-            print_debug!("New ChunkPos {}", self.last_player_pos.deref());
-        }
+        self.stats.tick_time = Instant::now() - instant;
     }
 }

@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::num::NonZeroU32;
-use std::time::{Instant};
+use std::time::{Duration, Instant};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
 use winit::event::{ButtonId, DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
@@ -12,7 +12,7 @@ use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext, Version};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
-use glutin::surface::{Surface, SwapInterval::*, WindowSurface};
+use glutin::surface::{Surface, SwapInterval, SwapInterval::*, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use shared::{print_base, print_debug};
 use crate::client::display::renderer::renderer::{gl_config_picker, GlDisplayCreationState, Renderer};
@@ -67,7 +67,7 @@ impl ApplicationHandler for App {
         // buffers. It also performs function loading, which needs a current context on
         // WGL.
         self.gl_context.as_ref().unwrap().make_current(&gl_surface).expect("Cannot make current from context");
-        gl_surface.set_swap_interval(self.gl_context.as_ref().unwrap(), DontWait).expect("Cannot define swap interval");
+        gl_surface.set_swap_interval(self.gl_context.as_ref().unwrap(), SwapInterval::DontWait).expect("Cannot define swap interval");
 
         unsafe { self.renderer.get_or_insert_with(|| Renderer::new(&gl_config.display())); }
 
@@ -96,16 +96,17 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => {
                 // Combine all checks into one clean pattern
                 if let (Some(renderer), Some(state), Some(context)) = (&mut self.renderer, &self.state, &self.gl_context) {
-
+                    let instant = Instant::now();
                     // Draw logic
-                    renderer.draw(&state.window); // Encapsulate the clear/draw inside the renderer!
+                    renderer.draw(&state.window, self.redraw_time); // Encapsulate the clear/draw inside the renderer!
 
                     // Swap buffers
                     state.gl_surface.swap_buffers(context).expect("Failed to swap buffers");
 
                     // Tell winit to loop immediately (for 60+ FPS)
                     state.window.request_redraw();
-                    state.window.set_fullscreen(window_attributes().fullscreen);
+                    // state.window.set_fullscreen(window_attributes().fullscreen);
+                    self.redraw_time = Instant::now() - instant;
                 }
             },
             WindowEvent::KeyboardInput { device_id, event, is_synthetic} => {
@@ -126,6 +127,9 @@ impl ApplicationHandler for App {
             WindowEvent::MouseInput {device_id, state, button} => {
                 self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().button_callback(button,state);
             },
+            WindowEvent::MouseWheel {device_id, delta, phase} => {
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().add_fov(delta);
+            }
             _ => (),
         }
     }
@@ -245,7 +249,8 @@ pub struct App {
     gl_context: Option<PossiblyCurrentContext>,
     gl_display: GlDisplayCreationState,
     exit_state: Result<(), Box<dyn Error>>,
-    last_frame: Instant
+    last_frame: Instant,
+    redraw_time: Duration
 }
 
 impl App {
@@ -256,6 +261,7 @@ impl App {
             exit_state: Ok(()),
             gl_context: None,
             state: None,
+            redraw_time: Duration::from_secs(0),
             renderer: None,
             last_frame: Instant::now()
         }

@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::ops::{Add, Deref, Mul, Sub};
+use std::ops::{Add, Deref, Div, Mul, Sub};
 use bitvec::vec::BitVec;
 use glam::{IVec3};
 use crate::common::world::pos::blockpos::BlockPos;
@@ -22,6 +22,10 @@ impl ChunkPos {
         Self { pos : glam::ivec3(x,y,z) }
     }
 
+    pub fn center(&self) -> BlockPos {
+        self.to_block_pos() + glam::Vec3::new(32.0,32.0,32.0)
+    }
+
 
     pub fn from_absolute(x : i32, y : i32, z : i32, range : i32) -> Self {
         Self { pos : glam::ivec3(x,y,z) - glam::ivec3(range,0,range)}
@@ -36,6 +40,10 @@ impl ChunkPos {
         Self::new(block_pos.as_ivec3().div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
+    pub fn to_block_pos(&self) -> BlockPos {
+        BlockPos::new((self.pos * CHUNK_SIZE as i32).as_vec3())
+    }
+
     pub fn get_vec3(&self) -> IVec3 {
         self.pos
     }
@@ -48,23 +56,6 @@ impl ChunkPos {
 
     pub fn lesser_then_or_equal(&self, chunk_pos: ChunkPos) -> bool {
         self.x <= chunk_pos.x && self.y <= chunk_pos.y && self.z <= chunk_pos.z
-    }
-
-    pub fn not_inside(&self, center : ChunkPos, range : i32) -> bool {
-        let corners = vec![
-          ChunkPos::from_i32(range,range,range),
-          ChunkPos::from_i32(-range,range,range),
-          ChunkPos::from_i32(range,-range,range),
-          ChunkPos::from_i32(-range,-range,range),
-          ChunkPos::from_i32(range,range,-range),
-          ChunkPos::from_i32(-range,range,-range),
-          ChunkPos::from_i32(range,-range,-range),
-          ChunkPos::from_i32(-range,-range,-range),
-        ];
-        for corner in corners {
-
-        }
-        false
     }
 
     pub fn abs(&self) -> ChunkPos {

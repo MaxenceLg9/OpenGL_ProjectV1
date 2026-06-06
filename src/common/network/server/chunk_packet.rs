@@ -94,7 +94,7 @@ impl ChunkPacket {
         vec
     }
 
-    pub fn from_packets_to_chunk(packets : &HashMap<u8,ChunkPacket>, chunk_pos: ChunkPos) -> Chunk {
+    pub fn from_packets_to_chunk(packets : HashMap<u8,ChunkPacket>, chunk_pos: ChunkPos) -> Chunk {
         let mut v = Vec::new();
         let mut len = 0;
         // print_base!("Decompressing");

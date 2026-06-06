@@ -1,11 +1,13 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::ops::{Add, Deref, DerefMut};
+use std::ops::{Add, Deref, DerefMut, Div};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use bitvec::macros::internal::funty::Fundamental;
+use glam::Vec3;
 use winit::window::Window;
 use shared::common::world::block::block::BlockType;
+use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
 use crate::client::display::renderer::gui::text::characters::Character;
@@ -23,6 +25,7 @@ pub struct MeshMap {
     meshtext_shader : Shader,
     text_textures: TextureArray,
     text_meshes : HashMap<ChunkPos, MeshText>,
+    chunk_radius: f32,
 }
 
 impl MeshMap {
@@ -40,6 +43,7 @@ impl MeshMap {
             chunk_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/fragment.frag"),
             meshes: HashMap::new(),
             text_meshes: HashMap::new(),
+            chunk_radius : ((CHUNK_SIZE as f32).add(1.0).div(2.0).powi(2) * 3.0).sqrt(),
             text_textures : TextureArray::new_raw("characters".to_string(), gl::R8, 32, 32),
             meshtext_shader : Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/vertex.vert","/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/fragment.frag")
         };
@@ -110,13 +114,13 @@ impl MeshMap {
         self.meshes.remove(mesh_pos);
     }
 
-    pub unsafe fn render(&self, client_player: &ClientPlayer, window : &Window, debug : bool) {
-        let camera_pos: glam::Vec3 = client_player.get_coords().as_vec3();
-        let camera_target: glam::Vec3 = camera_pos + client_player.get_direction();
+    pub unsafe fn render(&self, camera_pos: Vec3, up : Vec3, direction : Vec3, fov : f32, window : &Window, debug : bool) -> u16 {
+        let mut n = 0;
+        let camera_target: glam::Vec3 = camera_pos + direction;
 
         // build view matrix
-        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos, camera_target, client_player.get_up());
-        let projection: glam::Mat4 = glam::Mat4::perspective_lh(client_player.get_fov().to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32,
+        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos, camera_target, up);
+        let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32,
                                                                 0.01_f32, 1000.0_f32);
         let pro_view = projection * view;
 
@@ -135,7 +139,6 @@ impl MeshMap {
                 self.meshtext_shader.set_matrix4fv("uniform_model", model);
                 mesh.draw();
             }
-
         } else {
             self.chunk_shader.use_shader();
             self.blocks_textures.use_textures(&self.chunk_shader);
@@ -158,14 +161,35 @@ impl MeshMap {
 
             for (pos, mesh) in self.meshes.iter() {
                 // small calculations for the 3d rendering
-                let mut model = glam::Mat4::IDENTITY;
-                model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
-                self.chunk_shader.set_matrix4fv("uniform_model", model);
-                mesh.draw();
+                if self.is_visible(pos, camera_pos, direction, up, fov) {
+                    mesh.draw(&self.chunk_shader, pos);
+                    n += 1;
+                }
             }
-
-
         }
+        n
+    }
+
+    fn is_visible(&self, chunk_pos : &ChunkPos, player_pos : Vec3, direction_normalized: glam::Vec3, up : glam::Vec3, fov : f32) -> bool {
+        let relative_chunk_pos = chunk_pos.center() - player_pos;
+        let sz = direction_normalized.dot(relative_chunk_pos);
+
+        if sz < -self.chunk_radius {
+            return false;
+        }
+        let factor = 1.0 / (fov.to_radians() * 0.52).cos();
+        let tan = (fov.to_radians() * 0.52).tan();
+        let sy = relative_chunk_pos.dot(up);
+        let dist = factor * self.chunk_radius + sz * tan;
+        if sy.abs() > dist {
+            return false;
+        }
+        let sx = relative_chunk_pos.dot(up.cross(direction_normalized));
+        let dist_side = factor * self.chunk_radius + sz * tan;
+        if sx.abs() > dist_side {
+            return false
+        }
+        true
     }
 }
 

@@ -23,14 +23,13 @@ pub struct ServerConnection {
     socket: CommonSocket,
     client_world_data: Arc<ClientWorldData>,
     rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>,
-    temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
     start_time : Instant,
-    chunk_sender : cb::Sender<Chunk>,
+    chunk_sender : cb::Sender<ChunkPacket>,
     addr : SocketAddr
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) {
+    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<ChunkPacket>) {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
@@ -45,7 +44,7 @@ impl ServerConnection {
             })
             .unwrap();
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<Chunk>) -> Result<(),Error> {
+    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<ChunkPacket>) -> Result<(),Error> {
         let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
@@ -55,7 +54,6 @@ impl ServerConnection {
 
         let mut con = Self {
             socket,
-            temp_chunks: HashMap::new(),
             rx,
             start_time : Instant::now(),
             client_world_data,
@@ -102,7 +100,7 @@ impl ServerConnection {
     async fn receive(&mut self, frame : Result<Result<(L5Packet, SocketAddr), Error>, tokio::time::error::Elapsed>) -> Result<(), Error> {
         match frame {
             Ok(Ok((packet, addr))) => {
-                self.handle_packet(&packet).await
+                self.handle_packet(packet).await
             }
             Ok(Err(e)) => {
                 Err(e)
@@ -113,11 +111,11 @@ impl ServerConnection {
         }
     }
 
-    async fn handle_packet(&mut self, p: &L5Packet) -> Result<(), Error> {
+    async fn handle_packet(&mut self, p: L5Packet) -> Result<(), Error> {
         match p {
             L5Packet::Chunk(chunk_packet) => {
                 // print_base!("Receiving packets {}",p.get_packet_type());
-                self.push_chunk_packet(chunk_packet);
+                self.chunk_sender.send(chunk_packet).expect("Cannot send the chunk to the map");
                 Ok(())
             },
             L5Packet::GetPlayer(player_packet) => {
@@ -131,26 +129,5 @@ impl ServerConnection {
             },
             _ => Ok(()),
         }
-    }
-
-    fn push_chunk_packet(&mut self, chunk_packet: &ChunkPacket) {
-        let total = chunk_packet.get_total();
-        let chunk_pos = chunk_packet.get_chunk_pos();
-        match self.temp_chunks.entry(chunk_packet.get_chunk_pos()) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().insert(chunk_packet.get_indice(),chunk_packet.clone());
-            },
-            Entry::Vacant(e) => {
-                let mut submap = HashMap::new();
-                submap.insert(chunk_packet.get_indice(),chunk_packet.clone());
-                e.insert(submap);
-            }
-        }
-        if self.temp_chunks.get(&chunk_pos).unwrap().len() as u8 == total {
-            let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.get(&chunk_pos).expect("Error when getting"), chunk_pos);
-            // self.client_world_data.get_chunks().write().unwrap().add_chunk(c.clone());
-            self.chunk_sender.send(c).expect("Cannot send the chunk to the map");
-        }
-        // print_base!("Received packets in {}ms",Instant::now().duration_since(self.start_time).as_millis());
     }
 }
