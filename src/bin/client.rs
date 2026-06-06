@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Instant;
 use crossbeam::epoch::Pointable;
 use winit::event_loop::{ControlFlow, EventLoop};
 use glutin::config::{ConfigTemplateBuilder};

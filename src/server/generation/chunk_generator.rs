@@ -5,6 +5,7 @@ use crossbeam::channel as channel;
 use noise::Perlin;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
+use shared::math::{Generator, SpinePoint};
 use shared::print_base;
 use crate::server::world_data::chunk::chunk::ServerChunk;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
@@ -21,7 +22,8 @@ impl ChunkGenerator {
         let (gen_crossbeam_sx, gen_crossbeam_rx) : (channel::Sender<ChunkPos>, channel::Receiver<ChunkPos>) = channel::bounded::<ChunkPos>(1000);
         let mut chunks_generated = HashSet::new();
         let (chunk_sx, chunk_rx) = channel::bounded::<Chunk>(10000);
-        Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx, Arc::new(Perlin::new(seed)));
+
+        Self::start_generate_chunk(gen_crossbeam_rx, chunk_sx, Arc::new(Generator::new(Perlin::new(seed))));
         Self::start_receive_chunks(chunk_rx, chunk_map.clone());
         Self::generate_base_chunks(&mut chunks_generated, gen_crossbeam_sx.clone());
         Self {
@@ -47,7 +49,7 @@ impl ChunkGenerator {
     }
 
     /// Function that creates 8 threads that will generate the chunks from the pos sent through the channel
-    fn start_generate_chunk(gen_crossbeam_rx: channel::Receiver<ChunkPos>, chunk_sender: channel::Sender<Chunk>, perlin: Arc<Perlin>) {
+    fn start_generate_chunk(gen_crossbeam_rx: channel::Receiver<ChunkPos>, chunk_sender: channel::Sender<Chunk>, perlin: Arc<Generator>) {
         for i in 0..WORLD_THREADS {
             let crossbeam_receiver = gen_crossbeam_rx.clone();
             let sender = chunk_sender.clone();
@@ -61,9 +63,9 @@ impl ChunkGenerator {
     }
 
     /// Thread that pulls the position from the multi-crossbeam receiver and generates chunks and send them back to another channel
-    fn thread_generate_chunk(crossbeam_receiver: channel::Receiver<ChunkPos>, sender: channel::Sender<Chunk>, perlin: Arc<Perlin>) {
+    fn thread_generate_chunk(crossbeam_receiver: channel::Receiver<ChunkPos>, sender: channel::Sender<Chunk>, generator: Arc<Generator>) {
         while let Ok(elt) = crossbeam_receiver.recv() {
-            let chunk = ServerChunk::generate_chunk(perlin.deref(),elt);
+            let chunk = ServerChunk::generate_chunk(generator.clone(), elt);
             if let Err(e) = sender.send(chunk) {
                 print_base!("Error sending chunk: {:?}", e);
                 return;

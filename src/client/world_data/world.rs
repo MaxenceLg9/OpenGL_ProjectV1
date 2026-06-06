@@ -15,7 +15,7 @@ use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
-use shared::math::{get_continentalness, get_erosion, get_terrain_height, peaks_and_valleys, default_function};
+use shared::math::{Generator};
 use crate::client::display::renderer::gui::text::characters::{Character, Text};
 use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::display::renderer::mesh::shader::shader::Shader;
@@ -42,6 +42,7 @@ pub struct ClientWorld {
     characters : HashMap<char,Character>,
     last_frame : Instant,
     meshes : MeshMap,
+    generator: Generator
 }
 
 impl ClientWorld {
@@ -61,6 +62,7 @@ impl ClientWorld {
             client_world_data,
             mesh_receiver,
             puid: PUID::new(0),
+            generator : Generator::new(Perlin::new(1)),
             text: Text::new(),
             stats : Stats {
               render_time: Duration::from_secs(0),
@@ -148,17 +150,15 @@ impl ClientWorld {
 
         // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
         // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
-        let perlin = Perlin::new(1);
         let x = camera_pos.x as f64;
         let z = camera_pos.z as f64;
-        let erosion = get_erosion(&perlin, x, z);
-        let continentalness = peaks_and_valleys(&perlin, x, z);
-        let height = get_terrain_height(&perlin,x as i32,z as i32) as i32;
-        let noise = perlin.get([x * 0.001, z * 0.001]);
-        let function = default_function(noise.abs());
+        let erosion = self.generator.get_erosion(x, z);
+        let peaks_and_valleys = self.generator.peaks_and_valleys(x, z);
+        let continentalness = self.generator.get_continentalness(x, z);
+        let height = self.generator.get_terrain_height(x as i32,z as i32) as i32;
         let binding = self.client_world_data.get_chunks().clone();
         let chunk_map = binding.write().unwrap();
-        // self.text.render_text(&self.text_shader, &format!("Noise : {:.5}, Erosion {:.5}, Peaks & Valleys {:.5}, Default fn : {:.8}, Height {}", noise, erosion, continentalness, function, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Erosion {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction, chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("{:.4} FPS, Rendering {} chunk meshes", 1.0 / period.as_secs_f64(), n), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);

@@ -1,10 +1,11 @@
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use std::time::Instant;
 use noise::Perlin;
 use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
-use shared::math::get_terrain_height;
+use shared::math::Generator;
 
 pub struct ServerChunk {
     chunk: Chunk
@@ -17,7 +18,7 @@ impl Drop for ServerChunk {
 
 impl ServerChunk {
 
-    pub fn generate_chunk(perlin : &Perlin, chunk_pos: ChunkPos) -> Chunk {
+    pub fn generate_chunk(generator: Arc<Generator>, chunk_pos: ChunkPos) -> Chunk {
         let time : Instant = Instant::now();
         let mut blocks = Vec::new();
         blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
@@ -25,7 +26,7 @@ impl ServerChunk {
             for z in 0..CHUNK_SIZE {
                 let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
                 let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = get_terrain_height(perlin, block_x, block_z) as i32;
+                let max_h : i32 = generator.get_terrain_height(block_x, block_z);
                 // let max_h = (block_x.abs() + block_z.abs()) / 4;
                 if block_x < -130 && block_x > -145 && block_z < 485 && block_z > 470 {
                     // print_base!("Chunk: {}, Max_h: {}, x: {}, z: {}",chunk_pos.deref(), max_h, block_x, block_z);
