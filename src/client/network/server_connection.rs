@@ -84,7 +84,7 @@ impl ServerConnection {
             tokio::select! {
                     frame = timeout(Duration::from_secs(5), self.socket.recv_from()) => {
                         if let Err(e) = self.receive(frame).await {
-                            print_base!("Breaking due to error: {}", e);
+                            print_base!("Breaking due to error: {} at {}", e, chrono::offset::Local::now());
                             break;
                         }
                     }

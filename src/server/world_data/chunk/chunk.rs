@@ -38,7 +38,11 @@ impl ServerChunk {
                 for y_relative in 0..CHUNK_SIZE {
                     let y_absolute = y_relative as i32 + chunk_pos.y * CHUNK_SIZE as i32;
                     if y_absolute > max_h {
-                        blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                        if y_absolute < 85 {
+                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::DEEPSLATE.get_value();
+                        } else {
+                            blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = BlockType::AIR.get_value();
+                        }
                     } else {
                         blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] =  Self::generate_block(y_absolute, max_h);
 

@@ -153,12 +153,14 @@ impl ClientWorld {
         let x = camera_pos.x as f64;
         let z = camera_pos.z as f64;
         let erosion = self.generator.get_erosion(x, z);
+        let f = 0.005;
+        let e_noise = Perlin::new(1).get([x * f, z * f]) * 0.5 + 0.5;
         let peaks_and_valleys = self.generator.peaks_and_valleys(x, z);
         let continentalness = self.generator.get_continentalness(x, z);
         let height = self.generator.get_terrain_height(x as i32,z as i32) as i32;
         let binding = self.client_world_data.get_chunks().clone();
         let chunk_map = binding.write().unwrap();
-        self.text.render_text(&self.text_shader, &format!("Erosion {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction, chunk_map.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,chunk_map.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("{:.4} FPS, Rendering {} chunk meshes", 1.0 / period.as_secs_f64(), n), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);

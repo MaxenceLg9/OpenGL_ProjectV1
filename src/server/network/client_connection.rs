@@ -95,7 +95,7 @@ impl ClientConnection {
                 _ = heartbeat_interval.tick() => {
                     // checking if the timeout of 5 isn't elapsed
                     if Instant::now() > instant {
-                        print_base!("Exiting {} due to time elapsed", self.socket_receiver.get_addr());
+                        print_base!("Exiting {} at {} due to time elapsed", self.socket_receiver.get_addr(), chrono::offset::Local::now());
                         break;
                     }
                     if self.ping_id.is_none() {
