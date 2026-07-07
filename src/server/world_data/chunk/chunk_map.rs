@@ -4,10 +4,12 @@ use std::iter::FlatMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock};
 use shared::common::account::puid::PUID;
+use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::packet_type::UdpPacketType::Reliable;
+use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
@@ -28,15 +30,15 @@ impl ServerChunkMap {
         }
     }
 
-    pub fn ask_for_chunks(&mut self, chunk_pos: ChunkPos, server_player: Arc<RwLock<ServerPlayer>>) {
+    pub fn ask_for_chunks(&mut self, vec_pos: Vec<ChunkPos>, server_player: Arc<RwLock<ServerPlayer>>) {
         let borrow = server_player.read().unwrap();
         match self.asking_for_chunks.entry(borrow.get_puid()) {
             Entry::Occupied(mut e) => {
-                e.get_mut().0.push(chunk_pos);
+                e.get_mut().0.extend(vec_pos);
             }
             Entry::Vacant(e) => {
                 let mut entry = Vec::new();
-                entry.push(chunk_pos);
+                entry.extend(vec_pos);
                 e.insert((entry, borrow.get_sender().clone()));
             }
         }
@@ -46,40 +48,48 @@ impl ServerChunkMap {
         self.chunk_map.add_chunk(chunk)
     }
 
-    pub fn tick(&mut self) {
+    pub fn poll(&mut self) {
         let mut buffer : HashMap<ChunkPos, Vec<ChunkPacket>> = HashMap::new();
-        'players: for (player, (vec, sender)) in self.asking_for_chunks.clone().iter() {
+        'players: for (player, (mut vec, sender)) in self.asking_for_chunks.clone() {
             if vec.is_empty() {
                 continue
             }
-            for chunk_pos in vec {
-                let mut in_buffer = buffer.contains_key(chunk_pos);
-                if self.contains_chunk(chunk_pos) && !in_buffer {
-                    buffer.insert(chunk_pos.clone(), ChunkPacket::from_chunk_to_packets(self.get_chunk(chunk_pos).unwrap()));
+
+            // iterating over chunk_pos associated to the player
+            vec.retain(|chunk_pos| {
+                let mut in_buffer = buffer.contains_key(&chunk_pos);
+                // if not in buffer but in the map, adding it
+                if !in_buffer && self.contains_chunk(&chunk_pos) {
+                    buffer.insert(chunk_pos.clone(), ChunkPacket::from_chunk_to_packets(self.get_chunk(&chunk_pos).unwrap()));
                     in_buffer = true;
                 }
+                // if the chunk exists (so in the buffer)
                 if in_buffer {
-                    let packets = buffer.get(chunk_pos).unwrap();
+                    // creating packets
+                    let packets = buffer.get(&chunk_pos).unwrap();
+                    // sending packets
                     for packet in packets {
                         let server_packet = L5Packet::Chunk(packet.clone());
-                            match sender.try_send((server_packet.clone(), Reliable)) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    print_base!("Channel is full : {}",e.to_string());
-                                    self.asking_for_chunks.remove(player);
-                                    break 'players;
-                                }
+                        match sender.try_send((server_packet.clone(), Reliable)) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                print_base!("Polling : Channel is full : {}",e.to_string());
+                                self.asking_for_chunks.remove(&player);
+                                return false;
                             }
                         }
-                    continue
                     }
+                    // remove the position because already sent
+                    return false;
                 }
-            }
+                true
+            });
+            self.asking_for_chunks.get_mut(&player).unwrap().0 = vec;
         }
+    }
 
     pub fn compute_chunks(pos:ChunkPos, range: i32, chunks_generated : HashSet<ChunkPos>) -> Vec<ChunkPos> {
         let vec = Self::cube_range(pos, range, |p| !chunks_generated.contains(p));
-
         vec
     }
 
@@ -116,6 +126,17 @@ impl ServerChunkMap {
     fn in_cube(center: ChunkPos, vd: i32, p: ChunkPos) -> bool {
         (p.x - center.x).abs() < vd &&
             (p.z - center.z).abs() < vd
+    }
+
+    pub fn interact_block(&mut self, iblock_pos: IBlockPos, block_interaction: BlockInteraction) {
+        match block_interaction {
+            BlockInteraction::LEFT => {
+                self.chunk_map.set_block(iblock_pos,BlockType::AIR);
+            }
+            BlockInteraction::RIGHT => {
+                self.chunk_map.set_block(iblock_pos, BlockType::DEEPSLATE);
+            }
+        }
     }
 }
 

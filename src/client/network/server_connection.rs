@@ -14,9 +14,11 @@ use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
 use crossbeam::channel as cb;
+use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
+use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 
 pub struct ServerConnection {
@@ -89,6 +91,9 @@ impl ServerConnection {
                         }
                     }
                     Some((packet, udp_type)) = self.rx.recv() => {
+                        if let L5Packet::Block(p) = &packet {
+                            print_base!("Sending block packet")
+                        }
                         // print_base!("Sending packet {}",packet.get_packet_type());
                         self.socket.send_to(packet, self.addr, udp_type).await.unwrap();
                     }
@@ -127,6 +132,23 @@ impl ServerConnection {
                 print_base!("Spawning on the world with coords : {}", packet.get_pos().deref());
                 Ok(())
             },
+            L5Packet::Block(packet) => {
+                let meshes = match packet.get_interaction_type() {
+                    BlockInteraction::RIGHT => {
+                        self.client_world_data.get_chunks().write().unwrap().set_block(packet.get_pos(), BlockType::DEEPSLATE)
+                    }
+                    BlockInteraction::LEFT => {
+                        self.client_world_data.get_chunks().write().unwrap().set_block(packet.get_pos(), BlockType::AIR)
+                    }
+                };
+                for mesh in meshes {
+                    print_base!("Receiving packet");
+                    if let Some(content) = mesh {
+                        self.client_world_data.mesh_sender.send(content);
+                    }
+                };
+                Ok(())
+            }
             _ => Ok(()),
         }
     }

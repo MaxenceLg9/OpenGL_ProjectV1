@@ -17,9 +17,8 @@ pub struct BlockPacket {
 #[derive(Clone, Copy, Debug, PartialEq, FromRepr, Display)]
 #[repr(u8)]
 pub enum BlockInteraction {
-    USE,
-    DESTROY,
-    PLACE
+    LEFT,
+    RIGHT
 }
 
 impl BlockPacket {
@@ -28,6 +27,14 @@ impl BlockPacket {
             interaction_type,
             pos
         }
+    }
+
+    pub fn get_interaction_type(&self) -> BlockInteraction {
+        self.interaction_type
+    }
+
+    pub fn get_pos(&self) -> IBlockPos {
+        self.pos
     }
 }
 
