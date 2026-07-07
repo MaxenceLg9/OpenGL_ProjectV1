@@ -66,6 +66,7 @@ impl ChunkMesh {
         gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
+    /// Construct the chunk mesh and text meshes from chunks
     pub fn build_mesh(chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> Option<(ChunkMesh, MeshText)> {
         let mut chunk_mesh = Self {
             vertices: Vec::new(),
@@ -176,7 +177,7 @@ impl ChunkMesh {
         if chunk_pos.y < -2 || chunk_pos.y > 9 {
             return 0
         }
-        chunks_map.get(&chunk_pos).unwrap()[block_pos.get_offset()]
+        chunks_map.get(&chunk_pos).unwrap()[block_pos.get_index()]
     }
 
     fn add_data(&mut self, v : [u64;4], index : u32) -> u32 {

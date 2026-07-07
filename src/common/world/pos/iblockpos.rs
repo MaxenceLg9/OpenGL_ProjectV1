@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::ops::{Deref, Div};
+use std::ops::{Add, Deref, Div};
 use bitvec::prelude::BitVec;
 use glam::{IVec3};
 use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -9,7 +9,7 @@ pub struct IBlockPos {
     pos : glam::IVec3,
 }
 
-
+/// BlockPos made of Integer, used to locate block position in the world
 impl IBlockPos {
     pub fn new(pos : IVec3) -> Self {
         Self { pos }
@@ -23,24 +23,29 @@ impl IBlockPos {
         Self::new(IVec3::from(pos))
     }
 
+    /// Split the IBlockPos into a relative IBlockPos within the chunk boundaries and the ChunkPos
     pub fn as_split_pos(&self) -> (IBlockPos, ChunkPos) {
         (self.get_block_pos(),self.get_chunk_pos())
     }
 
+    /// Returns the ChunkPos where the IBlockPos points to
     pub fn get_chunk_pos(&self) -> ChunkPos {
         ChunkPos::new(self.pos.div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
+    /// Returns the relative IBlockPos within the chunk boundaries
     pub fn get_block_pos(&self) -> IBlockPos {
         IBlockPos::new(self.pos.rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
-    pub fn get_offset(&self) -> usize {
+    /// Returns the index of the IBlockPos coordinates in the block array of a chunk
+    pub fn get_index(&self) -> usize {
         self.x as usize * CHUNK_SIZE * CHUNK_SIZE + self.y as usize * CHUNK_SIZE + self.z as usize
     }
 
+    /// Extract IBlockPos from serialized bytes
     pub fn deserialize(pos_bits : Vec<u8>) -> Self {
-        let raw_bytes = pos_bits[0..96].to_vec();
+        let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
         IBlockPos::new(glam::IVec3::from_slice(coords))
     }
@@ -72,5 +77,13 @@ impl Deref for IBlockPos {
     type Target = glam::IVec3;
     fn deref(&self) -> &Self::Target {
         &self.pos
+    }
+}
+
+impl Add<IVec3> for IBlockPos {
+    type Output = IBlockPos;
+    
+    fn add(self, rhs: IVec3) -> Self::Output {
+        IBlockPos::new(self.pos + rhs)
     }
 }

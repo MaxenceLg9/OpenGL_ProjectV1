@@ -2,20 +2,23 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
+use crate::client::display::renderer::gui::text::text::MeshText;
+use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct ClientWorldData {
-    player: Arc<RwLock<ClientPlayer>>,
+    pub player: Arc<RwLock<ClientPlayer>>,
     // meshes : Arc<RwLock<MeshMap>>,
-    chunks : Arc<RwLock<ClientChunkMap>>,
-    sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
+    pub chunks : Arc<RwLock<ClientChunkMap>>,
+    pub sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
+    pub mesh_sender : crossbeam::channel::Sender<(ChunkMesh, MeshText)>,
     pub debug : AtomicBool
 }
 
 impl ClientWorldData {
-    pub unsafe fn new(cm: Arc<RwLock<ClientChunkMap>>, sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>) -> ClientWorldData {
+    pub unsafe fn new(cm: Arc<RwLock<ClientChunkMap>>, sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, mesh_sender : crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
         let bool = AtomicBool::new(false);
         bool.store(false,Ordering::Relaxed);
         Self {
@@ -23,6 +26,7 @@ impl ClientWorldData {
             // meshes: Arc::new(RwLock::new(MeshMap::new())),
             chunks: cm.clone(),
             sender,
+            mesh_sender,
             debug: bool
         }
     }

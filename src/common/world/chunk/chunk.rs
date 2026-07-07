@@ -21,10 +21,10 @@ impl Chunk {
     }
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> bool {
-        if self.blocks[iblock_pos.get_block_pos().get_offset()] == block_type.get_value() {
+        if self.blocks[iblock_pos.get_block_pos().get_index()] == block_type.get_value() {
             return false;
         }
-        self.blocks[iblock_pos.get_block_pos().get_offset()] = block_type.get_value();
+        self.blocks[iblock_pos.get_block_pos().get_index()] = block_type.get_value();
         true
     }
     pub fn get_chunk_pos(&self) -> ChunkPos {
@@ -35,7 +35,7 @@ impl Chunk {
         if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 || block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 || block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
             return 0; // out of bounds
         }
-        self.blocks[block_pos.get_offset()]
+        self.blocks[block_pos.get_index()]
     }
 
     pub fn serialize(&self) -> Vec<u8> {
