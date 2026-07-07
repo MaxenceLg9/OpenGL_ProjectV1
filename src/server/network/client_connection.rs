@@ -15,45 +15,49 @@ use shared::common::network::server::quit_packet::QuitPacket;
 use crate::server::network::server_socket::ServerConnection;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
+use crate::server::world_data::event::events::{Event, EventType};
 use crate::server::world_data::player::player::ServerPlayer;
+use crossbeam::channel as cb;
+
+pub const UPDATE_INTERVAL: Duration = std::time::Duration::from_millis(50);
 
 pub struct ClientConnection {
     server_world_data: Arc<ServerWorldData>,
     chunks_loaded : HashSet<ChunkPos>,
     player : Arc<RwLock<ServerPlayer>>,
-    chunks_pos: ChunkPos,
+    player_position: ChunkPos,
     socket_receiver: ServerConnection,
-    prx : tchannel::Receiver<(L5Packet, UdpPacketType)>,
+    player_rx: tchannel::Receiver<(L5Packet, UdpPacketType)>,
     view_distance : u8,
+    event_sx : cb::Sender<Event>,
     puid : PUID,
     ping : Instant,
     ping_id : Option<u16>
 }
 
 impl ClientConnection {
-    pub async fn start(packet : L5Packet, socket : ServerConnection, server_world_data: Arc<ServerWorldData>) {
-        let (psx, prx) = tchannel::channel::<(L5Packet, UdpPacketType)>(100000);
+    pub async fn start(packet : L5Packet, socket : ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx : cb::Sender<Event>) {
+        let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(1000);
         let L5Packet::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", socket.get_addr());
             return;
         };
 
         let Ok((pos, player)) = server_world_data
-            .connect_player(con_packet.get_puid().clone(), psx)
+            .connect_player(con_packet.get_puid().clone(), player_sx)
             .inspect_err(|e| print_base!("Connection {}: Got Error {}, returning", socket.get_addr(), e)) else {
             return;
         };
         socket.send(L5Packet::Connect(ConnectionPacket::new(pos)),UdpPacketType::Simple).await.unwrap();
 
-
-
         let mut client_connection = Self {
             chunks_loaded: HashSet::new(),
-            chunks_pos: pos.get_chunk_pos(),
+            player_position: pos.get_chunk_pos(),
             socket_receiver: socket,
             server_world_data,
             player,
-            prx,
+            event_sx,
+            player_rx,
             ping: Instant::now(),
             ping_id: Some(0),
             view_distance: 8,
@@ -63,38 +67,39 @@ impl ClientConnection {
     }
 
     /// The Main Loop handling the connection to the client
+    ///
     /// Switching between receiving a packet from the main connection thread through the channel,
     /// or between receiving a packet to send or the interval ticking to ask for player update
     pub async fn handle_client(&mut self) {
-        let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_millis(20));
-        let mut instant = Instant::now() + Duration::from_secs(5);
+        // defining the interval
+        let mut heartbeat_interval = tokio::time::interval(UPDATE_INTERVAL);
+        let mut timeout = Instant::now() + Duration::from_secs(5);
         let mut id = 0;
         self.generate_chunks();
-        Self::load_chunks(self.server_world_data.get_chunk_map().clone(), self.player.clone(), self.chunks_pos,self.chunks_pos,0,10);
+        self.load_chunks(self.player.clone(), self.player_position, self.player_position, 0, 10);
 
         loop {
             tokio::select! {
                 // waiting till the socket receives data or timeout limit is reached
                 packet = self.socket_receiver.recv() => {
-                    if let Err(e) = self.receive(&packet) {
+                    if let Err(e) = self.receive(&packet).await {
                         print_base!("Exiting {} due to error {}", self.socket_receiver.get_addr(), e);
                         break;
                     } else {
-                        instant = Instant::now() + Duration::from_secs(5);
+                        timeout = Instant::now() + Duration::from_secs(5);
                     }
                 }
 
                 // if a packet is scheduled to be sent
-                Some((packet, udp_type)) = self.prx.recv() => {
+                Some((packet, udp_type)) = self.player_rx.recv() => {
                     // ChunkPacket::from_bits(packet_data[1..].view_bits::<Lsb0>().to_bitvec());
-                    self.socket_receiver.send(packet, udp_type).await.expect("MMMH Burger King");
+                    self.socket_receiver.send(packet, udp_type).await.expect("Cannot send packet");
                 }
-
 
                 // querying the player information at a constant interval
                 _ = heartbeat_interval.tick() => {
                     // checking if the timeout of 5 isn't elapsed
-                    if Instant::now() > instant {
+                    if Instant::now() > timeout {
                         print_base!("Exiting {} at {} due to time elapsed", self.socket_receiver.get_addr(), chrono::offset::Local::now());
                         break;
                     }
@@ -114,14 +119,16 @@ impl ClientConnection {
     }
 
     fn generate_chunks(&self) {
-        let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(self.chunks_pos,8, self.server_world_data.get_generator().read().unwrap().get_chunks_generated());
-        self.server_world_data.get_generator().write().unwrap().schedule_chunks(array);
+        self.event_sx.send(Event {
+            player : self.player.clone(),
+            event_type : EventType::GenerateChunk(self.player_position)
+        });
     }
 
-    fn receive(&mut self, frame: &Option<L5Packet>) -> Result<(), Error> {
+    async fn receive(&mut self, frame: &Option<L5Packet>) -> Result<(), Error> {
         match frame {
             Some(packet) => {
-                self.handle_packet(packet)
+                self.handle_packet(packet).await
             }
             None => {
                 Err(Error::new(ErrorKind::BrokenPipe,"The packet received is None"))
@@ -129,19 +136,20 @@ impl ClientConnection {
         }
     }
 
-    fn load_chunks(arc_chunk_map :  Arc<RwLock<ServerChunkMap>>, server_player: Arc<RwLock<ServerPlayer>>, last_pos : ChunkPos, new_pos : ChunkPos, old_view_distance : i32, new_view_distance : i32) {
-        let mut chunk_map = arc_chunk_map.write().unwrap();
+    /// Asks the main thread to send missing chunks to the player
+    fn load_chunks(&self, server_player: Arc<RwLock<ServerPlayer>>, last_pos : ChunkPos, new_pos : ChunkPos, old_view_distance : i32, new_view_distance : i32) {
         let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(last_pos, new_pos, old_view_distance, new_view_distance);
-        // print_base!("Chunks to load {}", to_load.len());
-        for pos in to_load {
-            chunk_map.ask_for_chunks(pos, server_player.clone());
-        }
+        self.event_sx.send(Event {
+           player : server_player.clone(),
+            event_type : EventType::AskChunk(to_load)
+        });
+        
         for pos in to_unload {
 
         }
     }
 
-    fn handle_packet(&mut self, packet : &L5Packet) -> Result<(), Error> {
+    async fn handle_packet(&mut self, packet : &L5Packet) -> Result<(), Error> {
         match packet {
             // ClientPacket::Quit(_) => Ok(()),
             L5Packet::UpdatePlayer(p) => {
@@ -150,6 +158,14 @@ impl ClientConnection {
                     // print_base!("Ping of : {}ms",Instant::now().duration_since(self.ping).as_millis());
                     self.ping_id = None;
                 }
+                Ok(())
+            },
+            L5Packet::Block(p) => {
+                let event = Event {
+                    player : self.player.clone(),
+                    event_type : EventType::BlockInteraction(p.clone())
+                };
+                self.event_sx.send(event);
                 Ok(())
             },
             _ => Ok(()),
@@ -161,23 +177,23 @@ impl ClientConnection {
     fn update_player(&mut self, packet : &UpdatePlayerPacket) {
         self.player.write().unwrap().set_pos(packet.get_pos());
 
-        let moved = packet.get_pos().get_chunk_pos() != self.chunks_pos;
+        let moved = packet.get_pos().get_chunk_pos() != self.player_position;
         let viewed = self.view_distance != packet.get_view_distance();
 
-        let last_pos = self.chunks_pos;
+        let last_pos = self.player_position;
 
         if viewed {
             self.view_distance = packet.get_view_distance();
         }
 
         if moved {
-            self.chunks_pos = packet.get_pos().get_chunk_pos();
+            self.player_position = packet.get_pos().get_chunk_pos();
             self.generate_chunks();
             // print_base!("New ChunkPos : {}", self.chunks_pos.deref());
         };
 
         if moved || viewed {
-            Self::load_chunks(self.server_world_data.get_chunk_map().clone(), self.player.clone(),last_pos, self.chunks_pos, self.view_distance as i32, self.view_distance as i32);
+            self.load_chunks(self.player.clone(), last_pos, self.player_position, self.view_distance as i32, self.view_distance as i32);
         }
     }
 }
