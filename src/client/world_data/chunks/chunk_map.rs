@@ -9,7 +9,6 @@ use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
-use shared::print_base;
 use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::world_data::mesh_map::MeshMap;
@@ -17,7 +16,6 @@ use crate::client::world_data::mesh_map::MeshMap;
 pub struct ClientChunkMap {
     chunk_map: ChunkMap,
     to_mesh : channel::Sender<ChunkPos>,
-    // temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
     chunk_packet_receiver: channel::Receiver<ChunkPacket>,
     temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
 }
@@ -80,11 +78,6 @@ impl ClientChunkMap {
             }
             count += 1;
         }
-        /*        for p in pos_vec.iter() {
-                    if !chunks.contains_key(p) && count == 7 {
-                        print_base!("Bug on pos {} at {}",chunk_pos.deref(), p.deref());
-                    }
-                }*/
         count
     }
 
@@ -98,18 +91,44 @@ impl ClientChunkMap {
         // print_base!("Len of chunk_map is {}",self.chunk_map.len());
     }
 
-    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType, meshes_map: &mut MeshMap) {
+    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> Vec<Option<(ChunkMesh,MeshText)>> {
         let chunk_pos = iblock_pos.get_chunk_pos();
-        let mut chunks_map = HashMap::new();
         if self.chunk_map.set_block(iblock_pos, block_type) {
-            if self.add_neighbours_if_exist(&chunk_pos, &mut chunks_map) == 7 {
-                if let Some(meshes) = ChunkMesh::build_mesh(&chunks_map, chunk_pos) {
-                    unsafe {
-                        meshes_map.add_mesh(meshes);
-                    }
-                }
+            return self.redraw_chunks(chunk_pos, iblock_pos.get_block_pos());
+        }
+        Vec::new()
+    }
+
+    fn redraw_chunks(&self, chunk_pos: ChunkPos, relative_block_pos : IBlockPos) -> Vec<Option<(ChunkMesh,MeshText)>> {
+        let mut vec = Vec::new();
+        let mut chunks_map = HashMap::new();
+
+        vec.push(self.rebuild_mesh(chunk_pos,&mut chunks_map));
+        if relative_block_pos.x == 0 || relative_block_pos.x == 63 {
+            let offset_x = relative_block_pos.x / 63 * 2 - 1;
+            let pos = chunk_pos + ChunkPos::from_i32(offset_x, 0, 0);
+            vec.push(self.rebuild_mesh(pos, &mut chunks_map));
+        }
+        if relative_block_pos.y == 0 || relative_block_pos.y == 63 {
+            let offset_y = relative_block_pos.y / 63 * 2 - 1;
+            let pos = chunk_pos + ChunkPos::from_i32(0, offset_y, 0);
+            vec.push(self.rebuild_mesh(pos, &mut chunks_map));
+        }
+        if relative_block_pos.z == 0 || relative_block_pos.z == 63 {
+            let offset_z = relative_block_pos.z / 63 * 2 - 1;
+            let pos = chunk_pos + ChunkPos::from_i32(0, 0, offset_z);
+            vec.push(self.rebuild_mesh(pos, &mut chunks_map));
+        }
+        vec
+    }
+
+    pub fn rebuild_mesh(&self, pos : ChunkPos, chunks_map : &mut HashMap<ChunkPos, Vec<u16>>) -> Option<(ChunkMesh, MeshText)> {
+        if self.add_neighbours_if_exist(&pos, chunks_map) == 7 {
+            if let Some(meshes) = ChunkMesh::build_mesh(&chunks_map, pos) {
+                return Some(meshes);
             }
         }
+        None
     }
 
 }
