@@ -17,6 +17,7 @@ use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
 use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::mesh_map::MeshMap;
+use crate::client::world_data::player::keyboard::Inputs;
 
 pub struct ClientPlayer {
     pos : BlockPos,
@@ -24,15 +25,10 @@ pub struct ClientPlayer {
     up : glam::Vec3,
     roll : f32,
     speed_multiplier: HashMap<i32, f32>,
-    keyboard : HashMap<PhysicalKey,KeyState<ElementState>>,
-    mouse : HashMap<MouseButton,KeyState<ElementState>>,
     fov : f32,
 }
 
-pub struct KeyState<T> {
-    last_state: T,
-    current_state: T,
-}
+
 
 impl ClientPlayer {
 
@@ -106,8 +102,7 @@ impl ClientPlayer {
             direction: glam::vec3(1.0,0.0,1.0),
             fov: 140_f32,
             roll: 0_f32,
-            keyboard: HashMap::new(),
-            mouse: HashMap::new(),
+
         }
     }
 
@@ -152,39 +147,8 @@ impl ClientPlayer {
         self.move_camera(xoffset * sensitivity, yoffset * sensitivity);
     }
 
-    pub fn button_callback(&mut self, mouse_button: MouseButton, element_state: ElementState) {
-        match self.mouse.entry(mouse_button) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().last_state = e.get_mut().current_state;
-                e.get_mut().current_state = element_state;
-            }
-            Entry::Vacant(e) => {
-                e.insert(KeyState {
-                    last_state : element_state,
-                    current_state : element_state
-                });
-            }
-        }
-    }
-
-    pub fn keyboard_callback(&mut self, input : KeyEvent) {
-        match self.keyboard.entry(input.physical_key) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().last_state = e.get_mut().current_state;
-                e.get_mut().current_state = input.state;
-            }
-            Entry::Vacant(e) => {
-                e.insert(KeyState {
-                    last_state : input.state,
-                    current_state : input.state
-                });
-            }
-        }
-    }
-
-    pub fn poll_keys(&mut self, time : f32, client_world_data: Arc<ClientWorldData>, meshes : &mut MeshMap) {
-        let keyboard = self.keyboard.clone();
-        for elt in keyboard.iter() {
+    pub fn poll_keys(&mut self, buttons: &mut Inputs, time : f32, client_world_data: Arc<ClientWorldData>, meshes : &mut MeshMap) {
+        for elt in buttons.get_keyboard().iter_mut() {
             match elt.1.current_state {
                 ElementState::Pressed => {
                     match elt.0 {
@@ -219,6 +183,7 @@ impl ClientPlayer {
                         },
                         PhysicalKey::Code(KeyCode::F3) => {
                             if elt.1.last_state == ElementState::Pressed {
+                                elt.1.last_state = ElementState::Released;
                                 client_world_data.toggle_debug();
                             }
                         },
@@ -227,22 +192,27 @@ impl ClientPlayer {
                 }
             }
         }
-        for (button, keystate) in self.mouse.iter_mut() {
+        for (button, keystate) in buttons.get_mouse().iter_mut() {
             match keystate.current_state {
                 ElementState::Pressed => {
                     match button {
                         MouseButton::Left => {
-                            if keystate.last_state == ElementState::Pressed {
-                                print_base!("Skipping");
-                                continue
-                            }
                             keystate.last_state = ElementState::Pressed;
-                            if let Some((blocktype, iblock_pos)) = Self::ray_cast(self.direction, self.pos, client_world_data.clone()) {
-                                print_base!("Destroying block at {}",iblock_pos.deref());
-                                client_world_data.get_chunks().write().unwrap().set_block(iblock_pos, BlockType::AIR, meshes);
+                            if let Some((blocktype, iblock_pos, _)) = Self::ray_cast(self.direction, self.pos, client_world_data.clone()) {
+                                print_base!("Trying to destroy block at {}",iblock_pos.deref());
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::LEFT, iblock_pos));
+                                client_world_data.send(packet, UdpPacketType::Simple);
+                                print_base!("Sending packet");
                             }
-                            // let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::DESTROY, self.pos.get_iblock_pos()));
-                            // client_world_data.send(packet, UdpPacketType::Simple);
+                        },
+                        MouseButton::Right => {
+                            keystate.last_state = ElementState::Pressed;
+                            if let Some((blocktype, iblock_pos, normal)) = Self::ray_cast(self.direction, self.pos, client_world_data.clone()) {
+                                print_base!("Trying to destroy block at {}",iblock_pos.deref());
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::RIGHT, iblock_pos + normal));
+                                client_world_data.send(packet, UdpPacketType::Simple);
+                                print_base!("Sending packet");
+                            }
                         },
                         _ => {}
                     }
@@ -256,70 +226,83 @@ impl ClientPlayer {
         }
     }
 
-    pub fn tick(&self, client_world_data: Arc<ClientWorldData>) {
-    }
-
-    pub fn ray_cast(direction : glam::Vec3, pos : BlockPos, client_world_data: Arc<ClientWorldData>) -> Option<(u16, IBlockPos)> {
+    pub fn ray_cast(direction : glam::Vec3, pos : BlockPos, client_world_data: Arc<ClientWorldData>) -> Option<(u16, IBlockPos, glam::IVec3)> {
         let max_distance = 3.0;
-
+        let mut step_dir = 0;
         // Track the integer block coordinates directly
         let mut current_block = pos.as_ivec3();
 
-        // The direction to step the integer coordinate (+1 or -1)
+        let mut voxel_normal = glam::IVec3::splat(0);
+
+        // step to increase the block pos
         let step_x = if direction.x > 0.0 { 1 } else { -1 };
         let step_y = if direction.y > 0.0 { 1 } else { -1 };
         let step_z = if direction.z > 0.0 { 1 } else { -1 };
 
+        // step to update the x,y,z distances travelled
         let t_delta_x = if direction.x.abs() > 0.0 { (1.0 / direction.x).abs() } else { f32::MAX };
         let t_delta_y = if direction.y.abs() > 0.0 { (1.0 / direction.y).abs() } else { f32::MAX };
         let t_delta_z = if direction.z.abs() > 0.0 { (1.0 / direction.z).abs() } else { f32::MAX };
 
+        // initializing x,y,z distances with the floating part of the x,y,z coordinates
         let fract_x = pos.x - pos.x.floor();
-        let mut t_max_x = if direction.x > 0.0 { (1.0 - fract_x) * t_delta_x } else { fract_x * t_delta_x };
+        let mut x_distance = if direction.x > 0.0 { (1.0 - fract_x) * t_delta_x } else { fract_x * t_delta_x };
 
         let fract_y = pos.y - pos.y.floor();
-        let mut t_max_y = if direction.y > 0.0 { (1.0 - fract_y) * t_delta_y } else { fract_y * t_delta_y };
+        let mut y_distance = if direction.y > 0.0 { (1.0 - fract_y) * t_delta_y } else { fract_y * t_delta_y };
 
         let fract_z = pos.z - pos.z.floor();
-        let mut t_max_z = if direction.z > 0.0 { (1.0 - fract_z) * t_delta_z } else { fract_z * t_delta_z };
+        let mut z_distance = if direction.z > 0.0 { (1.0 - fract_z) * t_delta_z } else { fract_z * t_delta_z };
 
         let mut distance = 0.0;
 
         while distance <= max_distance {
             let result = client_world_data.get_chunks().read().unwrap().get_block_at(IBlockPos::new(current_block));
             if result != 0 {
-                return Some((result, IBlockPos::new(current_block)));
+                if step_dir == 0 {
+                    voxel_normal.x = -step_x;
+                }
+                else if step_dir == 1 {
+                    voxel_normal.y = -step_y;
+                }
+                else {
+                    voxel_normal.z = -step_z;
+                }
+                return Some((result, IBlockPos::new(current_block), voxel_normal));
             }
 
-            if t_max_x < t_max_y {
-                if t_max_x < t_max_z {
+            if x_distance < y_distance {
+                if x_distance < z_distance {
                     current_block.x += step_x; // Step by exactly 1 block
-                    distance = t_max_x;        // Update total distance traveled
-                    t_max_x += t_delta_x;      // Set target to the next X boundary
-                    // step_dir = 0;
+                    distance = x_distance;        // Update total distance travelled
+                    x_distance += t_delta_x;      // Set target to the next X boundary
+                    step_dir = 0;
                 } else {
                     current_block.z += step_z;
-                    distance = t_max_z;
-                    t_max_z += t_delta_z;
-                    // step_dir = 2;
+                    distance = z_distance;
+                    z_distance += t_delta_z;
+                    step_dir = 2;
                 }
             } else {
-                if t_max_y < t_max_z {
+                if y_distance < z_distance {
                     current_block.y += step_y;
-                    distance = t_max_y;
-                    t_max_y += t_delta_y;
-                    // step_dir = 1;
+                    distance = y_distance;
+                    y_distance += t_delta_y;
+                    step_dir = 1;
                 } else {
                     current_block.z += step_z;
-                    distance = t_max_z;
-                    t_max_z += t_delta_z;
-                    // step_dir = 2;
+                    distance = z_distance;
+                    z_distance += t_delta_z;
+                    step_dir = 2;
                 }
             }
         }
-
         None
     }
+
+    pub fn tick(&self, client_world_data: Arc<ClientWorldData>) {
+    }
+
 
     pub fn compute_up(&mut self){
         // Rotate the standard world_data up (0,1,0) by the roll around the current direction
@@ -341,15 +324,6 @@ impl ClientPlayer {
 
     pub fn remove_speed_multiplier(&mut self, key : i32) {
         self.speed_multiplier.remove(&key);
-    }
-}
-
-impl Clone for KeyState<ElementState> {
-    fn clone(&self) -> KeyState<ElementState> {
-        Self {
-            current_state: self.current_state.clone(),
-            last_state: self.last_state.clone(),
-        }
     }
 }
 

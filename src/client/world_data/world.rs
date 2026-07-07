@@ -25,6 +25,7 @@ use crate::client::network::server_connection::ServerConnection;
 use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::mesh_map::MeshMap;
+use crate::client::world_data::player::keyboard::Inputs;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct Stats {
@@ -38,6 +39,7 @@ pub struct ClientWorld {
     text_shader : Shader,
     text : Text,
     puid : PUID,
+    inputs: Inputs,
     stats : Stats,
     characters : HashMap<char,Character>,
     last_frame : Instant,
@@ -54,8 +56,8 @@ impl ClientWorld {
 
         let chunk_map = Arc::new(RwLock::new(ClientChunkMap::new(pos_to_mesh_sx, chunk_receiver)));
 
-        MeshGenerator::start_build_meshes(pos_to_mesh_rx, mesh_sender, chunk_map.clone());
-        let client_world_data = Arc::new(ClientWorldData::new(chunk_map, sender));
+        MeshGenerator::start_build_meshes(pos_to_mesh_rx, mesh_sender.clone(), chunk_map.clone());
+        let client_world_data = Arc::new(ClientWorldData::new(chunk_map, sender, mesh_sender));
 
         ServerConnection::start(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), receiver, client_world_data.clone(), chunk_sender);
         Self {
@@ -71,14 +73,21 @@ impl ClientWorld {
             meshes : MeshMap::new(),
             last_frame : Instant::now(),
             characters : HashMap::new(),
+            inputs : Inputs::new(),
             text_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag"),
         }
     }
 
+    /// Update the game with the inputs from keyboard and mouse
     pub fn poll_keys(&mut self, time : f32) {
-        self.client_world_data.get_player().write().unwrap().poll_keys(time, self.client_world_data.clone(), &mut self.meshes);
+        self.client_world_data.get_player().write().unwrap().poll_keys(&mut self.inputs, time, self.client_world_data.clone(), &mut self.meshes);
     }
 
+    pub fn get_keyboard(&mut self) -> &mut Inputs {
+        &mut self.inputs
+    }
+
+    /// Load bitmap character into VRAM by creating buffer
     pub unsafe fn load_characters(&mut self) {
         // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
         print_base!("Debug");
@@ -139,6 +148,9 @@ impl ClientWorld {
         self.client_world_data.get_player()
     }
 
+    /// Draw vertices on the screen
+    /// 
+    /// Rendering the chunks and stuff
     pub unsafe fn render(&mut self, window: &Window, redraw_time : Duration) {
         let instant = Instant::now();
         let period = Instant::now() - self.last_frame;

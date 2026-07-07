@@ -116,7 +116,7 @@ impl ApplicationHandler for App {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
-                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().keyboard_callback(event);
+                self.renderer.as_mut().unwrap().get_world().get_keyboard().keyboard_callback(event);
             },
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => {
@@ -128,7 +128,7 @@ impl ApplicationHandler for App {
                 }
             },
             WindowEvent::MouseInput {device_id, state, button} => {
-                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().button_callback(button,state);
+                self.renderer.as_mut().unwrap().get_world().get_keyboard().button_callback(button,state);
             },
             WindowEvent::MouseWheel {device_id, delta, phase} => {
                 self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().add_fov(delta);
