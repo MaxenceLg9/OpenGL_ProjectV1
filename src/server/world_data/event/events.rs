@@ -8,7 +8,8 @@ pub enum EventType {
     AskChunk(Vec<ChunkPos>),
     GenerateChunk(ChunkPos),
     EntityInteraction(),
-
+    ConnectPlayer(),
+    DisconnectPlayer()
 }
 
 pub struct Event {

@@ -20,6 +20,7 @@ use crate::server::world_data::player::player::ServerPlayer;
 use crossbeam::channel as cb;
 
 pub const UPDATE_INTERVAL: Duration = std::time::Duration::from_millis(50);
+pub const TIMEOUT_DURATION: Duration = std::time::Duration::from_secs(5);
 
 pub struct ClientConnection {
     server_world_data: Arc<ServerWorldData>,
@@ -73,7 +74,7 @@ impl ClientConnection {
     pub async fn handle_client(&mut self) {
         // defining the interval
         let mut heartbeat_interval = tokio::time::interval(UPDATE_INTERVAL);
-        let mut timeout = Instant::now() + Duration::from_secs(5);
+        let mut timeout = Instant::now() + TIMEOUT_DURATION;
         let mut id = 0;
         self.generate_chunks();
         self.load_chunks(self.player.clone(), self.player_position, self.player_position, 0, 10);
@@ -86,7 +87,7 @@ impl ClientConnection {
                         print_base!("Exiting {} due to error {}", self.socket_receiver.get_addr(), e);
                         break;
                     } else {
-                        timeout = Instant::now() + Duration::from_secs(5);
+                        timeout = Instant::now() + TIMEOUT_DURATION;
                     }
                 }
 
@@ -96,7 +97,7 @@ impl ClientConnection {
                     self.socket_receiver.send(packet, udp_type).await.expect("Cannot send packet");
                 }
 
-                // querying the player information at a constant interval
+                // asking the player his information at a constant rate
                 _ = heartbeat_interval.tick() => {
                     // checking if the timeout of 5 isn't elapsed
                     if Instant::now() > timeout {
@@ -115,7 +116,10 @@ impl ClientConnection {
             }
         }
         self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple).await.expect("");
-        self.server_world_data.disconnect_player(&self.puid);
+        self.event_sx.send(Event {
+            player : self.player.clone(),
+            event_type : EventType::DisconnectPlayer()
+        }).unwrap();
     }
 
     fn generate_chunks(&self) {
@@ -161,11 +165,10 @@ impl ClientConnection {
                 Ok(())
             },
             L5Packet::Block(p) => {
-                let event = Event {
+                self.event_sx.send(Event {
                     player : self.player.clone(),
                     event_type : EventType::BlockInteraction(p.clone())
-                };
-                self.event_sx.send(event);
+                });
                 Ok(())
             },
             _ => Ok(()),

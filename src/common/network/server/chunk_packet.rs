@@ -127,7 +127,7 @@ impl L5PacketTrait for ChunkPacket {
     fn deserialize(cursor: &mut BitCursor) -> Self {
         let raw_bytes = cursor.read_bytes(12).to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        let chunk_pos = ChunkPos::new(glam::IVec3::from_slice(coords));
+        let chunk_pos = ChunkPos::from_vec3(glam::IVec3::from_slice(coords));
         let i = cursor.read_bits::<u8>(8);
         let total = cursor.read_bits::<u8>(8);
         let bits_len = cursor.read_bits::<u16>(12);

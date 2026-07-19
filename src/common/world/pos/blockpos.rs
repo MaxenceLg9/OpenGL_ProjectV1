@@ -26,11 +26,11 @@ impl BlockPos {
     }
 
     pub fn get_relative_block_pos(&self) -> IBlockPos {
-        IBlockPos::new(self.as_ivec3().rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+        IBlockPos::from_vec3(self.as_ivec3().rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
     pub fn get_absolute_iblock_pos(&self) -> IBlockPos {
-        IBlockPos::new(self.as_ivec3())
+        IBlockPos::from_vec3(self.as_ivec3())
     }
 
     pub fn as_ivec3(&self) -> IVec3 {

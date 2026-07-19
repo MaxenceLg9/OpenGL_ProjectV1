@@ -14,11 +14,11 @@ pub struct ChunkPos {
 }
 
 impl ChunkPos {
-    pub fn new(pos : IVec3) -> Self {
+    pub fn from_vec3(pos : IVec3) -> Self {
         Self { pos }
     }
 
-    pub fn from_i32(x : i32, y : i32, z : i32) -> Self {
+    pub fn new(x : i32, y : i32, z : i32) -> Self {
         Self { pos : glam::ivec3(x,y,z) }
     }
 
@@ -37,7 +37,7 @@ impl ChunkPos {
     }
 
     pub fn from_block_pos(block_pos : &BlockPos) -> Self {
-        Self::new(block_pos.as_ivec3().div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+        Self::from_vec3(block_pos.as_ivec3().div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
     pub fn to_block_pos(&self) -> BlockPos {
@@ -51,7 +51,7 @@ impl ChunkPos {
     pub fn deserialize(pos_bits : Vec<u8>) -> ChunkPos {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        ChunkPos::new(glam::IVec3::from_slice(coords))
+        ChunkPos::from_vec3(glam::IVec3::from_slice(coords))
     }
 
     pub fn lesser_then_or_equal(&self, chunk_pos: ChunkPos) -> bool {
@@ -101,7 +101,7 @@ impl Mul<i32> for ChunkPos {
     type Output = ChunkPos;
 
     fn mul(self, other : i32) -> ChunkPos {
-        ChunkPos::new(self.pos * other)
+        ChunkPos::from_vec3(self.pos * other)
     }
 }
 
@@ -110,7 +110,7 @@ impl Mul<usize> for ChunkPos {
     type Output = ChunkPos;
 
     fn mul(self, other : usize) -> ChunkPos {
-        ChunkPos::new(self.pos * other as i32)
+        ChunkPos::from_vec3(self.pos * other as i32)
     }
 }
 
@@ -118,7 +118,7 @@ impl Add<IBlockPos> for ChunkPos {
     type Output = IBlockPos;
 
     fn add(self, rhs: IBlockPos) -> IBlockPos {
-        IBlockPos::new((self * CHUNK_SIZE).pos + rhs.deref())
+        IBlockPos::from_vec3((self * CHUNK_SIZE).pos + rhs.deref())
     }
 }
 
@@ -126,7 +126,7 @@ impl Add<ChunkPos> for ChunkPos {
     type Output = ChunkPos;
 
     fn add(self, rhs: ChunkPos) -> ChunkPos {
-        ChunkPos::new(self.pos + rhs.deref())
+        ChunkPos::from_vec3(self.pos + rhs.deref())
     }
 }
 
@@ -134,6 +134,6 @@ impl Sub<ChunkPos> for ChunkPos {
     type Output = ChunkPos;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        ChunkPos::new(self.pos - rhs.pos)
+        ChunkPos::from_vec3(self.pos - rhs.pos)
     }
 }

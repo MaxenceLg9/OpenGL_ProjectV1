@@ -9,6 +9,8 @@ flat in vec3 normalVector;
 flat in float material_ambient;
 flat in float material_diffuse;
 flat in float material_specular;
+in float shading;
+flat in int ao;
 
 uniform sampler2DArray textures;
 uniform vec3 uniformLightPos;
@@ -18,7 +20,6 @@ uniform vec3 uniformViewPos;
 out vec4 FragColor;
 
 void main() {
-    float ambient = 0.5f;
 
     vec3 lightDir = normalize(uniformLightPos - fragPos);
 
@@ -37,10 +38,5 @@ void main() {
     lightDir = normalize(uniformLightPos + vec3(0.0f,0.0f,1000.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    FragColor = vec4((ambient + diffuse + specular) * uniformLightColor, 1.0) * texture(textures, vec3(TexCoord, voxel_id - 1));
-    if (faceIndex > 0 && faceIndex < 5) {
-        FragColor *= vec4(vec3(0.7f),1.0f);;
-    } else if (faceIndex == 5) {
-        FragColor *= vec4(vec3(0.5f),1.0f);;
-    }
+    FragColor = texture(textures, vec3(TexCoord, voxel_id - 1)) * vec4(vec3(shading),1.0f);
 }

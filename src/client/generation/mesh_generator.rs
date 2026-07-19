@@ -38,23 +38,27 @@ impl MeshGenerator {
                 hash_set.insert(pos);
             }
             // iterating over the positions to build if possible the associated chunk
-            for chunk_pos in hash_set.clone().iter() {
+            for chunk_pos in hash_set.clone() {
                 // add the neighbours in chunks
-                let count = Self::add_neighbours_if_exist(chunk_pos, server_world_data.clone(), &mut chunks);
-                if count == 7 {
-                    if let Some(meshes) = ChunkMesh::build_mesh(&chunks, chunk_pos.clone()) {
-                        hash_set.remove(chunk_pos);
-                        if let Err(e) = mesh_sender.send(meshes) {
-                            print_base!("Error sending mesh: {:?}", e);
-                            return;
+                match Self::add_neighbours_if_exist(chunk_pos, server_world_data.clone(), &mut chunks) {
+                    27 => {
+                        if let Some(meshes) = ChunkMesh::build_mesh(&chunks, chunk_pos.clone()) {
+                            hash_set.remove(&chunk_pos);
+                            if let Err(e) = mesh_sender.send(meshes) {
+                                print_base!("Error sending mesh: {:?}", e);
+                                return;
+                            }
+                            n += 1;
                         }
-                        n += 1;
                     }
-                    // print_base!("Meshed chunk {}, {} chunks sent", chunk_pos.deref(), n);
-                } else if count == 0 {
-                    print_debug!("Deleted pos {}",chunk_pos.deref());
-                    hash_set.remove(chunk_pos);
-                }
+                    0 => {
+                        print_debug!("Deleted pos {}",chunk_pos.deref());
+                        hash_set.remove(&chunk_pos);
+                    },
+                    _ => {
+                        
+                    }
+                };
             }
 
             chunks.clear();
@@ -65,7 +69,7 @@ impl MeshGenerator {
         }
     }
 
-    fn add_neighbours_if_exist(chunk_pos: &ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
+    fn add_neighbours_if_exist(chunk_pos: ChunkPos, arc_chunk_map: Arc<RwLock<ClientChunkMap>>, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
         let mut count = 0;
         let pos_vec = ChunkMap::get_neighbours_chunks_pos(chunk_pos);
 

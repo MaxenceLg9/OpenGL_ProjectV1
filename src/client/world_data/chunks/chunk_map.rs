@@ -59,7 +59,7 @@ impl ClientChunkMap {
         }
     }
 
-    fn add_neighbours_if_exist(&self, chunk_pos: &ChunkPos, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
+    fn add_neighbours_if_exist(&self, chunk_pos: ChunkPos, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
         let mut count = 0;
         let pos_vec = ChunkMap::get_neighbours_chunks_pos(chunk_pos);
 
@@ -106,24 +106,24 @@ impl ClientChunkMap {
         vec.push(self.rebuild_mesh(chunk_pos,&mut chunks_map));
         if relative_block_pos.x == 0 || relative_block_pos.x == 63 {
             let offset_x = relative_block_pos.x / 63 * 2 - 1;
-            let pos = chunk_pos + ChunkPos::from_i32(offset_x, 0, 0);
+            let pos = chunk_pos + ChunkPos::new(offset_x, 0, 0);
             vec.push(self.rebuild_mesh(pos, &mut chunks_map));
         }
         if relative_block_pos.y == 0 || relative_block_pos.y == 63 {
             let offset_y = relative_block_pos.y / 63 * 2 - 1;
-            let pos = chunk_pos + ChunkPos::from_i32(0, offset_y, 0);
+            let pos = chunk_pos + ChunkPos::new(0, offset_y, 0);
             vec.push(self.rebuild_mesh(pos, &mut chunks_map));
         }
         if relative_block_pos.z == 0 || relative_block_pos.z == 63 {
             let offset_z = relative_block_pos.z / 63 * 2 - 1;
-            let pos = chunk_pos + ChunkPos::from_i32(0, 0, offset_z);
+            let pos = chunk_pos + ChunkPos::new(0, 0, offset_z);
             vec.push(self.rebuild_mesh(pos, &mut chunks_map));
         }
         vec
     }
 
     pub fn rebuild_mesh(&self, pos : ChunkPos, chunks_map : &mut HashMap<ChunkPos, Vec<u16>>) -> Option<(ChunkMesh, MeshText)> {
-        if self.add_neighbours_if_exist(&pos, chunks_map) == 7 {
+        if self.add_neighbours_if_exist(pos, chunks_map) == 27 {
             if let Some(meshes) = ChunkMesh::build_mesh(&chunks_map, pos) {
                 return Some(meshes);
             }

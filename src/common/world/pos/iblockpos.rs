@@ -11,16 +11,16 @@ pub struct IBlockPos {
 
 /// BlockPos made of Integer, used to locate block position in the world
 impl IBlockPos {
-    pub fn new(pos : IVec3) -> Self {
+    pub fn from_vec3(pos : IVec3) -> Self {
         Self { pos }
     }
 
-    pub fn from_ints(i1 : i32, i2 : i32, i3 : i32) -> Self {
-        Self::new(IVec3::new(i1, i2, i3))
+    pub fn new(i1 : i32, i2 : i32, i3 : i32) -> Self {
+        Self::from_vec3(IVec3::new(i1, i2, i3))
     }
 
     pub fn from_array(pos : [i32; 3]) -> Self {
-        Self::new(IVec3::from(pos))
+        Self::from_vec3(IVec3::from(pos))
     }
 
     /// Split the IBlockPos into a relative IBlockPos within the chunk boundaries and the ChunkPos
@@ -30,12 +30,12 @@ impl IBlockPos {
 
     /// Returns the ChunkPos where the IBlockPos points to
     pub fn get_chunk_pos(&self) -> ChunkPos {
-        ChunkPos::new(self.pos.div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+        ChunkPos::from_vec3(self.pos.div_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
     /// Returns the relative IBlockPos within the chunk boundaries
     pub fn get_block_pos(&self) -> IBlockPos {
-        IBlockPos::new(self.pos.rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+        IBlockPos::from_vec3(self.pos.rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
     }
 
     /// Returns the index of the IBlockPos coordinates in the block array of a chunk
@@ -47,7 +47,7 @@ impl IBlockPos {
     pub fn deserialize(pos_bits : Vec<u8>) -> Self {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
-        IBlockPos::new(glam::IVec3::from_slice(coords))
+        IBlockPos::from_vec3(glam::IVec3::from_slice(coords))
     }
 }
 impl PosTrait for IBlockPos {
@@ -69,7 +69,7 @@ impl Div<i32> for &IBlockPos {
     type Output = IBlockPos;
 
     fn div(self, rhs: i32) -> IBlockPos {
-        IBlockPos::new(self.pos / rhs)
+        IBlockPos::from_vec3(self.pos / rhs)
     }
 }
 
@@ -84,6 +84,6 @@ impl Add<IVec3> for IBlockPos {
     type Output = IBlockPos;
     
     fn add(self, rhs: IVec3) -> Self::Output {
-        IBlockPos::new(self.pos + rhs)
+        IBlockPos::from_vec3(self.pos + rhs)
     }
 }

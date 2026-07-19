@@ -18,15 +18,12 @@ impl ChunkMap {
         }
     }
     
-    pub fn get_neighbours_chunks_pos(pos: &ChunkPos) -> Vec<ChunkPos> {
+    pub fn get_neighbours_chunks_pos(pos: ChunkPos) -> Vec<ChunkPos> {
         let mut v = Vec::new();
-        v.push(ChunkPos::new(glam::ivec3(pos.x - 1, pos.y, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x + 1, pos.y, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y - 1, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y + 1, pos.z)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z - 1)));
-        v.push(ChunkPos::new(glam::ivec3(pos.x, pos.y, pos.z + 1)));
-        v.push(pos.clone());
+        for i in 0..27 {
+            let relative_pos = ChunkPos::new(i / 9 % 3 - 1, i / 3 % 3 - 1, i % 3 - 1);
+            v.push(pos + relative_pos);
+        }
         v
     }
 

@@ -5,10 +5,14 @@ use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::L5PacketType;
 use shared::common::network::packet_type::UdpPacketType::{Ack, Reliable};
 use shared::common::network::reliable_packets::{AckPacket, ReliablePacket};
+use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::udp_packet::UdpPacket;
-use shared::common::world::pos::chunkpos::ChunkPos;
+use shared::common::world::chunk::chunk::Chunk;
+use shared::common::world::chunk::chunkmap::ChunkMap;
+use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 
 #[path="../client/mod.rs"] pub mod client;
@@ -25,6 +29,7 @@ pub fn main() -> Result<(), String> {
     test_l5_serialization()?;
     test_udp_serialization()?;
     test_chunk_loading()?;
+    test_meshing()?;
     Ok(())
 }
 
@@ -61,9 +66,29 @@ pub fn test_udp_serialization() -> Result<(), String> {
     Ok(())
 }
 
+pub fn test_meshing() -> Result<(), String> {
+    let (sx, c_rx) = crossbeam::channel::bounded(100);
+    let (p_sx, rx) = crossbeam::channel::bounded(100);
+    let mut client_cm = ClientChunkMap::new(sx, rx);
+    for i in 0..27 {
+        let pos = ChunkPos::new(i / 9 % 3, i / 3 % 3, i % 3);
+        let mut vec = Vec::new();
+        vec.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
+        let chunk = Chunk::new(pos, vec);
+        for packet in ChunkPacket::from_chunk_to_packets(&chunk) {
+            p_sx.send(packet);
+        }
+        client_cm.tick();
+        c_rx.try_iter();
+    }
+
+    assert_eq!(ChunkMap::get_neighbours_chunks_pos(ChunkPos::new(1, 1, 1)).len(), 27);
+    Ok(())
+}
+
 pub fn test_chunk_loading() -> Result<(), String> {
     let view_distance : i32 = 10;
-    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::from_i32(0,0,0),ChunkPos::from_i32(0,1,0),0,view_distance);
+    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::new(0, 0, 0), ChunkPos::new(0, 1, 0), 0, view_distance);
     assert_eq!(v1.len(), (view_distance as usize * 2 + 1).pow(2)  * 13);
     v1.retain(|c| {
         view_distance < (*c).x && (*c).x < -view_distance && view_distance < (*c).z && (*c).z < -view_distance && 10 < (*c).y && (*c).x < -2
@@ -72,14 +97,14 @@ pub fn test_chunk_loading() -> Result<(), String> {
     assert_eq!(v2.len(), 0);
 
     let view_distance : i32 = 5;
-    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::from_i32(0,0,0),ChunkPos::from_i32(0,0,0),0,view_distance);
+    let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::new(0, 0, 0), ChunkPos::new(0, 0, 0), 0, view_distance);
     for i in 0..v1.len()-1 {
         // print!("{}",v1[i].get_vec3().abs());
         let x_abs = v1[i].x.abs();
         let x1_abs = v1[i + 1].x.abs();
         let z_abs = v1[i].z.abs();
         let z1_abs = v1[i + 1].z.abs();
-        print_base!("{}<={}&&{}<={}",x_abs,x1_abs,z_abs,z1_abs);
+        // print_base!("{}<={}&&{}<={}",x_abs,x1_abs,z_abs,z1_abs);
 
         assert!((x_abs <= x1_abs || z_abs <= z1_abs));
     }

@@ -59,6 +59,14 @@ impl ServerWorldData {
                     self.get_generator().write().unwrap().schedule_chunks(array);
                 }
                 EventType::EntityInteraction() => {}
+                EventType::ConnectPlayer() => {
+                }
+                EventType::DisconnectPlayer() => {
+                    let puid = event.player.read().unwrap().get_puid();
+                    self.get_chunk_map().write().unwrap().ask_remove_player(&puid);
+                    self.disconnect_player(&puid);
+
+                }
             }
         }
     }

@@ -257,7 +257,7 @@ impl ClientPlayer {
         let mut distance = 0.0;
 
         while distance <= max_distance {
-            let result = client_world_data.get_chunks().read().unwrap().get_block_at(IBlockPos::new(current_block));
+            let result = client_world_data.get_chunks().read().unwrap().get_block_at(IBlockPos::from_vec3(current_block));
             if result != 0 {
                 if step_dir == 0 {
                     voxel_normal.x = -step_x;
@@ -268,7 +268,7 @@ impl ClientPlayer {
                 else {
                     voxel_normal.z = -step_z;
                 }
-                return Some((result, IBlockPos::new(current_block), voxel_normal));
+                return Some((result, IBlockPos::from_vec3(current_block), voxel_normal));
             }
 
             if x_distance < y_distance {

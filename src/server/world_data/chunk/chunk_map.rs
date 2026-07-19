@@ -30,6 +30,10 @@ impl ServerChunkMap {
         }
     }
 
+    pub fn ask_remove_player(&mut self, player : &PUID) {
+        self.asking_for_chunks.remove(player);
+    }
+
     pub fn ask_for_chunks(&mut self, vec_pos: Vec<ChunkPos>, server_player: Arc<RwLock<ServerPlayer>>) {
         let borrow = server_player.read().unwrap();
         match self.asking_for_chunks.entry(borrow.get_puid()) {
@@ -50,13 +54,17 @@ impl ServerChunkMap {
 
     pub fn poll(&mut self) {
         let mut buffer : HashMap<ChunkPos, Vec<ChunkPacket>> = HashMap::new();
-        'players: for (player, (mut vec, sender)) in self.asking_for_chunks.clone() {
+        for (player, (mut vec, sender)) in self.asking_for_chunks.clone() {
             if vec.is_empty() {
                 continue
             }
 
             // iterating over chunk_pos associated to the player
+            let mut flag = false;
             vec.retain(|chunk_pos| {
+                if flag {
+                    return false;
+                }
                 let mut in_buffer = buffer.contains_key(&chunk_pos);
                 // if not in buffer but in the map, adding it
                 if !in_buffer && self.contains_chunk(&chunk_pos) {
@@ -73,8 +81,9 @@ impl ServerChunkMap {
                         match sender.try_send((server_packet.clone(), Reliable)) {
                             Ok(_) => {}
                             Err(e) => {
-                                print_base!("Polling : Channel is full : {}",e.to_string());
+                                print_base!("Polling : {}",e.to_string());
                                 self.asking_for_chunks.remove(&player);
+                                flag = true;
                                 return false;
                             }
                         }
@@ -84,6 +93,9 @@ impl ServerChunkMap {
                 }
                 true
             });
+            if flag {
+                continue;
+            }
             self.asking_for_chunks.get_mut(&player).unwrap().0 = vec;
         }
     }
@@ -111,7 +123,7 @@ impl ServerChunkMap {
         let mut vec : Vec<ChunkPos> = (-vd..=vd).flat_map(move |dx|
             (-2..=10).flat_map(move |dy|
                 (-vd..=vd).map(move |dz|
-                    ChunkPos::from_i32(cx + dx, dy, cz + dz)
+                    ChunkPos::new(cx + dx, dy, cz + dz)
                 )
             )
         ).filter(function).collect();
