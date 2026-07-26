@@ -1,5 +1,8 @@
 use std::io::{Error, ErrorKind};
+use std::ops::Mul;
+use std::sync::Arc;
 use bitvec::macros::internal::funty::Fundamental;
+use noise::{NoiseFn, Perlin};
 use shared::common::network::client::login_packet::LoginPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::L5PacketType;
@@ -8,6 +11,7 @@ use shared::common::network::reliable_packets::{AckPacket, ReliablePacket};
 use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::udp_packet::UdpPacket;
+use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -30,6 +34,7 @@ pub fn main() -> Result<(), String> {
     test_udp_serialization()?;
     test_chunk_loading()?;
     test_meshing()?;
+    test_generation()?;
     Ok(())
 }
 
@@ -43,6 +48,24 @@ pub fn test_l5_serialization() -> Result<(), String> {
         assert_eq!(login.get_password(), "aaaa");
     }
     Ok(())
+}
+
+pub fn test_generation() -> Result<(), String> {
+    let perlin = Perlin::new(1);
+    let frequency = 0.003;
+    for x in 0..1000 {
+        for y in 0..1000 {
+            for z in 0..1000 {
+                let noise = (perlin.get([x as f64 * frequency, y as f64 * frequency, z as f64 * frequency]) + 1.0).mul(10.0).log(20.0);
+                let terrain_noise = noise * y as f64 / 1000.0;
+                if terrain_noise > 0.9 {
+                    print_base!("Value {},{},{}",x, y, z);
+                    return Ok(())
+                }
+            }
+        }
+    }
+    Err(String::from("Value above 0.95 not found"))
 }
 
 pub fn test_udp_serialization() -> Result<(), String> {
@@ -68,17 +91,15 @@ pub fn test_udp_serialization() -> Result<(), String> {
 
 pub fn test_meshing() -> Result<(), String> {
     let (sx, c_rx) = crossbeam::channel::bounded(100);
-    let (p_sx, rx) = crossbeam::channel::bounded(100);
-    let mut client_cm = ClientChunkMap::new(sx, rx);
+    let mut client_cm = ClientChunkMap::new(sx);
     for i in 0..27 {
         let pos = ChunkPos::new(i / 9 % 3, i / 3 % 3, i % 3);
         let mut vec = Vec::new();
         vec.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
-        let chunk = Chunk::new(pos, vec);
+        let chunk = Chunk::new(pos, Arc::new(vec));
         for packet in ChunkPacket::from_chunk_to_packets(&chunk) {
-            p_sx.send(packet);
+            client_cm.add_temp_chunk(packet);
         }
-        client_cm.tick();
         c_rx.try_iter();
     }
 
@@ -91,7 +112,7 @@ pub fn test_chunk_loading() -> Result<(), String> {
     let (mut v1, mut v2) = ServerChunkMap::compute_chunk_diff(ChunkPos::new(0, 0, 0), ChunkPos::new(0, 1, 0), 0, view_distance);
     assert_eq!(v1.len(), (view_distance as usize * 2 + 1).pow(2)  * 13);
     v1.retain(|c| {
-        view_distance < (*c).x && (*c).x < -view_distance && view_distance < (*c).z && (*c).z < -view_distance && 10 < (*c).y && (*c).x < -2
+        view_distance < (*c).x && (*c).x < -view_distance && view_distance < (*c).z && (*c).z < -view_distance && 12 < (*c).y && (*c).x < 0
     });
     assert!(v1.is_empty());
     assert_eq!(v2.len(), 0);
