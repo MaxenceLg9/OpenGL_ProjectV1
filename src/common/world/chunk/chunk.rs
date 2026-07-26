@@ -1,19 +1,20 @@
+use std::sync::Arc;
 use crate::common::world::block::block::BlockType;
 use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use crate::common::world::pos::iblockpos::IBlockPos;
 
 pub struct Chunk {
-    blocks : Vec<u16>,
+    blocks : Arc<Vec<u16>>,
     chunk_pos: ChunkPos
 }
 
 impl Chunk {
 
-    pub fn get_blocks(&self) -> &Vec<u16> {
-        &self.blocks
+    pub fn get_blocks(&self) -> Arc<Vec<u16>> {
+        self.blocks.clone()
     }
 
-    pub fn new(chunk_pos : ChunkPos, blocks : Vec<u16>) -> Chunk {
+    pub fn new(chunk_pos : ChunkPos, blocks : Arc<Vec<u16>>) -> Chunk {
         Self {
             blocks,
             chunk_pos
@@ -24,7 +25,8 @@ impl Chunk {
         if self.blocks[iblock_pos.get_block_pos().get_index()] == block_type.get_value() {
             return false;
         }
-        self.blocks[iblock_pos.get_block_pos().get_index()] = block_type.get_value();
+        let blocks = Arc::make_mut(&mut self.blocks);
+        blocks[iblock_pos.get_block_pos().get_index()] = block_type.get_value();
         true
     }
     pub fn get_chunk_pos(&self) -> ChunkPos {

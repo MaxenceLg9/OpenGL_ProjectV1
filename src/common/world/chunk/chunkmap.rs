@@ -28,7 +28,7 @@ impl ChunkMap {
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) -> bool {
-        if chunk.get_chunk_pos().y < -2 || chunk.get_chunk_pos().y > 9 {
+        if chunk.get_chunk_pos().y < 0 || chunk.get_chunk_pos().y > 11 {
             return false;
         }
         match self.chunks.entry(chunk.get_chunk_pos()) {

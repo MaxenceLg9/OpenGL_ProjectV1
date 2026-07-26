@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FlatMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock};
+use tokio::sync::mpsc::error::TrySendError;
 use shared::common::account::puid::PUID;
 use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::server::chunk_packet::ChunkPacket;
@@ -81,9 +82,16 @@ impl ServerChunkMap {
                         match sender.try_send((server_packet.clone(), Reliable)) {
                             Ok(_) => {}
                             Err(e) => {
-                                print_base!("Polling : {}",e.to_string());
-                                self.asking_for_chunks.remove(&player);
                                 flag = true;
+                                match e {
+                                    TrySendError::Full(_) => {
+                                        print_base!("Channel is full, skipping...")
+                                    }
+                                    TrySendError::Closed(_) => {
+                                        print_base!("Channel is closed, removing the player : {}",e.to_string());
+                                        self.asking_for_chunks.remove(&player);
+                                    }
+                                }
                                 return false;
                             }
                         }
@@ -121,7 +129,7 @@ impl ServerChunkMap {
     where F: Fn(&ChunkPos) -> bool,{
         let (cx, cz) = (center.x, center.z);
         let mut vec : Vec<ChunkPos> = (-vd..=vd).flat_map(move |dx|
-            (-2..=10).flat_map(move |dy|
+            (0..=12).flat_map(move |dy|
                 (-vd..=vd).map(move |dz|
                     ChunkPos::new(cx + dx, dy, cz + dz)
                 )
