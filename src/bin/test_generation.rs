@@ -4,7 +4,7 @@ use std::ops::{Add, Deref, Div, Mul};
 use bitvec::macros::internal::funty::Fundamental;
 use image::{DynamicImage, GenericImage, ImageFormat, ImageReader, Rgba, RgbaImage};
 use noise::{NoiseFn, Perlin};
-use shared::math::Generator;
+use shared::worldgen::Generator;
 use shared::print_base;
 
 #[path="../client/mod.rs"] pub mod client;

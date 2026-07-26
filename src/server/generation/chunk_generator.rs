@@ -5,7 +5,7 @@ use crossbeam::channel as channel;
 use noise::Perlin;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::math::{Generator, SpinePoint};
+use shared::worldgen::{Generator, SpinePoint};
 use shared::print_base;
 use crate::server::world_data::chunk::chunk::ServerChunk;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
@@ -96,7 +96,7 @@ impl ChunkGenerator {
     /// Method call to push the ChunkPos into the channel to generates the associated chunk
     pub fn schedule_chunks(&mut self, chunks_pos : Vec<ChunkPos>) {
         for chunk_pos in chunks_pos {
-            if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= -2 && chunk_pos.y <= 9 {
+            if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= 0 && chunk_pos.y <= 11 {
                 if self.chunks_generated.insert(chunk_pos) {
                     self.gen_crossbeam_sx.send(chunk_pos).expect("Error when sending chunk");
                 }

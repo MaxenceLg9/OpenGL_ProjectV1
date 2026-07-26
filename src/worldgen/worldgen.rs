@@ -1,5 +1,6 @@
 use std::ops::{Mul};
 use noise::{NoiseFn, Perlin};
+use crate::common::world::block::block::BlockType;
 
 pub struct SpinePoint {
     x : f64,
@@ -81,7 +82,29 @@ impl Generator {
                 y : 300.0
             }
         ];
-        let peaks_and_valleys_points : Vec<SpinePoint> = vec! [];
+
+        let peaks_and_valleys_points = vec![
+            SpinePoint {
+                x : 0.0,
+                y : 0.8,
+            },
+            SpinePoint {
+                x : 0.25,
+                y : 0.95
+            },
+            SpinePoint {
+                x : 0.5,
+                y : 1.0
+            },
+            SpinePoint {
+                x : 0.8,
+                y : 1.1
+            },
+            SpinePoint {
+                x : 1.0,
+                y : 1.3
+            }
+        ];
         Self {
             erosion_points,
             continentalness_points,
@@ -93,8 +116,17 @@ impl Generator {
     pub fn get_terrain_height(&self, x: i32, y: i32) -> i32 {
         let xf = x as f64;
         let yf = y as f64;
-        let continentalness = self.get_continentalness(xf,yf);
-        let base_height = continentalness * self.get_erosion(xf,yf).powf((continentalness / 100.0).max(0.0).sqrt());
+
+        let c_noise = self.get_noise(xf,yf,0.001);
+        let continentalness = self.get_continentalness(c_noise);
+
+        let e_noise = self.get_noise(xf,yf,0.005);
+        let erosion = self.get_erosion(e_noise, c_noise);
+
+        let pv_noise = self.get_noise(xf,yf,0.01);
+        let peaks_and_valleys = self.get_peaks_and_valleys(pv_noise, c_noise);
+
+        let base_height = continentalness * erosion * peaks_and_valleys;
         base_height as i32
     }
 
@@ -108,21 +140,32 @@ impl Generator {
         ret
     }
 
-    pub fn get_continentalness(&self, x : f64, y : f64) -> f64 {
-        let f = 0.001;
-        let e_noise = self.perlin.get([x * f, y * f]) * 0.5 + 0.5;
-        // return compute_erosion(e_noise);
+    pub fn get_block(&self, x : f64, y : f64, z : f64, max_h : f64) -> BlockType {
+        let frequency = 0.001;
+        let noise = (self.perlin.get([x * frequency, y * frequency, z * frequency]) + 1.0).mul(10.0).log(20.0);
+        let terrain_noise = noise * y / 600.0;
+        if terrain_noise > 1.0 {
+            return BlockType::AIR;
+        }
+        BlockType::GRASS
 
-        spine_noise_into_points(e_noise, &self.continentalness_points)
     }
 
 
-    pub fn get_erosion(&self, x : f64, y : f64) -> f64 {
-        let f = 0.005;
-        let e_noise = self.perlin.get([x * f, y * f]) * 0.5 + 0.5;
-        // return compute_erosion(e_noise);
 
-        spine_noise_into_points(e_noise, &self.erosion_points)
+    pub fn get_continentalness(&self, e_noise : f64) -> f64 {
+        spine_noise_into_points(e_noise, &self.continentalness_points) + 128.0
+    }
+
+    pub fn get_peaks_and_valleys(&self, pv_noise : f64, c_noise : f64) -> f64 {
+        spine_noise_into_points((pv_noise  * c_noise) + 0.5 * (1.0 - c_noise), &self.peaks_and_valleys_points)
+    }
+    pub fn get_erosion(&self, e_noise : f64, c_noise : f64) -> f64 {
+        spine_noise_into_points((e_noise * c_noise) + 0.5 * (1.0 - c_noise), &self.erosion_points)
+    }
+
+    pub fn get_noise(&self, x : f64, y : f64, f : f64) -> f64 {
+        self.perlin.get([x * f, y * f]) * 0.5 + 0.5
     }
 }
 
