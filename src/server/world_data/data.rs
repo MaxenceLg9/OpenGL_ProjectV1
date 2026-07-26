@@ -14,18 +14,18 @@ use crate::server::world_data::properties::{Difficulty, ServerWorldProperties};
 use crossbeam::channel as cb;
 use shared::common::network::client::block_packet::BlockPacket;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use crate::server::world_data::event::events::{Event, EventType};
+use crate::server::world_data::event::events::{ServerEvent, ServerEventType};
 
 pub struct ServerWorldData {
     properties : ServerWorldProperties,
-    event_rx: cb::Receiver<Event>,
+    event_rx: cb::Receiver<ServerEvent>,
     generator : Arc<RwLock<ChunkGenerator>>,
     chunks : Arc<RwLock<ServerChunkMap>>,
     players : Arc<RwLock<HashMap<PUID, Arc<RwLock<ServerPlayer>>>>>,
 }
 
 impl ServerWorldData {
-    pub fn new(event_rx: cb::Receiver<Event>) -> Self {
+    pub fn new(event_rx: cb::Receiver<ServerEvent>) -> Self {
         let chunk_map = Arc::new(RwLock::new(ServerChunkMap::new()));
         Self {
             properties : ServerWorldProperties::new("debug".to_string(),Difficulty::Easy),
@@ -47,21 +47,21 @@ impl ServerWorldData {
     fn handle_events(&self) {
         while let Ok(event) = self.event_rx.try_recv() {
             match event.event_type {
-                EventType::BlockInteraction(p) => {
+                ServerEventType::BlockInteraction(p) => {
                     self.get_chunk_map().write().unwrap().interact_block(p.get_pos(), p.get_interaction_type());
-                    event.player.write().unwrap().send_packet(L5Packet::Block(BlockPacket::new(p.get_interaction_type(), p.get_pos())), UdpPacketType::Reliable);
+                    event.player.write().unwrap().send_packet(L5Packet::Block(BlockPacket::new(p.get_interaction_type(), p.get_pos(), p.get_block_type())), UdpPacketType::Reliable);
                 }
-                EventType::AskChunk(vec_pos) => {
+                ServerEventType::AskChunk(vec_pos) => {
                     self.get_chunk_map().write().unwrap().ask_for_chunks(vec_pos,event.player.clone());
                 }
-                EventType::GenerateChunk(chunk_pos) => {
+                ServerEventType::GenerateChunk(chunk_pos) => {
                     let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(chunk_pos, 8, self.get_generator().read().unwrap().get_chunks_generated());
                     self.get_generator().write().unwrap().schedule_chunks(array);
                 }
-                EventType::EntityInteraction() => {}
-                EventType::ConnectPlayer() => {
+                ServerEventType::EntityInteraction() => {}
+                ServerEventType::ConnectPlayer() => {
                 }
-                EventType::DisconnectPlayer() => {
+                ServerEventType::DisconnectPlayer() => {
                     let puid = event.player.read().unwrap().get_puid();
                     self.get_chunk_map().write().unwrap().ask_remove_player(&puid);
                     self.disconnect_player(&puid);

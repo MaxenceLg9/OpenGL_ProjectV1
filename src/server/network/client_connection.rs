@@ -15,7 +15,7 @@ use shared::common::network::server::quit_packet::QuitPacket;
 use crate::server::network::server_socket::ServerConnection;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
-use crate::server::world_data::event::events::{Event, EventType};
+use crate::server::world_data::event::events::{ServerEvent, ServerEventType};
 use crate::server::world_data::player::player::ServerPlayer;
 use crossbeam::channel as cb;
 
@@ -30,14 +30,14 @@ pub struct ClientConnection {
     socket_receiver: ServerConnection,
     player_rx: tchannel::Receiver<(L5Packet, UdpPacketType)>,
     view_distance : u8,
-    event_sx : cb::Sender<Event>,
+    event_sx : cb::Sender<ServerEvent>,
     puid : PUID,
     ping : Instant,
     ping_id : Option<u16>
 }
 
 impl ClientConnection {
-    pub async fn start(packet : L5Packet, socket : ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx : cb::Sender<Event>) {
+    pub async fn start(packet : L5Packet, socket : ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx : cb::Sender<ServerEvent>) {
         let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(1000);
         let L5Packet::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", socket.get_addr());
@@ -116,16 +116,16 @@ impl ClientConnection {
             }
         }
         self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple).await.expect("");
-        self.event_sx.send(Event {
+        self.event_sx.send(ServerEvent {
             player : self.player.clone(),
-            event_type : EventType::DisconnectPlayer()
+            event_type : ServerEventType::DisconnectPlayer()
         }).unwrap();
     }
 
     fn generate_chunks(&self) {
-        self.event_sx.send(Event {
+        self.event_sx.send(ServerEvent {
             player : self.player.clone(),
-            event_type : EventType::GenerateChunk(self.player_position)
+            event_type : ServerEventType::GenerateChunk(self.player_position)
         });
     }
 
@@ -143,9 +143,9 @@ impl ClientConnection {
     /// Asks the main thread to send missing chunks to the player
     fn load_chunks(&self, server_player: Arc<RwLock<ServerPlayer>>, last_pos : ChunkPos, new_pos : ChunkPos, old_view_distance : i32, new_view_distance : i32) {
         let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(last_pos, new_pos, old_view_distance, new_view_distance);
-        self.event_sx.send(Event {
+        self.event_sx.send(ServerEvent {
            player : server_player.clone(),
-            event_type : EventType::AskChunk(to_load)
+            event_type : ServerEventType::AskChunk(to_load)
         });
         
         for pos in to_unload {
@@ -165,9 +165,9 @@ impl ClientConnection {
                 Ok(())
             },
             L5Packet::Block(p) => {
-                self.event_sx.send(Event {
+                self.event_sx.send(ServerEvent {
                     player : self.player.clone(),
-                    event_type : EventType::BlockInteraction(p.clone())
+                    event_type : ServerEventType::BlockInteraction(p.clone())
                 });
                 Ok(())
             },

@@ -10,14 +10,14 @@ use crate::server::network::client_connection::ClientConnection;
 use crate::server::world_data::data::ServerWorldData;
 use tokio::sync::mpsc as tchannel;
 use shared::common::network::socket::common_socket::CommonSocket;
-use crate::server::world_data::event::events::{Event};
+use crate::server::world_data::event::events::{ServerEvent};
 use crossbeam::channel as cb;
 
 pub struct Socket {
     receiver: Receiver<(L5Packet, SocketAddr, UdpPacketType)>,
     sender: Sender<(L5Packet, SocketAddr, UdpPacketType)>,
     socket: CommonSocket,
-    event_sx : cb::Sender<Event>,
+    event_sx : cb::Sender<ServerEvent>,
     map: HashMap<SocketAddr, Sender<L5Packet>>,
     server_world_data: Arc<ServerWorldData>
 }
@@ -25,7 +25,7 @@ pub struct Socket {
 impl Socket {
 
     /// Creates a socket that listens on the IPv6 address
-    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx : cb::Sender<Event>) {
+    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx : cb::Sender<ServerEvent>) {
         // creating a thread that will host a tokio task
         std::thread::Builder::new()
             .name("network_thread".to_string())
@@ -48,7 +48,7 @@ impl Socket {
             .unwrap();
     }
 
-    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx : cb::Sender<Event>) -> Result<Socket, Error> {
+    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx : cb::Sender<ServerEvent>) -> Result<Socket, Error> {
         let (sender, receiver) = channel(1000);
         let udp_socket = CommonSocket::new(socket_addr_v6).await?;
         Ok(Self {
