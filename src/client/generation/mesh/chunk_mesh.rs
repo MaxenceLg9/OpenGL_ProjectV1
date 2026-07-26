@@ -1,8 +1,8 @@
 use shared::print_base;
 use std::collections::HashMap;
 use std::io;
-use std::ops::Deref;
-use gl::types::{GLint, GLuint};
+use std::sync::Arc;
+use gl::types::{GLuint};
 use gl::UNSIGNED_INT;
 use strum::{Display, FromRepr};
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -71,7 +71,7 @@ impl ChunkMesh {
     }
 
     /// Construct the chunk mesh and text meshes from chunks
-    pub fn build_mesh(chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> Option<(ChunkMesh, MeshText)> {
+    pub fn build_mesh(chunks_map : &HashMap<ChunkPos,Arc<Vec<u16>>>, chunk_pos: ChunkPos) -> Option<(ChunkMesh, MeshText)> {
         let mut chunk_mesh = Self {
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -94,8 +94,8 @@ impl ChunkMesh {
                     let (mut ao, mut flip_id);
                     let (ux, uy, uz) = (x as i32, y as i32, z as i32);
                     //front face
-                    if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz + 1), blocks, chunks_map, chunk_pos) {
-                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz + 1),  Plane::Z, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz + 1), blocks, chunks_map, chunk_pos)? {
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz + 1),  Plane::Z, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -107,8 +107,8 @@ impl ChunkMesh {
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     // back face
-                    if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz - 1), blocks, chunks_map, chunk_pos) {
-                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz - 1),  Plane::Z, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz - 1), blocks, chunks_map, chunk_pos)? {
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz - 1),  Plane::Z, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -120,8 +120,8 @@ impl ChunkMesh {
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     //top face
-                    if chunk_mesh.is_void(IBlockPos::new(ux, uy + 1, uz), blocks, chunks_map, chunk_pos) {
-                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy + 1, uz),  Plane::Y, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux, uy + 1, uz), blocks, chunks_map, chunk_pos)? {
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy + 1, uz),  Plane::Y, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -133,8 +133,8 @@ impl ChunkMesh {
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     // bottom face
-                    if chunk_mesh.is_void(IBlockPos::new(ux, uy - 1, uz), blocks, chunks_map, chunk_pos) {
-                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy - 1, uz),  Plane::Y, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux, uy - 1, uz), blocks, chunks_map, chunk_pos)? {
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy - 1, uz),  Plane::Y, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -147,8 +147,8 @@ impl ChunkMesh {
                     }
 
                     // right face
-                    if chunk_mesh.is_void(IBlockPos::new(ux + 1, uy, uz), blocks, chunks_map, chunk_pos) {
-                    ao = chunk_mesh.get_ao(IBlockPos::new(ux + 1, uy, uz),  Plane::X, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux + 1, uy, uz), blocks, chunks_map, chunk_pos)? {
+                    ao = chunk_mesh.get_ao(IBlockPos::new(ux + 1, uy, uz),  Plane::X, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -161,8 +161,8 @@ impl ChunkMesh {
                     }
 
                     // left face
-                    if chunk_mesh.is_void(IBlockPos::new(ux - 1, uy, uz), blocks, chunks_map, chunk_pos) {
-                        ao = chunk_mesh.get_ao(IBlockPos::new(ux - 1, uy, uz),  Plane::X, &blocks, chunks_map, chunk_pos);
+                    if chunk_mesh.is_void(IBlockPos::new(ux - 1, uy, uz), blocks, chunks_map, chunk_pos)? {
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux - 1, uy, uz),  Plane::X, &blocks, chunks_map, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
@@ -184,22 +184,22 @@ impl ChunkMesh {
         Some((chunk_mesh, mesh_text))
     }
 
-    fn is_void(&self, block_pos: IBlockPos, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> bool {
+    fn is_void(&self, block_pos: IBlockPos, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Arc<Vec<u16>>>, chunk_pos: ChunkPos) -> Option<bool> {
         if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 ||
             block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 ||
             block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
 
-            return self.get_block_at(chunk_pos + block_pos, chunks_map) == 0;
+            return Some(self.get_block_at(chunk_pos + block_pos, chunks_map)? == 0);
         }
-        blocks[block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize] == 0
+        Some(blocks[block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize] == 0)
     }
 
-    pub fn get_block_at(&self, ipos : IBlockPos, chunks_map : &HashMap<ChunkPos,Vec<u16>>,) -> u16 {
+    pub fn get_block_at(&self, ipos : IBlockPos, chunks_map : &HashMap<ChunkPos,Arc<Vec<u16>>>,) -> Option<u16> {
         let (block_pos, chunk_pos) = ipos.as_split_pos();
-        if chunk_pos.y < -2 || chunk_pos.y > 9 {
-            return 0
+        if chunk_pos.y < 0 || chunk_pos.y > 11 {
+            return Some(0)
         }
-        chunks_map.get(&chunk_pos).unwrap()[block_pos.get_index()]
+        Some(chunks_map.get(&chunk_pos)?[block_pos.get_index()])
     }
 
     /// Push the packed and serialized data into the buffers and update the indices
@@ -229,42 +229,42 @@ impl ChunkMesh {
         index + 4
     }
 
-    fn get_ao(&self, pos : IBlockPos, plane : Plane, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Vec<u16>>, chunk_pos: ChunkPos) -> [u8; 4] {
+    fn get_ao(&self, pos : IBlockPos, plane : Plane, blocks : &Vec<u16>, chunks_map : &HashMap<ChunkPos,Arc<Vec<u16>>>, chunk_pos: ChunkPos) -> Option<[u8; 4]> {
         let (a,b,c,d,e,f,g,h);
         if plane == Plane::Y {
-            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos);
-            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z- 1), blocks, chunks_map, chunk_pos);
-            c = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunks_map, chunk_pos);
-            d = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos);
-            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos);
-            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos);
-            g = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunks_map, chunk_pos);
-            h = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos);
+            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos)?;
+            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z- 1), blocks, chunks_map, chunk_pos)?;
+            c = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunks_map, chunk_pos)?;
+            d = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            g = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunks_map, chunk_pos)?;
+            h = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos)?;
         }
         else if plane == Plane::X {
-            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos);
-            b = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z - 1), blocks, chunks_map, chunk_pos);
-            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos);
-            d = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z + 1), blocks, chunks_map, chunk_pos);
-            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos);
-            f = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks, chunks_map, chunk_pos);
-            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos);
-            h = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks, chunks_map, chunk_pos);
+            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunks_map, chunk_pos)?;
+            b = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z - 1), blocks, chunks_map, chunk_pos)?;
+            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            d = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            f = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks, chunks_map, chunk_pos)?;
+            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            h = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks, chunks_map, chunk_pos)?;
         }
         else  {// Z plane
 
-            a = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunks_map, chunk_pos);
-            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos);
-            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos);
-            d = self.is_void(IBlockPos::new(pos.x + 1, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos);
-            e = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunks_map, chunk_pos);
-            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos);
-            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos);
-            h = self.is_void(IBlockPos::new(pos.x - 1, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos);
+            a = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunks_map, chunk_pos)?;
+            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            d = self.is_void(IBlockPos::new(pos.x + 1, pos.y - 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            e = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunks_map, chunk_pos)?;
+            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos)?;
+            h = self.is_void(IBlockPos::new(pos.x - 1, pos.y + 1, pos.z), blocks, chunks_map, chunk_pos)?;
         }
 
 
-        [a as u8 + b as u8 + c as u8, g as u8 + h as u8 + a as u8, e as u8 + f as u8 + g as u8, c as u8 + d as u8 + e as u8]
+        Some([a as u8 + b as u8 + c as u8, g as u8 + h as u8 + a as u8, e as u8 + f as u8 + g as u8, c as u8 + d as u8 + e as u8])
     }
 
     fn pack_data(id : u16, pos: glam::IVec3, face_id : u32, tex_coords : u8, material : [f32; 3], ao : u8) -> io::Result<u64> {

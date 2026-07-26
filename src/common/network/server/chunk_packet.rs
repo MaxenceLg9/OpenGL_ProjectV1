@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
+use std::sync::Arc;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::{AsBits, BitView};
@@ -104,7 +105,7 @@ impl ChunkPacket {
             len = packet.get_len();
         }
         let indices = Self::decompress(v, len);
-        Chunk::new(chunk_pos,indices)
+        Chunk::new(chunk_pos,Arc::new(indices))
     }
 }
 

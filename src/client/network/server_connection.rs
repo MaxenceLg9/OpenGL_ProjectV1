@@ -20,18 +20,19 @@ use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
+use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
 
 pub struct ServerConnection {
     socket: CommonSocket,
     client_world_data: Arc<ClientWorldData>,
     rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>,
     start_time : Instant,
-    chunk_sender : cb::Sender<ChunkPacket>,
-    addr : SocketAddr
+    addr : SocketAddr,
+    event_sx : crossbeam::channel::Sender<ClientEvent>
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<ChunkPacket>) {
+    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx : crossbeam::channel::Sender<ClientEvent>) {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
@@ -41,12 +42,12 @@ impl ServerConnection {
                     .unwrap();
 
                 rt.block_on(async {
-                    ServerConnection::new(ipv6addr, rx, client_world_data, chunk_sender).await.unwrap();
+                    ServerConnection::new(ipv6addr, rx, client_world_data, event_sx).await.unwrap();
                 });
             })
             .unwrap();
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, chunk_sender : cb::Sender<ChunkPacket>) -> Result<(),Error> {
+    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx : crossbeam::channel::Sender<ClientEvent>) -> Result<(),Error> {
         let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
@@ -59,7 +60,7 @@ impl ServerConnection {
             rx,
             start_time : Instant::now(),
             client_world_data,
-            chunk_sender,
+            event_sx,
             addr,
         };
         con.connect().await?;
@@ -120,7 +121,10 @@ impl ServerConnection {
         match p {
             L5Packet::Chunk(chunk_packet) => {
                 // print_base!("Receiving packets {}",p.get_packet_type());
-                self.chunk_sender.send(chunk_packet).expect("Cannot send the chunk to the map");
+                self.event_sx.send(ClientEvent {
+                    client_event_type : ClientEventType::ChunkPacketReceived(chunk_packet)
+                }).expect("Cannot send event");
+                // self.chunk_sender.send(chunk_packet).expect("Cannot send the chunk to the map");
                 Ok(())
             },
             L5Packet::GetPlayer(player_packet) => {
@@ -133,20 +137,9 @@ impl ServerConnection {
                 Ok(())
             },
             L5Packet::Block(packet) => {
-                let meshes = match packet.get_interaction_type() {
-                    BlockInteraction::RIGHT => {
-                        self.client_world_data.get_chunks().write().unwrap().set_block(packet.get_pos(), BlockType::DEEPSLATE)
-                    }
-                    BlockInteraction::LEFT => {
-                        self.client_world_data.get_chunks().write().unwrap().set_block(packet.get_pos(), BlockType::AIR)
-                    }
-                };
-                for mesh in meshes {
-                    print_base!("Receiving packet");
-                    if let Some(content) = mesh {
-                        self.client_world_data.mesh_sender.send(content);
-                    }
-                };
+                self.event_sx.send(ClientEvent {
+                    client_event_type : ClientEventType::BlockInteraction(packet)
+                }).expect("Cannot send event");
                 Ok(())
             }
             _ => Ok(()),

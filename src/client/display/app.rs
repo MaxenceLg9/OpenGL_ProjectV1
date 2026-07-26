@@ -157,6 +157,7 @@ impl ApplicationHandler for App {
                 window.request_redraw();
             }
         }
+        self.renderer.as_mut().unwrap().get_world().tick();
         _event_loop.set_control_flow(ControlFlow::Poll);
     }
 

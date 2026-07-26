@@ -66,7 +66,6 @@ impl Renderer {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
             self.world.render(window, redraw_time);
-            self.world.tick();
             print_debug!("Collecting meshes");
             self.cursor.draw_cursor(window);
         }

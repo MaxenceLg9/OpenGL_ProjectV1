@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::collections::{HashMap, HashSet};
+use std::ops::{Deref, DerefMut, Sub};
 use std::sync::{Arc, RwLock};
 use crossbeam::channel;
 use shared::common::network::server::chunk_packet::ChunkPacket;
@@ -9,34 +9,36 @@ use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
+use shared::{print_base, print_debug};
 use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::world_data::mesh_map::MeshMap;
 
 pub struct ClientChunkMap {
     chunk_map: ChunkMap,
-    to_mesh : channel::Sender<ChunkPos>,
-    chunk_packet_receiver: channel::Receiver<ChunkPacket>,
+    to_mesh : HashSet<ChunkPos>,
     temp_chunks : HashMap<ChunkPos,HashMap<u8, ChunkPacket>>,
+    sender : crossbeam::channel::Sender<(ChunkPos, HashMap<ChunkPos, Arc<Vec<u16>>>)>
 }
 
 impl ClientChunkMap {
-    pub fn new(to_mesh: channel::Sender<ChunkPos>, chunk_receiver : channel::Receiver<ChunkPacket>) -> ClientChunkMap {
+    pub fn new(sender : crossbeam::channel::Sender<(ChunkPos, HashMap<ChunkPos, Arc<Vec<u16>>>)>) -> ClientChunkMap {
         Self {
-            to_mesh,
+            to_mesh: HashSet::new(),
             chunk_map : ChunkMap::new(),
             temp_chunks: HashMap::new(),
+            sender
             // temp_chunks: HashMap::new(),
-            chunk_packet_receiver: chunk_receiver
         }
     }
 
-    pub fn tick(&mut self) {
-        while let Ok(chunk) = self.chunk_packet_receiver.try_recv() {
-            self.add_temp_chunk(chunk)
-        }
+    pub fn remove_chunk(&mut self, chunk_pos: &ChunkPos) {
+        self.chunk_map.remove_chunk(chunk_pos);
     }
-    fn add_temp_chunk(&mut self, chunk_packet: ChunkPacket) {
+
+    /// Add the slice of the Chunk contained in the packet to a temporary map
+    /// If enough temporary chunks, instead instantiate the chunk and add it to the map
+    pub fn add_temp_chunk(&mut self, chunk_packet: ChunkPacket) {
         let total = chunk_packet.get_total();
         let chunk_pos = chunk_packet.get_chunk_pos();
         if self.chunk_map.contains_chunk(&chunk_pos) {
@@ -59,14 +61,31 @@ impl ClientChunkMap {
         }
     }
 
-    fn add_neighbours_if_exist(&self, chunk_pos: ChunkPos, chunks : &mut HashMap<ChunkPos,Vec<u16>>) -> u8 {
+    pub fn tick(&mut self, player_pos : ChunkPos) {
+        for chunk_pos in self.to_mesh.clone() {
+            let mut chunks = HashMap::new();
+            if (chunk_pos.x.sub(player_pos.x).pow(2) + chunk_pos.z.sub(player_pos.z).pow(2)).isqrt() > 10 {
+                self.to_mesh.remove(&chunk_pos);
+                continue;
+            }
+
+            // add the neighbours in chunks
+            if self.add_neighbours_if_exist(chunk_pos, &mut chunks) == 27 {
+
+                self.sender.try_send((chunk_pos,chunks)).expect("Cannot send the data to mesh");
+                self.to_mesh.remove(&chunk_pos);
+            };
+        }
+    }
+
+    fn add_neighbours_if_exist(&self, chunk_pos: ChunkPos, chunks : &mut HashMap<ChunkPos,Arc<Vec<u16>>>) -> u8 {
         let mut count = 0;
         let pos_vec = ChunkMap::get_neighbours_chunks_pos(chunk_pos);
 
         // checking every side of the chunk
         for p in pos_vec.iter() {
             // the position is already in the map, no need to check if it exists
-            if !chunks.contains_key(p) && p.y >= -2 && p.y <= 9 {
+            if !chunks.contains_key(p) && p.y >= 0 && p.y <= 11 {
                 // checking if the chunk exists in the world_data data as it doesn't exist in the map
                 let result = self.chunk_map.get_chunk(p);
                 // getting the object associated with the pos, checking that the chunk exists and adding it into the map
@@ -87,7 +106,7 @@ impl ClientChunkMap {
             return;
         }
         // print_base!("Sent chunk {}", c.get_chunk_pos().get_vec3());
-        self.to_mesh.send(pos).expect("Cannot send pos to mesh the chunk");
+        self.to_mesh.insert(pos);
         // print_base!("Len of chunk_map is {}",self.chunk_map.len());
     }
 
@@ -122,7 +141,7 @@ impl ClientChunkMap {
         vec
     }
 
-    pub fn rebuild_mesh(&self, pos : ChunkPos, chunks_map : &mut HashMap<ChunkPos, Vec<u16>>) -> Option<(ChunkMesh, MeshText)> {
+    pub fn rebuild_mesh(&self, pos : ChunkPos, chunks_map : &mut HashMap<ChunkPos, Arc<Vec<u16>>>) -> Option<(ChunkMesh, MeshText)> {
         if self.add_neighbours_if_exist(pos, chunks_map) == 27 {
             if let Some(meshes) = ChunkMesh::build_mesh(&chunks_map, pos) {
                 return Some(meshes);
