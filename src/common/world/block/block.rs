@@ -1,4 +1,6 @@
-#[derive(Clone,Copy,Eq, PartialEq)]
+use strum::FromRepr;
+
+#[derive(Clone,Copy,Eq, PartialEq, FromRepr)]
 #[repr(u16)]
 pub enum BlockType {
     AIR = 0,
