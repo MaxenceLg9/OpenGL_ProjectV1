@@ -3,3 +3,4 @@ pub mod player;
 pub mod world;
 pub mod client_data;
 pub mod chunks;
+pub mod event;

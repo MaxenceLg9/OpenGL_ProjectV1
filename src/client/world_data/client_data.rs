@@ -11,20 +11,18 @@ use crate::client::world_data::player::player::ClientPlayer;
 pub struct ClientWorldData {
     pub player: Arc<RwLock<ClientPlayer>>,
     // meshes : Arc<RwLock<MeshMap>>,
-    pub chunks : Arc<RwLock<ClientChunkMap>>,
     pub sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
     pub mesh_sender : crossbeam::channel::Sender<(ChunkMesh, MeshText)>,
     pub debug : AtomicBool
 }
 
 impl ClientWorldData {
-    pub unsafe fn new(cm: Arc<RwLock<ClientChunkMap>>, sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, mesh_sender : crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
+    pub fn new(sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, mesh_sender : crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
         let bool = AtomicBool::new(false);
         bool.store(false,Ordering::Relaxed);
         Self {
             player: Arc::new(RwLock::new(ClientPlayer::new(1.0,1.0,1.0))),
             // meshes: Arc::new(RwLock::new(MeshMap::new())),
-            chunks: cm.clone(),
             sender,
             mesh_sender,
             debug: bool
@@ -46,8 +44,4 @@ impl ClientWorldData {
     // pub fn get_meshes(&self) -> Arc<RwLock<MeshMap>> {
     //     self.meshes.clone()
     // }
-
-    pub fn get_chunks(&self) -> Arc<RwLock<ClientChunkMap>> {
-        self.chunks.clone()
-    }
 }

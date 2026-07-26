@@ -15,6 +15,7 @@ use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos};
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::keyboard::Inputs;
@@ -147,7 +148,7 @@ impl ClientPlayer {
         self.move_camera(xoffset * sensitivity, yoffset * sensitivity);
     }
 
-    pub fn poll_keys(&mut self, buttons: &mut Inputs, time : f32, client_world_data: Arc<ClientWorldData>, meshes : &mut MeshMap) {
+    pub fn poll_keys(&mut self, buttons: &mut Inputs, time : f32, client_world_data: Arc<ClientWorldData>, meshes : &mut MeshMap, client_chunk_map: &ClientChunkMap) {
         for elt in buttons.get_keyboard().iter_mut() {
             match elt.1.current_state {
                 ElementState::Pressed => {
@@ -198,20 +199,18 @@ impl ClientPlayer {
                     match button {
                         MouseButton::Left => {
                             keystate.last_state = ElementState::Pressed;
-                            if let Some((blocktype, iblock_pos, _)) = Self::ray_cast(self.direction, self.pos, client_world_data.clone()) {
+                            if let Some((blocktype, iblock_pos, _)) = Self::ray_cast(self.direction, self.pos, client_chunk_map) {
                                 print_base!("Trying to destroy block at {}",iblock_pos.deref());
-                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::LEFT, iblock_pos));
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::LEFT, iblock_pos, BlockType::from_repr(blocktype).unwrap()));
                                 client_world_data.send(packet, UdpPacketType::Simple);
-                                print_base!("Sending packet");
                             }
                         },
                         MouseButton::Right => {
                             keystate.last_state = ElementState::Pressed;
-                            if let Some((blocktype, iblock_pos, normal)) = Self::ray_cast(self.direction, self.pos, client_world_data.clone()) {
-                                print_base!("Trying to destroy block at {}",iblock_pos.deref());
-                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::RIGHT, iblock_pos + normal));
+                            if let Some((blocktype, iblock_pos, normal)) = Self::ray_cast(self.direction, self.pos, client_chunk_map) {
+                                print_base!("Trying to place block at {}",iblock_pos.deref());
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::RIGHT, iblock_pos + normal, BlockType::GRASS));
                                 client_world_data.send(packet, UdpPacketType::Simple);
-                                print_base!("Sending packet");
                             }
                         },
                         _ => {}
@@ -226,7 +225,7 @@ impl ClientPlayer {
         }
     }
 
-    pub fn ray_cast(direction : glam::Vec3, pos : BlockPos, client_world_data: Arc<ClientWorldData>) -> Option<(u16, IBlockPos, glam::IVec3)> {
+    pub fn ray_cast(direction : glam::Vec3, pos : BlockPos, client_chunk_map: &ClientChunkMap) -> Option<(u16, IBlockPos, glam::IVec3)> {
         let max_distance = 3.0;
         let mut step_dir = 0;
         // Track the integer block coordinates directly
@@ -257,7 +256,7 @@ impl ClientPlayer {
         let mut distance = 0.0;
 
         while distance <= max_distance {
-            let result = client_world_data.get_chunks().read().unwrap().get_block_at(IBlockPos::from_vec3(current_block));
+            let result = client_chunk_map.get_block_at(IBlockPos::from_vec3(current_block));
             if result != 0 {
                 if step_dir == 0 {
                     voxel_normal.x = -step_x;

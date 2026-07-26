@@ -1,12 +1,13 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::ops::{Add, Deref, DerefMut, Div};
-use std::sync::Arc;
+use std::ops::{Add, Deref, DerefMut, Div, Sub};
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::Ordering;
 use bitvec::macros::internal::funty::Fundamental;
 use glam::Vec3;
 use winit::window::Window;
 use shared::common::world::block::block::BlockType;
+use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::print_base;
@@ -16,6 +17,7 @@ use crate::client::display::renderer::mesh::chunk_mesh::Mesh;
 use crate::client::display::renderer::mesh::shader::shader::Shader;
 use crate::client::display::renderer::mesh::texture::texture_array::TextureArray;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
+use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::player::player::ClientPlayer;
 
 pub struct MeshMap {
@@ -43,7 +45,7 @@ impl MeshMap {
             chunk_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/fragment.frag"),
             meshes: HashMap::new(),
             text_meshes: HashMap::new(),
-            chunk_radius : ((CHUNK_SIZE as f32).add(1.0).div(2.0).powi(2) * 3.0).sqrt(),
+            chunk_radius : (32_f32.powf(2.0) * 3.0).sqrt(),
             text_textures : TextureArray::new_raw("characters".to_string(), gl::R8, 32, 32),
             meshtext_shader : Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/vertex.vert","/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/fragment.frag")
         };
@@ -112,14 +114,16 @@ impl MeshMap {
 
     pub fn remove_mesh(&mut self, mesh_pos : &ChunkPos) {
         self.meshes.remove(mesh_pos);
+        self.text_meshes.remove(mesh_pos);
     }
 
-    pub unsafe fn render(&self, camera_pos: Vec3, up : Vec3, direction : Vec3, fov : f32, window : &Window, debug : bool) -> u16 {
+    pub unsafe fn render(&mut self, camera_pos: BlockPos, up : Vec3, direction : Vec3, fov : f32, window : &Window, debug : bool, chunk_map: &mut ClientChunkMap) -> u16 {
+
         let mut n = 0;
-        let camera_target: glam::Vec3 = camera_pos + direction;
+        let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
 
         // build view matrix
-        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos, camera_target, up);
+        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
         let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32,
                                                                 0.01_f32, 1000.0_f32);
         let pro_view = projection * view;
@@ -140,6 +144,7 @@ impl MeshMap {
                 mesh.draw();
             }
         } else {
+
             self.chunk_shader.use_shader();
             self.blocks_textures.use_textures(&self.chunk_shader);
             // self.text_textures.use_textures(&self.chunk_shader);
@@ -149,7 +154,7 @@ impl MeshMap {
             self.chunk_shader.set_vec3("color", color);
             self.chunk_shader.set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
             self.chunk_shader.set_vec3("uniformLightPos", light_pos);
-            self.chunk_shader.set_vec3("uniformViewPos", camera_pos);
+            self.chunk_shader.set_vec3("uniformViewPos", camera_pos.as_vec3());
             self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
 
             // let block_pos = IBlockPos::from_ints(-140,108,476);
@@ -159,36 +164,53 @@ impl MeshMap {
             // let b2 = self.client_world_data.get_chunks().write().unwrap().get_block_at(block_pos);
             // print_base!("Block at {} is {}", block_pos.deref(), b2);
 
-            for (pos, mesh) in self.meshes.iter() {
+            let keys = self.meshes.keys().cloned().collect::<Vec<_>>();
+            for pos in keys {
                 // small calculations for the 3d rendering
-                if self.is_visible(pos, camera_pos, direction, up, fov) {
-                    mesh.draw(&self.chunk_shader, pos);
+                if self.is_visible(&pos, camera_pos.as_vec3(), direction, up, fov, window.inner_size().width as f32 / window.inner_size().height as f32) {
+                    self.meshes.get_mut(&pos).unwrap().draw(&self.chunk_shader, &pos);
                     n += 1;
+                } else {
+
+                    let camera_ipos = camera_pos.get_chunk_pos();
+                    if (pos.x.sub(camera_ipos.x).pow(2) + pos.z.sub(camera_ipos.z).pow(2)).isqrt() > 10 {
+                        self.remove_mesh(&pos);
+                        chunk_map.remove_chunk(&pos);
+                    }
                 }
             }
         }
         n
     }
 
-    fn is_visible(&self, chunk_pos : &ChunkPos, player_pos : Vec3, direction_normalized: glam::Vec3, up : glam::Vec3, fov : f32) -> bool {
+    fn is_visible(&self, chunk_pos : &ChunkPos, player_pos : Vec3, direction_normalized: glam::Vec3, up : glam::Vec3, fov : f32, aspect : f32) -> bool {
         let relative_chunk_pos = chunk_pos.center() - player_pos;
         let sz = direction_normalized.dot(relative_chunk_pos);
 
         if sz < -self.chunk_radius {
             return false;
         }
-        let factor = 1.0 / (fov.to_radians() * 0.52).cos();
-        let tan = (fov.to_radians() * 0.52).tan();
-        let sy = relative_chunk_pos.dot(up);
-        let dist = factor * self.chunk_radius + sz * tan;
-        if sy.abs() > dist {
-            return false;
+        if fov < 165.0 {
+            let half_y_fov = (fov * 0.5).to_radians();
+            let tany = half_y_fov.tan();
+            let factor_y = 1.0 / half_y_fov.cos();
+
+            let sy = relative_chunk_pos.dot(up);
+            let dist = factor_y * self.chunk_radius + sz * tany;
+            if sy.abs() > dist {
+                return false;
+            }
+
+            let tanx = tany * aspect;
+            let factor_x = (1.0 + tanx * tanx).sqrt();
+
+            let sx = relative_chunk_pos.dot(up.cross(direction_normalized));
+            let dist_side = factor_x * self.chunk_radius + sz * tanx;
+            if sx.abs() > dist_side {
+                return false
+            }
         }
-        let sx = relative_chunk_pos.dot(up.cross(direction_normalized));
-        let dist_side = factor * self.chunk_radius + sz * tan;
-        if sx.abs() > dist_side {
-            return false
-        }
+
         true
     }
 }
