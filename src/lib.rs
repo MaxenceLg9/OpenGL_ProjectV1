@@ -1,3 +1,3 @@
 pub mod common;
 pub mod utils;
-pub mod math;
+pub mod worldgen;
