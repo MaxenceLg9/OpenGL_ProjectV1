@@ -23,34 +23,23 @@ impl ServerChunk {
         let mut blocks = Vec::new();
         blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
         for x in 0..CHUNK_SIZE {
+
             let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
+
             for z in 0..CHUNK_SIZE {
+
                 let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
                 let max_h : i32 = generator.get_terrain_height(block_x, block_z);
-                // let max_h = (block_x.abs() + block_z.abs()) / 4;
-                for y_relative in 0..CHUNK_SIZE {
-                    let y_absolute = y_relative as i32 + chunk_pos.y * CHUNK_SIZE as i32;
-                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y_relative * CHUNK_SIZE + z] = generator.get_block(x as f64, y_absolute as f64, z as f64, max_h as f64).get_value();
+
+                for y in 0..CHUNK_SIZE {
+                    let y_absolute = y as i32 + chunk_pos.y * CHUNK_SIZE as i32;
+                    // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.get_block(x as f64, y_absolute as f64, z as f64, max_h as f64).get_value();
+                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.get_3d(x as f64, y_absolute as f64, z as f64).get_value();
                 }
             }
         }
         Chunk::new(chunk_pos, Arc::new(blocks))
         // print_debug!("Chunk created in {}ms",Instant::now().duration_since(time).as_millis());
-    }
-
-    pub fn generate_block(y : i32, max_h : i32) -> u16 {
-        if y > max_h - 1 {
-            BlockType::GRASS.get_value();
-        }
-        if y < 100 {
-            BlockType::DEEPSLATE.get_value(); // Deepslate
-        }
-        if y < 200 || y > 400 {
-            BlockType::STONE.get_value() // Stone
-        }
-        else {
-            BlockType::DIRT.get_value() // Dirt;
-        }
     }
 
 
