@@ -25,10 +25,11 @@ impl MeshText {
         }
     }
 
-    pub unsafe fn link(&mut self) {
+    pub unsafe fn link(mut self) -> MeshText {
         let (mut vao, mut vbo, mut ebo) = (0,0,0);
         Self::setup_mesh(&mut self.vao,&mut self.vbo,&mut self.ebo);
         self.bind_data();
+        self
     }
 
     unsafe fn bind_data(&mut self) {

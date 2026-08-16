@@ -18,6 +18,7 @@ use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
+use shared::common::network::udp_packet::TIMEOUT_DURATION;
 use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
@@ -48,7 +49,7 @@ impl ServerConnection {
             .unwrap();
     }
     pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx : crossbeam::channel::Sender<ClientEvent>) -> Result<(),Error> {
-        let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50000, 0, 0)).await?;
+        let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50003, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
         // let (psx, prx) = tokio::sync::mpsc::channel(10000);
@@ -70,13 +71,15 @@ impl ServerConnection {
     }
 
     async fn connect(&mut self) -> Result<(),Error> {
+        self.socket.flush();
         self.socket.send_to(L5Packet::Login(LoginPacket::new(2000, "maxence")),self.addr, UdpPacketType::Reliable).await.expect("Panic when sending connection packet");
 
         let (packet, addr) = self.socket.recv_from().await?;
         let L5Packet::Connect(packet) = packet else {
+            self.socket.flush();
             return Err(Error::new(ErrorKind::InvalidData,"Expected Connect packet, got something else"));
         };
-        self.client_world_data.get_player().write().unwrap().set_pos(packet.get_pos().clone());
+        self.client_world_data.get_player().write().unwrap().get_camera_mut().set_pos(packet.get_pos().clone());
         Ok(())
 
     }
@@ -85,7 +88,7 @@ impl ServerConnection {
         self.start_time = Instant::now();
         loop {
             tokio::select! {
-                    frame = timeout(Duration::from_secs(5), self.socket.recv_from()) => {
+                    frame = timeout(TIMEOUT_DURATION, self.socket.recv_from()) => {
                         if let Err(e) = self.receive(frame).await {
                             print_base!("Breaking due to error: {} at {}", e, chrono::offset::Local::now());
                             break;
@@ -128,7 +131,7 @@ impl ServerConnection {
                 Ok(())
             },
             L5Packet::GetPlayer(player_packet) => {
-                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_coords(),8, player_packet.get_id()));
+                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_camera().get_coords(),8, player_packet.get_id()));
                 self.socket.send_to(tick_packet, self.addr, UdpPacketType::Simple).await?;
                 Ok(())
             },

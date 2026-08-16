@@ -41,7 +41,7 @@ impl ChunkPos {
     }
 
     pub fn to_block_pos(&self) -> BlockPos {
-        BlockPos::new((self.pos * CHUNK_SIZE as i32).as_vec3())
+        BlockPos::from_vec3((self.pos * CHUNK_SIZE as i32).as_vec3())
     }
 
     pub fn get_vec3(&self) -> IVec3 {

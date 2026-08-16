@@ -15,13 +15,14 @@ use shared::common::network::server::quit_packet::QuitPacket;
 use crate::server::network::server_socket::ServerConnection;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
-use crate::server::world_data::event::events::{ServerEvent, ServerEventType};
+use crate::server::world_data::event::events::{PlayerEvent, ServerEvent};
 use crate::server::world_data::player::player::ServerPlayer;
 use crossbeam::channel as cb;
+use crossbeam::channel::SendError;
+use md4::digest::typenum::Pow;
+use shared::common::network::udp_packet::TIMEOUT_DURATION;
 
 pub const UPDATE_INTERVAL: Duration = std::time::Duration::from_millis(50);
-pub const TIMEOUT_DURATION: Duration = std::time::Duration::from_secs(5);
-
 pub struct ClientConnection {
     server_world_data: Arc<ServerWorldData>,
     chunks_loaded : HashSet<ChunkPos>,
@@ -38,7 +39,7 @@ pub struct ClientConnection {
 
 impl ClientConnection {
     pub async fn start(packet : L5Packet, socket : ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx : cb::Sender<ServerEvent>) {
-        let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(1000);
+        let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(10000);
         let L5Packet::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", socket.get_addr());
             return;
@@ -110,22 +111,30 @@ impl ClientConnection {
                     }
                     // sending the packet to query the information of the player
                     let packet = L5Packet::GetPlayer(GetPlayerPacket::new(id));
-                    id += 1;
+                    id += 1 % 2_u16.pow(16);
                     self.socket_receiver.send(packet, UdpPacketType::Simple).await.unwrap();
                 }
             }
         }
         self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple).await.expect("");
-        self.event_sx.send(ServerEvent {
+        match self.event_sx.send(ServerEvent::PlayerEvent {
             player : self.player.clone(),
-            event_type : ServerEventType::DisconnectPlayer()
-        }).unwrap();
+            e_type : PlayerEvent::DisconnectPlayer(self.puid)
+        }) {
+            Ok(()) => {
+                print_base!("Disconnecting event successfully sent");
+            }
+            Err(e) => {
+                print_base!("Error when trying to send disconnecting event {}", e);
+            }
+        }
     }
 
     fn generate_chunks(&self) {
-        self.event_sx.send(ServerEvent {
+        self.event_sx.send(
+        ServerEvent::PlayerEvent {
             player : self.player.clone(),
-            event_type : ServerEventType::GenerateChunk(self.player_position)
+            e_type : PlayerEvent::GenerateChunk(self.player_position)
         });
     }
 
@@ -143,11 +152,11 @@ impl ClientConnection {
     /// Asks the main thread to send missing chunks to the player
     fn load_chunks(&self, server_player: Arc<RwLock<ServerPlayer>>, last_pos : ChunkPos, new_pos : ChunkPos, old_view_distance : i32, new_view_distance : i32) {
         let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(last_pos, new_pos, old_view_distance, new_view_distance);
-        self.event_sx.send(ServerEvent {
+        self.event_sx.send(ServerEvent::PlayerEvent {
            player : server_player.clone(),
-            event_type : ServerEventType::AskChunk(to_load)
+            e_type : PlayerEvent::AskChunk(to_load)
         });
-        
+
         for pos in to_unload {
 
         }
@@ -165,9 +174,9 @@ impl ClientConnection {
                 Ok(())
             },
             L5Packet::Block(p) => {
-                self.event_sx.send(ServerEvent {
+                self.event_sx.send(ServerEvent::PlayerEvent {
                     player : self.player.clone(),
-                    event_type : ServerEventType::BlockInteraction(p.clone())
+                    e_type : PlayerEvent::BlockInteraction(p.clone())
                 });
                 Ok(())
             },

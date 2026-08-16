@@ -22,6 +22,8 @@ impl ServerChunk {
         let time : Instant = Instant::now();
         let mut blocks = Vec::new();
         blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
+        let weight_bias = 0.3;
+        let height_bias = 1.5;
         for x in 0..CHUNK_SIZE {
 
             let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
@@ -29,12 +31,13 @@ impl ServerChunk {
             for z in 0..CHUNK_SIZE {
 
                 let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
-                let max_h : i32 = generator.get_terrain_height(block_x, block_z);
+                let height : f64 = generator.get_terrain_height(block_x, block_z);
+                // let height = generator.get_perlin_height(block_x as f64, block_z as f64);
 
                 for y in 0..CHUNK_SIZE {
                     let y_absolute = y as i32 + chunk_pos.y * CHUNK_SIZE as i32;
                     // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.get_block(x as f64, y_absolute as f64, z as f64, max_h as f64).get_value();
-                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.get_3d(x as f64, y_absolute as f64, z as f64).get_value();
+                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.density_of(block_x as f64, y_absolute as f64, block_z as f64, height, weight_bias, height_bias).get_value();
                 }
             }
         }

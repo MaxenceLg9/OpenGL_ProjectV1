@@ -61,9 +61,10 @@ impl ServerChunkMap {
             }
 
             // iterating over chunk_pos associated to the player
+            let mut i = 0;
             let mut flag = false;
             vec.retain(|chunk_pos| {
-                if flag {
+                if flag || i > 10 {
                     return false;
                 }
                 let mut in_buffer = buffer.contains_key(&chunk_pos);
@@ -96,6 +97,7 @@ impl ServerChunkMap {
                             }
                         }
                     }
+                    i += 1;
                     // remove the position because already sent
                     return false;
                 }
@@ -108,7 +110,7 @@ impl ServerChunkMap {
         }
     }
 
-    pub fn compute_chunks(pos:ChunkPos, range: i32, chunks_generated : HashSet<ChunkPos>) -> Vec<ChunkPos> {
+    pub fn compute_chunks(pos:ChunkPos, range: i32, chunks_generated : &HashSet<ChunkPos>) -> Vec<ChunkPos> {
         let vec = Self::cube_range(pos, range, |p| !chunks_generated.contains(p));
         vec
     }
@@ -148,13 +150,13 @@ impl ServerChunkMap {
             (p.z - center.z).abs() < vd
     }
 
-    pub fn interact_block(&mut self, iblock_pos: IBlockPos, block_interaction: BlockInteraction) {
+    pub fn interact_block(&mut self, iblock_pos: IBlockPos, block_interaction: BlockInteraction) -> BlockType {
         match block_interaction {
             BlockInteraction::LEFT => {
-                self.chunk_map.set_block(iblock_pos,BlockType::AIR);
+                self.chunk_map.set_block(iblock_pos,BlockType::AIR)
             }
             BlockInteraction::RIGHT => {
-                self.chunk_map.set_block(iblock_pos, BlockType::DEEPSLATE);
+                self.chunk_map.set_block(iblock_pos, BlockType::DEEPSLATE)
             }
         }
     }

@@ -21,13 +21,7 @@ use crate::client::world_data::chunks::chunk_map::ClientChunkMap;
 use crate::client::world_data::client_data::ClientWorldData;
 use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
 use crate::client::world_data::mesh_map::MeshMap;
-use crate::client::world_data::player::keyboard::Inputs;
 use crate::client::world_data::player::player::ClientPlayer;
-
-pub struct Stats {
-    render_time : Duration,
-    tick_time : Duration,
-}
 
 pub struct ClientWorld {
     chunks : ClientChunkMap,
@@ -36,7 +30,6 @@ pub struct ClientWorld {
     text_shader : Shader,
     text : Text,
     puid : PUID,
-    inputs: Inputs,
     characters : HashMap<char,Character>,
     last_frame : Instant,
     meshes : MeshMap,
@@ -61,13 +54,12 @@ impl ClientWorld {
             client_world_data,
             mesh_receiver,
             puid: PUID::new(0),
-            generator : Generator::new(Perlin::new(1)),
+            generator : Generator::new(1),
             text: Text::new(),
             meshes : MeshMap::new(),
             chunks : chunk_map,
             last_frame : Instant::now(),
             characters : HashMap::new(),
-            inputs : Inputs::new(),
             event_rx,
             text_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag"),
         }
@@ -75,12 +67,10 @@ impl ClientWorld {
 
     /// Update the game with the inputs from keyboard and mouse
     pub fn poll_keys(&mut self, time : f32) {
-        self.client_world_data.get_player().write().unwrap().poll_keys(&mut self.inputs, time, self.client_world_data.clone(), &mut self.meshes, &self.chunks);
+        self.client_world_data.get_player().write().unwrap().poll_keys(time, self.client_world_data.clone(), &mut self.meshes, &self.chunks);
     }
 
-    pub fn get_keyboard(&mut self) -> &mut Inputs {
-        &mut self.inputs
-    }
+
 
     /// Load bitmap character into VRAM by creating buffer
     pub unsafe fn load_characters(&mut self) {
@@ -149,7 +139,7 @@ impl ClientWorld {
     pub unsafe fn render(&mut self, window: &Window, redraw_time : Duration) {
         let period = Instant::now() - self.last_frame;
         self.last_frame = Instant::now();
-        let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_pos_info();
+        let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_camera().get_pos_info();
 
         let n = self.meshes.render(camera_pos, up, direction, fov, window, self.client_world_data.debug.load(Ordering::Relaxed), &mut self.chunks);
 
@@ -159,18 +149,18 @@ impl ClientWorld {
         let x = camera_pos.x as f64;
         let z = camera_pos.z as f64;
 
-        let c_noise = self.generator.get_noise(x,z,0.001);
+        let c_noise = self.generator.get_c_noise(x, z);
         let continentalness = self.generator.get_continentalness(c_noise);
 
-        let e_noise = self.generator.get_noise(x,z,0.005);
+        let e_noise = self.generator.get_e_noise(x, z);
         let erosion = self.generator.get_erosion(e_noise, c_noise);
 
-        let pv_noise = self.generator.get_noise(x,z,0.01);
+        let pv_noise = self.generator.get_pv_noise(x, z);
         let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise);
         let height = self.generator.get_terrain_height(x as i32,z as i32) as i32;
         self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction, self.chunks.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,self.chunks.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("{:.4} FPS, Rendering {} chunk meshes", 1.0 / period.as_secs_f64(), n), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("{:.4} FPS, Rendering {}/{}/{} chunk meshes", 1.0 / period.as_secs_f64(), n, self.meshes.len(), self.chunks.len()), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
     }
 
@@ -205,6 +195,6 @@ impl ClientWorld {
                 }
             }
         }
-        self.chunks.tick(self.get_player().read().unwrap().get_chunk_pos());
+        self.chunks.tick(self.get_player().read().unwrap().get_camera().get_chunk_pos());
     }
 }

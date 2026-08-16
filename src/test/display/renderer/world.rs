@@ -25,19 +25,12 @@ use crate::test::display::renderer::mesh::chunk_mesh::ChunkMesh;
 use crate::server::world_data::chunk::chunk::ServerChunk;
 use crate::client::display::renderer::gui::text::text::MeshText;
 use crate::test::display::renderer::mesh::chunk_mesh::Mesh;
-use crate::test::display::renderer::player::keyboard::Inputs;
 use crate::test::display::renderer::player::player::ClientPlayer;
-
-pub struct Stats {
-    render_time : Duration,
-    tick_time : Duration,
-}
 
 pub struct ClientWorld {
     text_shader : Shader,
     text : Text,
     puid : PUID,
-    inputs: Inputs,
     chunk_shader : Shader,
     blocks_textures: TextureArray,
     meshtext_shader : Shader,
@@ -77,7 +70,6 @@ impl ClientWorld {
             debug : false,
             last_frame : Instant::now(),
             characters : HashMap::new(),
-            inputs : Inputs::new(),
             player: ClientPlayer::new(0.0,0.0,0.0),
             text_shader: Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag"),
         }
@@ -85,7 +77,7 @@ impl ClientWorld {
 
     /// Update the game with the inputs from keyboard and mouse
     pub fn poll_keys(&mut self, time : f32) {
-        self.player.poll_keys(&mut self.inputs, time, &mut self.debug);
+        self.player.poll_keys(time, &mut self.debug);
     }
 
     pub unsafe fn generate_chunks(&mut self) {
@@ -95,7 +87,7 @@ impl ClientWorld {
             let generator = Arc::new(Generator::new(0));
             for x in -3..3 {
                 for z in -3..3 {
-                    for y in 0..12 {
+                    for y in 0..8 {
                         sender.send((ChunkPos::new(x,y,z),ServerChunk::generate_chunk(generator.clone(),ChunkPos::new(x,y,z)).get_blocks()));
                     }
                 }
@@ -107,10 +99,6 @@ impl ClientWorld {
 
     pub fn get_player(&mut self) -> &mut ClientPlayer {
         &mut self.player
-    }
-
-    pub fn get_keyboard(&mut self) -> &mut Inputs {
-        &mut self.inputs
     }
 
     /// Load bitmap character into VRAM by creating buffer
@@ -135,7 +123,6 @@ impl ClientWorld {
             self.text_textures.add_raw(&bitmap,i as u16,gl::RED, metrics.width as i32, metrics.height as i32);
         }
         // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
-        print_base!("Debug");
         // Keep this! OpenGL needs it for 1-byte (RED) alignment
         unsafe { gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1); }
 
@@ -195,7 +182,7 @@ impl ClientWorld {
     pub unsafe fn render(&mut self, window: &Window, redraw_time : Duration) {
         let period = Instant::now() - self.last_frame;
         self.last_frame = Instant::now();
-        let (camera_pos, direction, up, fov) = self.player.get_pos_info();
+        let (camera_pos, direction, up, fov) = self.player.get_camera().get_pos_info();
 
 
         let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
@@ -253,13 +240,13 @@ impl ClientWorld {
         let x = camera_pos.x as f64;
         let z = camera_pos.z as f64;
 
-        let c_noise = self.generator.get_perlin_2d(x, z, 0.001);
+        let c_noise = self.generator.get_c_noise(x, z);
         let continentalness = self.generator.get_continentalness(c_noise);
 
-        let e_noise = self.generator.get_perlin_2d(x, z, 0.005);
+        let e_noise = self.generator.get_e_noise(x, z);
         let erosion = self.generator.get_erosion(e_noise, c_noise);
 
-        let pv_noise = self.generator.get_perlin_2d(x, z, 0.01);
+        let pv_noise = self.generator.get_pv_noise(x, z);
         let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise);
         let height = self.generator.get_terrain_height(x as i32,z as i32) as i32;
         for (pos, blocks) in self.receiver.try_recv() {
@@ -271,7 +258,7 @@ impl ClientWorld {
             }
 
         }
-        self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height as i32), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         self.text.render_text(&self.text_shader, &format!("{:.4} FPS", 1.0 / period.as_secs_f64()), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);

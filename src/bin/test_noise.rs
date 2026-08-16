@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::io::Cursor;
 use std::ops::{Add, Deref, Div, Mul};
+use std::sync::Arc;
 use bitvec::macros::internal::funty::Fundamental;
 use glam::{IVec2, Vec2};
 use image::{DynamicImage, GenericImage, ImageFormat, ImageReader, Rgba, RgbaImage};
@@ -22,12 +23,17 @@ pub fn main() -> io::Result<()> {
     // let _profiler = dhat::Profiler::new_heap();
     let mut rgba_image = RgbaImage::new(5000,5000);
     let generator = Generator::new(1);
+    let interpolated = generator.weight_noise(30.0,500.0);
+    print_base!("Interpolated {}", interpolated);
     let mut hashmap = HashMap::new();
     let mut max_value = 0.0;
     for x in 0..1000 {
         for y in 0..1000 {
-            let noise = generator.get_worley_2d(x as f64, y as f64, 0.1);
-            let h = generator.get_continentalness(noise);
+            let noise = generator.get_terrain_height(x, y);
+            // testing
+            // let noise = generator.get_continentalness(noise);
+            // let h = generator.get_continentalness(noise);
+            // let noise = generator.get_perlin_2d(x as f64, y as f64, 0.001, 0.0);
             if noise as f64 > max_value {
                 max_value = noise as f64;
             }

@@ -91,6 +91,18 @@ impl CommonSocket {
         }
     }
 
+    pub fn flush(&mut self) {
+        while true {
+            match self.udp_socket.try_recv(&mut self.buffer) {
+                Ok(a) => {}
+                Err(e) => {
+                    print_base!("Error {} returning", e);
+                    return;
+                }
+            }
+        }
+    }
+
     pub async fn recv_from(&mut self) -> Result<(L5Packet, SocketAddr), Error> {
         loop {
             tokio::select! {

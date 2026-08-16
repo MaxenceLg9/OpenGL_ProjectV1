@@ -26,6 +26,7 @@ impl Socket {
 
     /// Creates a socket that listens on the IPv6 address
     pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx : cb::Sender<ServerEvent>) {
+        print_base!("Creating thread");
         // creating a thread that will host a tokio task
         std::thread::Builder::new()
             .name("network_thread".to_string())

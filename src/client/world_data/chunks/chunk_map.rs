@@ -112,7 +112,7 @@ impl ClientChunkMap {
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> Vec<Option<(ChunkMesh,MeshText)>> {
         let chunk_pos = iblock_pos.get_chunk_pos();
-        if self.chunk_map.set_block(iblock_pos, block_type) {
+        if self.chunk_map.set_block(iblock_pos, block_type) == block_type {
             return self.redraw_chunks(chunk_pos, iblock_pos.get_block_pos());
         }
         Vec::new()

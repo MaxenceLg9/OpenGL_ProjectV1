@@ -172,9 +172,9 @@ impl ChunkMesh {
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
                         v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 5, 1, materials, ao[0]).unwrap();
-                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 5, 3, materials, ao[1]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 5, 3, materials, ao[3]).unwrap();
                         v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 5, 2, materials, ao[2]).unwrap();
-                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 5, 0, materials, ao[3]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 5, 0, materials, ao[1]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
@@ -187,8 +187,8 @@ impl ChunkMesh {
 
                         v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 2, 1, materials, ao[0]).unwrap();
                         v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 2, 3, materials, ao[3]).unwrap();
-                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 2, materials, ao[1]).unwrap();
-                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 0, materials, ao[2]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 2, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 0, materials, ao[1]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
@@ -255,39 +255,68 @@ impl ChunkMesh {
     }
 
     fn get_ao(&self, pos : IBlockPos, plane : Plane, blocks : &Vec<u16>, chunk_pos: ChunkPos) -> Option<[u8; 4]> {
-        let (a,b,c,d,e,f,g,h);
-        if plane == Plane::Y {
-            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunk_pos)?;
-            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z- 1), blocks, chunk_pos)?;
-            c = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunk_pos)?;
-            d = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z + 1), blocks,  chunk_pos)?;
-            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks,  chunk_pos)?;
-            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z + 1), blocks,  chunk_pos)?;
-            g = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks,  chunk_pos)?;
-            h = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z - 1), blocks,  chunk_pos)?;
-        }
-        else if plane == Plane::X {
-            a = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks,  chunk_pos)?;
-            b = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z - 1), blocks,  chunk_pos)?;
-            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks,  chunk_pos)?;
-            d = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z + 1), blocks,  chunk_pos)?;
-            e = self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks,  chunk_pos)?;
-            f = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks,  chunk_pos)?;
-            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks,  chunk_pos)?;
-            h = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks,  chunk_pos)?;
-        }
-        else  {// Z plane
-
-            a = self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks,  chunk_pos)?;
-            b = self.is_void(IBlockPos::new(pos.x - 1, pos.y - 1, pos.z), blocks,  chunk_pos)?;
-            c = self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks,  chunk_pos)?;
-            d = self.is_void(IBlockPos::new(pos.x + 1, pos.y - 1, pos.z), blocks,  chunk_pos)?;
-            e = self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks,  chunk_pos)?;
-            f = self.is_void(IBlockPos::new(pos.x + 1, pos.y + 1, pos.z), blocks,  chunk_pos)?;
-            g = self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks,  chunk_pos)?;
-            h = self.is_void(IBlockPos::new(pos.x - 1, pos.y + 1, pos.z), blocks,  chunk_pos)?;
-        }
-
+        let (a,b,c,d,e,f,g,h) = match plane {
+            Plane::X => {
+                (
+                    // back
+                    self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks,  chunk_pos)?,
+                    // back bottom
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z - 1), blocks,  chunk_pos)?,
+                    // bottom
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks,  chunk_pos)?,
+                    // bottom front
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z + 1), blocks,  chunk_pos)?,
+                    // front
+                    self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks,  chunk_pos)?,
+                    // front top
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks,  chunk_pos)?,
+                    // top
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks,  chunk_pos)?,
+                    // back top
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z - 1), blocks,  chunk_pos)?
+                )
+            }
+            Plane::Y => {
+                (
+                    // back
+                    self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunk_pos)?,
+                    // back left
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z- 1), blocks, chunk_pos)?,
+                    // left
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunk_pos)?,
+                    // front left
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z + 1), blocks,  chunk_pos)?,
+                    // front
+                    self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks,  chunk_pos)?,
+                    // right front
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z + 1), blocks,  chunk_pos)?,
+                    // right
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks,  chunk_pos)?,
+                    // right back
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z - 1), blocks,  chunk_pos)?
+                )
+            }
+            Plane::Z => {
+                (
+                    // left
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks,  chunk_pos)?,
+                    // left bottom
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y - 1, pos.z), blocks,  chunk_pos)?,
+                    // bottom
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks,  chunk_pos)?,
+                    // right bottom
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y - 1, pos.z), blocks,  chunk_pos)?,
+                    // right
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks,  chunk_pos)?,
+                    // right top
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y + 1, pos.z), blocks,  chunk_pos)?,
+                    // top
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks,  chunk_pos)?,
+                    // left top
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y + 1, pos.z), blocks,  chunk_pos)?
+                )
+            }
+        };
 
         Some([a as u8 + b as u8 + c as u8, g as u8 + h as u8 + a as u8, e as u8 + f as u8 + g as u8, c as u8 + d as u8 + e as u8])
     }

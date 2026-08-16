@@ -78,25 +78,22 @@ impl MeshMap {
     pub unsafe fn add_mesh(&mut self, mut meshes : (ChunkMesh, MeshText)) -> bool {
         let pos = meshes.0.get_chunk_pos();
 
-        let mesh = meshes.0.link();
-        let mut text_mesh = meshes.1;
-        text_mesh.link();
         match self.text_meshes.entry(pos) {
             Entry::Occupied(mut slot) => {
                 print_base!("Reinserting mesh");
-                slot.insert(text_mesh);
+                slot.insert(meshes.1.link());
             }
             Entry::Vacant(slot) => {
-                slot.insert(text_mesh);
+                slot.insert(meshes.1.link());
             }
         };
         match self.meshes.entry(pos) {
             Entry::Occupied(mut slot) => {
-                slot.insert(mesh);
+                slot.insert(meshes.0.link());
                 true
             }
             Entry::Vacant(slot) => {
-                slot.insert(mesh);
+                slot.insert(meshes.0.link());
                 true
             }
         }

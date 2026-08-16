@@ -18,7 +18,7 @@ use winit::monitor::{MonitorHandle, VideoModeHandle};
 use shared::{print_base, print_debug};
 use crate::client::display::renderer::renderer::{gl_config_picker, GlDisplayCreationState, Renderer};
 
-const FPS: u64 = 240;
+const FPS: u64 = 60;
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / FPS);
 
 impl ApplicationHandler for App {
@@ -116,7 +116,7 @@ impl ApplicationHandler for App {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
-                self.renderer.as_mut().unwrap().get_world().get_keyboard().keyboard_callback(event);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().get_keyboard().keyboard_callback(event);
             },
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => {
@@ -128,10 +128,10 @@ impl ApplicationHandler for App {
                 }
             },
             WindowEvent::MouseInput {device_id, state, button} => {
-                self.renderer.as_mut().unwrap().get_world().get_keyboard().button_callback(button,state);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().get_keyboard().button_callback(button,state);
             },
             WindowEvent::MouseWheel {device_id, delta, phase} => {
-                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().add_fov(delta);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().get_camera_mut().add_fov(delta);
             }
             _ => (),
         }
@@ -141,7 +141,7 @@ impl ApplicationHandler for App {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 // print_base!("Mouse motion delta: {:?}", delta);
-                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().mouse_callback(delta.0,delta.1);
+                self.renderer.as_mut().unwrap().get_world().get_player().write().unwrap().get_camera_mut().mouse_callback(delta.0,delta.1);
             },
             _ => {}
         }

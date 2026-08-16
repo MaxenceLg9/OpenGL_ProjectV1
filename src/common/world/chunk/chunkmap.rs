@@ -43,8 +43,9 @@ impl ChunkMap {
         }
     }
 
-    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> bool {
-        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type)
+    pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockType) -> BlockType {
+        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type);
+        block_type
     }
 
     pub fn get_block_at(&self, block_pos : IBlockPos) -> u16 {
@@ -67,7 +68,9 @@ impl ChunkMap {
     pub fn get_chunk_mut(&mut self, chunk_pos: &ChunkPos) -> Option<&mut Chunk> {
         self.chunks.get_mut(chunk_pos)
     }
-
+    pub fn len(&self) -> usize {
+        self.chunks.len()
+    }
     pub fn remove_chunk(&mut self, chunk_pos : &ChunkPos) {
         self.chunks.remove(chunk_pos);
     }

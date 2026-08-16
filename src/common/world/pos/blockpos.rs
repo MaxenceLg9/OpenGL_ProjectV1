@@ -13,12 +13,18 @@ pub struct BlockPos {
 }
 
 impl BlockPos {
-    pub fn new(pos : Vec3) -> Self {
+    pub fn from_vec3(pos : Vec3) -> Self {
         Self { pos }
+    }
+    
+    pub fn new(x : f32, y : f32, z : f32) -> Self {
+        Self {
+            pos : glam::vec3(x,y,z)
+        }
     }
 
     pub fn from_floats(pos : [f32; 3]) -> Self {
-        Self::new(Vec3::from(pos))
+        Self::from_vec3(Vec3::from(pos))
     }
 
     pub fn get_chunk_pos(&self) -> ChunkPos {
@@ -57,7 +63,7 @@ impl BlockPos {
     pub fn deserialize(pos_bits : Vec<u8>) -> BlockPos {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[f32] = bytemuck::cast_slice(&raw_bytes);
-        BlockPos::new(glam::Vec3::from_slice(coords))
+        BlockPos::from_vec3(glam::Vec3::from_slice(coords))
     }
 
     pub fn as_vec3(&self) -> glam::Vec3 {
@@ -84,7 +90,7 @@ impl Add<BlockPos> for BlockPos {
     type Output = BlockPos;
 
     fn add(self, rhs: BlockPos) -> Self::Output {
-        BlockPos::new(self.pos + rhs.pos)
+        BlockPos::from_vec3(self.pos + rhs.pos)
     }
 }
 
@@ -103,7 +109,7 @@ impl Add<glam::Vec3> for BlockPos {
     type Output = BlockPos;
 
     fn add(self, rhs: Vec3) -> Self::Output {
-        BlockPos::new(self.pos + rhs)
+        BlockPos::from_vec3(self.pos + rhs)
     }
 }
 
@@ -111,7 +117,7 @@ impl Sub<BlockPos> for BlockPos{
     type Output = BlockPos;
 
     fn sub(self, rhs: BlockPos) -> Self::Output {
-        BlockPos::new(self.pos - rhs.pos)
+        BlockPos::from_vec3(self.pos - rhs.pos)
     }
 }
 
