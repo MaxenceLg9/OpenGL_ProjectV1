@@ -23,6 +23,10 @@ path = "src/bin/test_generation.rs"
 name = "server"
 path = "src/bin/server.rs"
 
+[[bin]]
+name = "noise"
+path = "src/bin/test_noise.rs"
+
 [dependencies]
 glutin = "0.32.3"
 winit = "0.30.12"
