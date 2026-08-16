@@ -68,11 +68,11 @@ impl Generator {
             },
             SpinePoint {
                 x: 0.95,
-                y: 270.0
+                y: 230.0
             },
             SpinePoint {
                 x: 1.0,
-                y : 300.0
+                y : 2400.0
             }
         ];
 
