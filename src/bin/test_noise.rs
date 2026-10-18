@@ -6,7 +6,9 @@ use std::sync::Arc;
 use bitvec::macros::internal::funty::Fundamental;
 use glam::{IVec2, Vec2};
 use image::{DynamicImage, GenericImage, ImageFormat, ImageReader, Rgba, RgbaImage};
+use mlua::Lua;
 use noise::{NoiseFn, Perlin};
+use shared::common::world::block::block::{BlocksRegistries, BlockState, BlockTier};
 use shared::worldgen::Generator;
 use shared::print_base;
 
@@ -22,7 +24,17 @@ pub fn main() -> io::Result<()> {
     // #[cfg(feature = "dhat-heap")]
     // let _profiler = dhat::Profiler::new_heap();
     let mut rgba_image = RgbaImage::new(5000,5000);
-    let generator = Generator::new(1);
+    let lua = Lua::new();
+    let env = lua.globals();
+    let table = lua.create_table().unwrap();
+    table.set("new", lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| {
+        Ok(BlockState::new(tier, is_solid))
+    }).unwrap());
+    env.set("BlockState", table);
+    let chunk = lua.load(std::fs::read_to_string("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/lua/blocks.lua").unwrap()).set_environment(env.clone()).into_function().unwrap();
+    let map = chunk.call::<HashMap<String, HashMap<String, BlockState>>>(()).unwrap();
+    let registers = Arc::new(HashMap::from([("blocks".to_owned(), BlocksRegistries::from_map(map))]));
+    let generator = Generator::new(1, registers);
     let interpolated = generator.weight_noise(30.0,500.0);
     print_base!("Interpolated {}", interpolated);
     let mut hashmap = HashMap::new();

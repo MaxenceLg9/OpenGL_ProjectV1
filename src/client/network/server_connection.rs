@@ -19,7 +19,6 @@ use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::network::udp_packet::TIMEOUT_DURATION;
-use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
 

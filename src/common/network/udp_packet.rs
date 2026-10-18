@@ -1,17 +1,17 @@
-use std::io::{Error, ErrorKind};
-use std::time::Duration;
-use crate::common::network::l5_packet::L5Packet;
-use crate::common::network::network_traits::UdpPacketTrait;
-use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use bitvec::prelude::Lsb0;
-use bitvec::prelude::BitVec;
-use crate::print_base;
+use crate::common::network::network_traits::UdpPacketTrait;
 use crate::common::network::packet_type::UdpPacketType;
 use crate::common::network::packet_type::UdpPacketType::{Ack, Reliable, Simple};
 use crate::common::network::reliable_packets::{AckPacket, ReliablePacket, SimplePacket};
+use crate::print_base;
+use bitvec::prelude::BitVec;
+use bitvec::prelude::Lsb0;
+use bitvec::view::BitView;
+use std::io::{Error, ErrorKind};
+use std::time::Duration;
 
-pub const TIMEOUT_DURATION: Duration = std::time::Duration::from_hours(10);
+// pub const TIMEOUT_DURATION: Duration = std::time::Duration::from_hours(10);
+pub const TIMEOUT_DURATION: Duration = std::time::Duration::from_secs(10);
 
 macro_rules! register_udp_packets {
     ($enum_name:ident, $enum_type:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
@@ -50,13 +50,12 @@ macro_rules! register_udp_packets {
 
             pub fn get_packet_type(&self) -> $enum_type {
                 match self {
-                    $( $enum_name::$variant_name(p) => $packet_type, )*
+                    $( $enum_name::$variant_name(_) => $packet_type, )*
                 }
             }
         }
     };
 }
-
 
 register_udp_packets!(UdpPacket, UdpPacketType, {
     Reliable = {ReliablePacket, Reliable},

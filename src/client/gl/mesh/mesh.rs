@@ -1,15 +1,15 @@
 use gl::types::{GLsizei, GLuint};
 use shared::common::display::vertex::vertex::Vertex;
-use crate::client::display::renderer::mesh::shader::shader::Shader;
-use crate::client::display::renderer::mesh::texture::texture::Texture;
+
+use crate::client::gl::mesh::{shader::shader::Shader, texture::texture::Texture};
 
 pub struct Mesh {
-    vao : GLuint,
-    vbo : GLuint,
-    ebo : GLuint,
-    vertices : Vec<Vertex>,
-    indices : Vec<u32>,
-    textures: Vec<Texture>
+    vao: GLuint,
+    vbo: GLuint,
+    ebo: GLuint,
+    vertices: Vec<Vertex>,
+    indices: Vec<u32>,
+    textures: Vec<Texture>,
 }
 
 impl Mesh {
@@ -21,7 +21,7 @@ impl Mesh {
             ebo,
             vertices,
             indices,
-            textures
+            textures,
         };
         mesh.setup_mesh();
         mesh
@@ -29,13 +29,29 @@ impl Mesh {
 
     pub unsafe fn setup_mesh(&mut self) {
         gl::CreateBuffers(1, &mut self.vbo);
-        gl::NamedBufferData(self.vbo, (self.vertices.len() * std::mem::size_of::<Vertex>()).cast_signed(), self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
+        gl::NamedBufferData(
+            self.vbo,
+            (self.vertices.len() * std::mem::size_of::<Vertex>()).cast_signed(),
+            self.vertices.as_ptr() as *const _,
+            gl::STATIC_DRAW,
+        );
 
         gl::CreateBuffers(1, &mut self.ebo);
-        gl::NamedBufferData(self.ebo, (self.indices.len() * std::mem::size_of::<u32>()).cast_signed(), self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
+        gl::NamedBufferData(
+            self.ebo,
+            (self.indices.len() * std::mem::size_of::<u32>()).cast_signed(),
+            self.indices.as_ptr() as *const _,
+            gl::STATIC_DRAW,
+        );
 
         gl::CreateVertexArrays(1, &mut self.vao);
-        gl::VertexArrayVertexBuffer(self.vao, 0, self.vbo, 0, std::mem::size_of::<Vertex>() as i32);
+        gl::VertexArrayVertexBuffer(
+            self.vao,
+            0,
+            self.vbo,
+            0,
+            std::mem::size_of::<Vertex>() as i32,
+        );
         gl::VertexArrayElementBuffer(self.vao, self.ebo);
 
         //Enable vertex attributes (location = ?)
@@ -43,9 +59,30 @@ impl Mesh {
         gl::EnableVertexArrayAttrib(self.vao, 1);
         gl::EnableVertexArrayAttrib(self.vao, 2);
 
-        gl::VertexArrayAttribFormat(self.vao, 0, 3, gl::FLOAT, gl::FALSE, core::mem::offset_of!(Vertex, position) as u32);
-        gl::VertexArrayAttribFormat(self.vao, 1, 3, gl::FLOAT, gl::FALSE, core::mem::offset_of!(Vertex, normal) as u32);
-        gl::VertexArrayAttribFormat(self.vao, 2, 2, gl::FLOAT, gl::FALSE, core::mem::offset_of!(Vertex, tex_coords) as u32);
+        gl::VertexArrayAttribFormat(
+            self.vao,
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            core::mem::offset_of!(Vertex, position) as u32,
+        );
+        gl::VertexArrayAttribFormat(
+            self.vao,
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            core::mem::offset_of!(Vertex, normal) as u32,
+        );
+        gl::VertexArrayAttribFormat(
+            self.vao,
+            2,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            core::mem::offset_of!(Vertex, tex_coords) as u32,
+        );
 
         gl::VertexArrayAttribBinding(self.vao, 0, 0);
         gl::VertexArrayAttribBinding(self.vao, 1, 0);
@@ -55,7 +92,8 @@ impl Mesh {
         // check_opengl::error("mesh");
     }
 
-    pub unsafe fn draw(&mut self, shader: &Shader) {     // render the mesh
+    pub unsafe fn draw(&mut self, shader: &Shader) {
+        // render the mesh
         // bind appropriate textures
         let diffuse_nr = 1;
         let specular_nr = 1;
@@ -84,15 +122,20 @@ impl Mesh {
 
         // draw mesh
         gl::BindVertexArray(self.vao);
-        gl::DrawElementsBaseVertex(gl::TRIANGLES, self.indices.len() as GLsizei, gl::UNSIGNED_INT, std::ptr::null(), 0);
+        gl::DrawElementsBaseVertex(
+            gl::TRIANGLES,
+            self.indices.len() as GLsizei,
+            gl::UNSIGNED_INT,
+            std::ptr::null(),
+            0,
+        );
         gl::BindVertexArray(0);
-
 
         // always good practice to set everything back to defaults once configured.
         gl::ActiveTexture(gl::TEXTURE0);
     }
 
-    pub unsafe fn load_textures(&mut self, filename : String, t_code: u32, name : String) {
+    pub unsafe fn load_textures(&mut self, filename: String, t_code: u32, name: String) {
         let texture: Texture = Texture::new(filename, t_code, name).unwrap();
         self.textures.push(texture);
     }

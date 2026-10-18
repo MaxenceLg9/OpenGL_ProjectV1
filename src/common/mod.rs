@@ -1,5 +1,6 @@
-pub mod world;
-pub mod display;
 pub mod account;
-pub mod network;
+pub mod display;
+pub mod error;
 pub mod generation;
+pub mod network;
+pub mod world;

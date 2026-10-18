@@ -7,7 +7,6 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use shared::common::network::client::block_packet::{BlockInteraction, BlockPacket};
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
-use shared::common::world::block::block::BlockType;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
@@ -112,7 +111,7 @@ impl Camera {
                             keystate.last_state = ElementState::Pressed;
                             if let Some((blocktype, iblock_pos, _)) = Self::ray_cast(self.direction, self.position, client_chunk_map) {
                                 print_base!("Trying to destroy block at {}",iblock_pos.deref());
-                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::LEFT, iblock_pos, BlockType::from_repr(blocktype).unwrap()));
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::LEFT, iblock_pos, blocktype));
                                 client_world_data.send(packet, UdpPacketType::Simple);
                             }
                         },
@@ -120,7 +119,7 @@ impl Camera {
                             keystate.last_state = ElementState::Pressed;
                             if let Some((blocktype, iblock_pos, normal)) = Self::ray_cast(self.direction, self.position, client_chunk_map) {
                                 print_base!("Trying to place block at {}",iblock_pos.deref());
-                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::RIGHT, iblock_pos + normal, BlockType::GRASS));
+                                let packet = L5Packet::Block(BlockPacket::new(BlockInteraction::RIGHT, iblock_pos + normal, 1));
                                 client_world_data.send(packet, UdpPacketType::Simple);
                             }
                         },

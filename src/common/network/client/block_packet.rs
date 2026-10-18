@@ -6,7 +6,7 @@ use bitvec::view::BitView;
 use strum::{Display, FromRepr};
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::L5PacketTrait;
-use crate::common::world::block::block::BlockType;
+use crate::common::world::block::block::{BlockState};
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 
@@ -14,7 +14,7 @@ use crate::common::world::pos::pos_trait::PosTrait;
 pub struct BlockPacket {
     interaction_type : BlockInteraction,
     pos : IBlockPos,
-    block_type : BlockType,
+    blockstate : u16,
 }
 #[derive(Clone, Copy, Debug, PartialEq, FromRepr, Display)]
 #[repr(u8)]
@@ -24,11 +24,11 @@ pub enum BlockInteraction {
 }
 
 impl BlockPacket {
-    pub fn new(interaction_type : BlockInteraction, pos : IBlockPos, block_type: BlockType) -> Self {
+    pub fn new(interaction_type : BlockInteraction, pos : IBlockPos, blockstate: u16) -> Self {
         Self {
             interaction_type,
             pos,
-            block_type
+            blockstate
         }
     }
 
@@ -40,8 +40,8 @@ impl BlockPacket {
         self.pos
     }
 
-    pub fn get_block_type(&self) -> BlockType {
-        self.block_type
+    pub fn get_block_type(&self) -> u16 {
+        self.blockstate
     }
 }
 
@@ -55,13 +55,13 @@ impl L5PacketTrait for BlockPacket {
     fn serialize(&self, vec: &mut BitVec<u8>) {
         vec.extend_from_bitslice((self.interaction_type as u8).view_bits::<Lsb0>());
         vec.extend(self.pos.serialize());
-        vec.extend(self.block_type.get_value().view_bits::<Lsb0>());
+        vec.extend(self.blockstate.view_bits::<Lsb0>());
     }
     fn deserialize(cursor: &mut BitCursor) -> Self {
         Self {
             interaction_type : BlockInteraction::from_repr(cursor.read_bits::<u8>(8)).unwrap(),
             pos : IBlockPos::deserialize(cursor.read_bytes(12)),
-            block_type : BlockType::from_repr(cursor.read_bits::<u16>(16)).unwrap()
+            blockstate : cursor.read_bits::<u16>(16)
         }
     }
 

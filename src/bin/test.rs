@@ -11,7 +11,6 @@ use shared::common::network::reliable_packets::{AckPacket, ReliablePacket};
 use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::udp_packet::UdpPacket;
-use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::ChunkMap;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
@@ -95,7 +94,7 @@ pub fn test_meshing() -> Result<(), String> {
     for i in 0..27 {
         let pos = ChunkPos::new(i / 9 % 3, i / 3 % 3, i % 3);
         let mut vec = Vec::new();
-        vec.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
+        vec.resize(CHUNK_SIZE.pow(3), 0);
         let chunk = Chunk::new(pos, Arc::new(vec));
         for packet in ChunkPacket::from_chunk_to_packets(&chunk) {
             client_cm.add_temp_chunk(packet);

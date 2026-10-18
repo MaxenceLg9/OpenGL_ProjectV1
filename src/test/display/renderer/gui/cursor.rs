@@ -1,38 +1,68 @@
-use winit::window::Window;
 use shared::common::display::vertex::vertex::Vertex;
-use crate::client::display::renderer::mesh::mesh::Mesh;
-use crate::client::display::renderer::mesh::shader::shader::Shader;
+use winit::window::Window;
+
+use crate::test::display::renderer::mesh::{mesh::Mesh, shader::shader::Shader};
 
 pub struct Cursor {
     shader: Shader,
-    mesh: Mesh
+    mesh: Mesh,
 }
-
 
 impl Cursor {
     pub unsafe fn new() -> Cursor {
-        let shader = Shader::new("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/vertex.vert", "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/fragment.frag");
-        let mesh = Mesh::new(Cursor::vertices(),Cursor::indices(),Vec::new());
-        Self {
-            shader,
-            mesh
-        }
+        let shader = Shader::new(
+            "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/vertex.vert",
+            "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/fragment.frag",
+        );
+        let mesh = Mesh::new(Cursor::vertices(), Cursor::indices(), Vec::new());
+        Self { shader, mesh }
     }
-
 
     pub fn vertices() -> Vec<Vertex> {
         let mut vertices = Vec::new();
         //vertical
-        vertices.push(Vertex::new(glam::vec3(-0.003, 0.02, 0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(0, 1)));
-        vertices.push(Vertex::new(glam::vec3(0.003, 0.02, 0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 1)));
-        vertices.push(Vertex::new(glam::vec3(0.003, -0.02, 0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(1, 0)));
-        vertices.push(Vertex::new(glam::vec3(-0.003, -0.02, 0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 0)));
+        vertices.push(Vertex::new(
+            glam::vec3(-0.003, 0.02, 0.0),
+            glam::vec3(1.0, 1.0, 1.0),
+            glam::ivec2(0, 1),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(0.003, 0.02, 0.0),
+            glam::vec3(1.0, 1.0, 1.0),
+            glam::ivec2(1, 1),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(0.003, -0.02, 0.0),
+            glam::vec3(0.0, 0.0, 0.0),
+            glam::ivec2(1, 0),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(-0.003, -0.02, 0.0),
+            glam::vec3(0.0, 0.0, 0.0),
+            glam::ivec2(0, 0),
+        ));
 
         //horizontal
-        vertices.push(Vertex::new(glam::vec3(-0.02, 0.003, -0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 1)));
-        vertices.push(Vertex::new(glam::vec3(0.02, 0.003, -0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 1)));
-        vertices.push(Vertex::new(glam::vec3(0.02, -0.003, -0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 0)));
-        vertices.push(Vertex::new(glam::vec3(-0.02, -0.003, -0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 0)));
+        vertices.push(Vertex::new(
+            glam::vec3(-0.02, 0.003, -0.0),
+            glam::vec3(0.0, 0.0, 0.0),
+            glam::ivec2(0, 1),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(0.02, 0.003, -0.0),
+            glam::vec3(1.0, 1.0, 1.0),
+            glam::ivec2(1, 1),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(0.02, -0.003, -0.0),
+            glam::vec3(1.0, 1.0, 1.0),
+            glam::ivec2(1, 0),
+        ));
+        vertices.push(Vertex::new(
+            glam::vec3(-0.02, -0.003, -0.0),
+            glam::vec3(0.0, 0.0, 0.0),
+            glam::ivec2(0, 0),
+        ));
 
         vertices
     }
@@ -59,17 +89,16 @@ impl Cursor {
         indices
     }
 
-
-    pub unsafe fn draw_cursor(&mut self, window: &Window){
+    pub unsafe fn draw_cursor(&mut self, window: &Window) {
         self.shader.use_shader();
         let aspect = window.inner_size().width as f32 / window.inner_size().height as f32;
         let projection = glam::Mat4::orthographic_rh(
-            -1.0,           // left
-            1.0,            // right
-            -1.0 / aspect,  // bottom
-            1.0 / aspect,   // top
-            -1.0,           // near
-            1.0             // far
+            -1.0,          // left
+            1.0,           // right
+            -1.0 / aspect, // bottom
+            1.0 / aspect,  // top
+            -1.0,          // near
+            1.0,           // far
         );
 
         // 2. Upload to the shader

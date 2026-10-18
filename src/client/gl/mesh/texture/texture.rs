@@ -1,10 +1,11 @@
-use std::io;
-use gl::{TEXTURE0};
+use gl::TEXTURE0;
 use gl::types::GLuint;
-use image::imageops::FilterType;
 use image::ImageReader;
-use crate::client::display::renderer::mesh::shader::shader::Shader;
-use crate::client::display::renderer::mesh::texture::texture_array::TEXTURE_SIZE;
+use image::imageops::FilterType;
+use std::io;
+
+use crate::client::gl::mesh::shader::shader::Shader;
+use crate::client::gl::mesh::texture::texture_array::TEXTURE_SIZE;
 
 pub struct Texture {
     t_type: String,
@@ -13,8 +14,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub unsafe fn new(filename : String, code: u32, t_type: String) -> io::Result<Texture> {
-
+    pub unsafe fn new(filename: String, code: u32, t_type: String) -> io::Result<Texture> {
         let mut texture: u32 = 0;
 
         gl::CreateTextures(gl::TEXTURE_2D, 1, &mut texture);
@@ -30,13 +30,25 @@ impl Texture {
 
         let mut image = match ImageReader::open(filename)?.decode() {
             Ok(f) => f,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Error decoding image: {}", e)))
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Error decoding image: {}", e),
+                ));
+            }
         };
         if image.width() != image.height() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "Image dimensions do not match"))
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Image dimensions do not match",
+            ));
         }
         if (image.width() != TEXTURE_SIZE as u32) || (image.height() != TEXTURE_SIZE as u32) {
-            image = image.resize(TEXTURE_SIZE as u32, TEXTURE_SIZE as u32, FilterType::Nearest);
+            image = image.resize(
+                TEXTURE_SIZE as u32,
+                TEXTURE_SIZE as u32,
+                FilterType::Nearest,
+            );
         }
 
         gl::TextureParameteri(texture, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
@@ -47,15 +59,26 @@ impl Texture {
         gl::TextureParameteri(texture, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
         gl::TextureParameteri(texture, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-        gl::TextureStorage2D(texture,
-                             1,// Mipmap levels
-                             gl::RGBA8,       // Internal format
-                             TEXTURE_SIZE,    // Width
-                             TEXTURE_SIZE,    // Height
+        gl::TextureStorage2D(
+            texture,
+            1,            // Mipmap levels
+            gl::RGBA8,    // Internal format
+            TEXTURE_SIZE, // Width
+            TEXTURE_SIZE, // Height
         );
 
         // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
-        gl::TexSubImage2D(texture, 0, gl::RGBA8 as i32, TEXTURE_SIZE, TEXTURE_SIZE, 0, gl::RGBA, gl::UNSIGNED_BYTE, image.as_bytes().as_ptr() as *const _);
+        gl::TexSubImage2D(
+            texture,
+            0,
+            gl::RGBA8 as i32,
+            TEXTURE_SIZE,
+            TEXTURE_SIZE,
+            0,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            image.as_bytes().as_ptr() as *const _,
+        );
 
         Result::Ok(Self {
             t_type,
@@ -80,8 +103,6 @@ impl Texture {
     pub fn get_texture(&self) -> GLuint {
         self.texture
     }
-
-
 }
 
 impl Drop for Texture {

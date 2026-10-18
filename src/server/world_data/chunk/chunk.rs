@@ -1,8 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
-use noise::Perlin;
-use shared::common::world::block::block::BlockType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
 use shared::worldgen::Generator;
@@ -21,28 +19,34 @@ impl ServerChunk {
     pub fn generate_chunk(generator: Arc<Generator>, chunk_pos: ChunkPos) -> Chunk {
         let time : Instant = Instant::now();
         let mut blocks = Vec::new();
-        blocks.resize(CHUNK_SIZE.pow(3), shared::common::world::block::block::BlockType::AIR.get_value());
-        let weight_bias = 0.3;
+        blocks.resize(CHUNK_SIZE.pow(3), 0);
+        let weight_bias = 0.4;
         let height_bias = 1.5;
-        for x in 0..CHUNK_SIZE {
+            for cx in 0..CHUNK_SIZE {
 
-            let block_x = x as i32 + chunk_pos.x * CHUNK_SIZE as i32;
+                let block_x = cx as i32 + chunk_pos.x * CHUNK_SIZE as i32;
+                // env.set("x", block_x);
 
-            for z in 0..CHUNK_SIZE {
+                for cz in 0..CHUNK_SIZE {
 
-                let block_z = z as i32 + chunk_pos.z * CHUNK_SIZE as i32;
-                let height : f64 = generator.get_terrain_height(block_x, block_z);
-                // let height = generator.get_perlin_height(block_x as f64, block_z as f64);
+                    let block_z = cz as i32 + chunk_pos.z * CHUNK_SIZE as i32;
 
-                for y in 0..CHUNK_SIZE {
-                    let y_absolute = y as i32 + chunk_pos.y * CHUNK_SIZE as i32;
-                    // blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.get_block(x as f64, y_absolute as f64, z as f64, max_h as f64).get_value();
-                    blocks[x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z] = generator.density_of(block_x as f64, y_absolute as f64, block_z as f64, height, weight_bias, height_bias).get_value();
+                    let height : f64 = generator.get_terrain_height(block_x, block_z);
+                    // env.set("z", block_z);
+                    // env.set("height", height);
+
+                    for cy in 0..CHUNK_SIZE {
+                        let block_y = cy as i32 + chunk_pos.y * CHUNK_SIZE as i32;
+                        // env.set("y", block_y);
+                        blocks[cx * CHUNK_SIZE * CHUNK_SIZE + cy * CHUNK_SIZE + cz] = generator.density_of(block_x as f64, block_y as f64, block_z as f64, height, weight_bias, height_bias).unwrap_or(0);
+                        // blocks[cX * CHUNK_SIZE * CHUNK_SIZE + cY * CHUNK_SIZE + cZ] = block_type.get_value();
+                    }
                 }
             }
-        }
+
+        // print_base!("Chunk created in {}ms",Instant::now().duration_since(time).as_millis());
+
         Chunk::new(chunk_pos, Arc::new(blocks))
-        // print_debug!("Chunk created in {}ms",Instant::now().duration_since(time).as_millis());
     }
 
 

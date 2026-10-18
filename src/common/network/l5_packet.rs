@@ -1,22 +1,23 @@
-use std::io::ErrorKind;
-use std::io::Error;
-use crate::common::network::network_traits::L5PacketTrait;
-use bitvec::view::BitView;
 use crate::common::network::bit_cursor::BitCursor;
-use bitvec::prelude::Lsb0;
-use bitvec::prelude::BitVec;
 use crate::common::network::client::block_packet::BlockPacket;
 use crate::common::network::client::login_packet::LoginPacket;
 use crate::common::network::client::player_packet::UpdatePlayerPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
+use crate::common::network::network_traits::L5PacketTrait;
 use crate::common::network::packet_type::L5PacketType;
-use crate::common::network::packet_type::L5PacketType::{Chunk, Connect, Correction, GetPlayer, Quit, Login, TLS, UpdatePlayer, Block};
+use crate::common::network::packet_type::L5PacketType::{
+    Block, Chunk, Connect, Correction, GetPlayer, Login, Quit, TLS, UpdatePlayer,
+};
 use crate::common::network::server::chunk_packet::ChunkPacket;
 use crate::common::network::server::connection_packet::ConnectionPacket;
 use crate::common::network::server::quit_packet::QuitPacket;
 use crate::common::network::server::tick_packet::GetPlayerPacket;
 use crate::print_base;
-
+use bitvec::prelude::BitVec;
+use bitvec::prelude::Lsb0;
+use bitvec::view::BitView;
+use std::io::Error;
+use std::io::ErrorKind;
 
 macro_rules! register_packets {
     ($enum_name:ident, $enum_type:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
@@ -55,7 +56,7 @@ macro_rules! register_packets {
 
             pub fn get_packet_type(&self) -> $enum_type {
                 match self {
-                    $( $enum_name::$variant_name(p) => $packet_type, )*
+                    $( $enum_name::$variant_name(_) => $packet_type, )*
                 }
             }
         }

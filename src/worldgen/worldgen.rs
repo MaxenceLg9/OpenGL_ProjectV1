@@ -1,101 +1,122 @@
+use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 use mlua::Value::Boolean;
 use noise::{NoiseFn, Perlin, Worley};
-use crate::common::world::block::block::BlockType;
+use crate::common::world::block::block::{BlockId, BlocksRegistries, BlockState};
+
+use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
 
 pub struct SpinePoint {
-    x : f64,
-    y: f64
+    noise: f64,
+    value: f64
 }
+
 
 pub struct Generator {
     erosion_points : Vec<SpinePoint>,
     continentalness_points : Vec<SpinePoint>,
     peaks_and_valleys_points : Vec<SpinePoint>,
     perlin : Perlin,
+    registries: Arc<HashMap<String, BlocksRegistries>>,
     seed : u32
 }
 
 // use noise for biomes and combine biomes with the noises below
 // cellular noises for carves
 impl Generator {
-    pub fn new(seed : u32) -> Self {
+    pub fn new(seed : u32, registries: Arc<HashMap<String, BlocksRegistries>>) -> Self {
         let erosion_points = vec![
             SpinePoint {
-                x: 0.0,
-                y: 0.9
+                noise: 0.0,
+                value: -0.2
             },
             SpinePoint {
-                x: 0.1,
-                y: 0.9
+                noise: 0.4,
+                value: -0.1
             },
             SpinePoint {
-                x : 0.6,
-                y: 1.0
+                noise: 0.6,
+                value: 0.0
             },
             SpinePoint {
-                x: 0.7,
-                y: 1.0
+                noise: 0.7,
+                value: 0.1
             },
             SpinePoint {
-                x: 1.0,
-                y: 1.1
+                noise: 1.0,
+                value: 0.15
             }
         ];
         // change how the spine points work by associating a frequency with a fixed value and linearly interpolating the values
         // instead of doing ax + b equation
         let continentalness_points = vec![
             SpinePoint {
-                x: 0.0,
-                y: 50.0
+                noise: 0.0,
+                value: -150.0
             },
             SpinePoint {
-                x: 0.45,
-                y: 100.0
+                noise: 0.10,
+                value: -100.0
             },
             SpinePoint {
-                x: 0.6,
-                y: 130.0
+                noise : 0.20,
+                value : -60.0
             },
             SpinePoint {
-                x: 0.7,
-                y: 180.0
+                noise : 0.30,
+                value : -18.0
             },
             SpinePoint {
-                x: 0.8,
-                y: 200.0
+                noise: 0.40,
+                value: 0.0
             },
             SpinePoint {
-                x: 0.95,
-                y: 230.0
+                noise: 0.6,
+                value: 30.0
             },
             SpinePoint {
-                x: 1.0,
-                y : 2400.0
+                noise: 0.65,
+                value: 45.0
+            },
+            SpinePoint {
+                noise: 0.7,
+                value: 80.0
+            },
+            SpinePoint {
+                noise: 0.8,
+                value: 110.0
+            },
+            SpinePoint {
+                noise: 0.95,
+                value: 180.0
+            },
+            SpinePoint {
+                noise: 1.0,
+                value: 250.0
             }
         ];
 
         let peaks_and_valleys_points = vec![
             SpinePoint {
-                x : 0.0,
-                y : 0.9,
+                noise: 0.0,
+                value: -0.1,
             },
             SpinePoint {
-                x : 0.25,
-                y : 0.95
+                noise: 0.25,
+                value: -0.05
             },
             SpinePoint {
-                x : 0.5,
-                y : 1.0
+                noise: 0.5,
+                value: 0.0
             },
             SpinePoint {
-                x : 0.8,
-                y : 1.1
+                noise: 0.8,
+                value: 0.1
             },
             SpinePoint {
-                x : 1.0,
-                y : 1.2
+                noise: 1.0,
+                value: 0.2
             }
         ];
         Self {
@@ -104,6 +125,7 @@ impl Generator {
             peaks_and_valleys_points,
             perlin : Perlin::new(seed),
             seed,
+            registries,
         }
     }
 
@@ -115,29 +137,33 @@ impl Generator {
         let continentalness = self.get_continentalness(c_noise);
 
         let e_noise = self.get_e_noise(xf, yf);
-        let erosion = self.get_erosion(e_noise, c_noise);
+        let erosion = self.get_erosion(e_noise, c_noise, continentalness);
 
         let pv_noise = self.get_pv_noise(xf,yf);
-        let peaks_and_valleys = self.get_peaks_and_valleys(pv_noise, c_noise);
+        let peaks_and_valleys = self.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
 
-        let base_height = continentalness * erosion * peaks_and_valleys;
+        let base_height = continentalness + erosion + peaks_and_valleys;
         base_height
     }
 
     pub fn get_c_noise(&self, x : f64, y : f64) -> f64 {
-        self.get_perlin_2d(x, y, 0.01,0.4)
+        self.get_perlin_2d(x, y, 0.001,0.4)
     }
 
     pub fn get_e_noise(&self, x : f64, y : f64) -> f64 {
-        self.get_perlin_2d(x, y, 0.009,0.2)
+        self.get_perlin_2d(x, y, 0.004,0.2)
     }
 
     pub fn get_pv_noise(&self, x : f64, y : f64) -> f64 {
-        self.get_perlin_2d(x, y, 0.027,0.12)
+        self.get_perlin_2d(x, y, 0.016,0.12)
     }
 
     pub fn get_perlin_2d(&self, x : f64, y : f64, f : f64, step : f64) -> f64 {
         self.perlin.get([x.add(step).mul(f), y.add(step).mul(f)]) * 0.5 + 0.5
+    }
+
+    pub fn get_perlin_3d(&self, x : f64, y : f64, z : f64) -> f64 {
+        self.perlin.get([x,y,z])
     }
 
     pub fn get_perlin_height(&self, x : f64, z : f64) -> f64 {
@@ -154,7 +180,7 @@ impl Generator {
         ret
     }
 
-    pub fn get_3d(&self, x : f64, y : f64, z : f64) -> BlockType {
+    pub fn get_3d(&self, x : f64, y : f64, z : f64) -> Option<BlockId> {
         let mut noise = 0.0;
         let mut offset = 0.4;
         let mut frequency = 0.05;
@@ -165,18 +191,18 @@ impl Generator {
         };
 
         if noise > 0.0 {
-            BlockType::AIR
+            self.registries.get("blocks")?.get_by_name("minecraft:air")
         } else {
-            BlockType::GRASS
+            self.registries.get("blocks")?.get_by_name("minecraft:grass")
         }
     }
 
-    pub fn density_of(&self, x : f64, y : f64, z : f64, height : f64, weight_bias : f64, height_bias : f64) -> BlockType {
+    pub fn density_of(&self, x : f64, y : f64, z : f64, height : f64, weight_bias : f64, height_bias : f64) -> Option<BlockId> {
         if y > height + 100.0 {
-            return BlockType::AIR
+            return self.registries.get("blocks")?.get_by_name("minecraft:air")
         }
         if y < height - 100.0 {
-            return BlockType::GRASS
+            return self.registries.get("blocks")?.get_by_name("minecraft:grass")
         }
         let mut noise = 0.0;
         let mut offset = 0.02;
@@ -192,12 +218,18 @@ impl Generator {
         noise = self.interpolate_noise(noise, y, height, weight_bias, height_bias);
 
         if noise > 0.0 {
-            BlockType::AIR
+            if y < 0.0 {
+                self.registries.get("blocks")?.get_by_name("minecraft:platinum_ore")
+            } else if y < height {
+                self.registries.get("blocks")?.get_by_name("minecraft:air")
+            } else {
+                self.registries.get("blocks")?.get_by_name("minecraft:air")
+            }
         } else {
             if y >= height {
-                BlockType::DEEPSLATE
+                self.registries.get("blocks")?.get_by_name("minecraft:stone")
             } else {
-                BlockType::GRASS
+                self.registries.get("blocks")?.get_by_name("minecraft:grass")
             }
         }
     }
@@ -205,11 +237,10 @@ impl Generator {
     /// if y < height - 100, should be -1
     /// if y > height - 100 and y < height, should be between close to 0
     /// if y > height + 5, should be > 1
-    /// 2_f64.powf(y / height - 1.0) - 1.0
     pub fn interpolate_noise(&self, noise : f64, y : f64, height : f64, weight_bias : f64, height_bias : f64) -> f64 {
         let weight = self.weight_noise(y, height) * weight_bias;
         let weighted_noise = noise * weight;
-        let weighted_height = y.sub(height) / height * (1.0 - weight) * height_bias;
+        let weighted_height = y.sub(height) / height.abs().max(50.0) * (1.0 - weight) * height_bias;
         weighted_height + weighted_noise
     }
 
@@ -219,36 +250,20 @@ impl Generator {
     // }
 
     pub fn weight_noise(&self, y : f64, height : f64) -> f64 {
-        let x = y.sub(height) / height;
+        let x = y.sub(height) / height.abs().max(30.0);
         let exp = 0.7;
         (-5.5 * x.abs().powf(exp) / std::f64::consts::E.powf( exp * x.abs() + 1.0) + 1.0).max(0.0)
     }
-
-    pub fn get_block(&self, x : f64, y : f64, z : f64, max_h : f64) -> BlockType {
-        let frequency = 0.001;
-        // let noise = (self.perlin.get([x * frequency, y * frequency, z * frequency]) + 1.0).mul(10.0).log(20.0);
-        if y > max_h {
-            return BlockType::AIR;
-        }
-        return BlockType::GRASS;
-        // let terrain_noise = noise * y / 600.0;
-        // if terrain_noise > 1.0 {
-        //     return BlockType::AIR;
-        // }
-        // BlockType::GRASS
-    }
-
-
 
     pub fn get_continentalness(&self, c_noise: f64) -> f64 {
         spine_noise_into_points(c_noise, &self.continentalness_points)
     }
 
-    pub fn get_peaks_and_valleys(&self, pv_noise : f64, c_noise : f64) -> f64 {
-        spine_noise_into_points((pv_noise  * c_noise) + 0.5 * (1.0 - c_noise), &self.peaks_and_valleys_points)
+    pub fn get_peaks_and_valleys(&self, pv_noise : f64, c_noise : f64, continentalness : f64) -> f64 {
+        continentalness.max(10.0) * spine_noise_into_points((pv_noise * (c_noise * 0.5 + 0.5)) + 0.5 * (1.0 - c_noise), &self.peaks_and_valleys_points)
     }
-    pub fn get_erosion(&self, e_noise : f64, c_noise : f64) -> f64 {
-        spine_noise_into_points((e_noise * c_noise) + 0.5 * (1.0 - c_noise), &self.erosion_points)
+    pub fn get_erosion(&self, e_noise : f64, c_noise : f64, continentalness : f64) -> f64 {
+        continentalness.max(40.0) * spine_noise_into_points((e_noise * (c_noise * 0.5 + 0.5)) + 0.5 * (1.0 - c_noise), &self.erosion_points)
     }
 
     pub fn get_worley_2d(&self, x : f64, y : f64, f : f64) -> f64 {
@@ -260,48 +275,25 @@ pub fn spine_noise_into_points(noise : f64, spine_points : &Vec<SpinePoint>) -> 
     for i in 0..spine_points.len() {
         let point = &spine_points[i];
 
-        if noise < point.x {
-            let (last_x, last_y) = if let Some(point) = spine_points.get(i - 1) {
-                (point.x, point.y)
+        if noise < point.noise {
+            let (last_noise, last_value) = if let Some(point) = spine_points.get(i - 1) {
+                (point.noise, point.value)
             } else {
                 (0.0, 0.0)
             };
-            return (point.y - last_y) * default_function((noise - last_x) / (point.x - last_x)) + last_y;
+            return (point.value - last_value) * default_function((noise - last_noise) / (point.noise - last_noise)) + last_value;
         }
     }
     if let Some(point) = spine_points.last() {
-        let (last_x, last_y) = if let Some(point) = spine_points.get(spine_points.len() - 2) {
-            (point.x, point.y)
+        let (last_noise, last_value) = if let Some(point) = spine_points.get(spine_points.len() - 2) {
+            (point.noise, point.value)
         } else {
             (0.0, 0.0)
         };
-        return (point.y - last_y) * default_function((noise - last_x) / (point.x - last_x)) + last_y;
+        return (point.value - last_value) * default_function((noise - last_noise) / (point.noise - last_noise)) + last_value;
     }
     0.0
 }
-
-// pub fn spine_noise_into_points(noise : f64, spine_points : &Vec<SpinePoint>) -> f64 {
-//     for i in 0..spine_points.len() {
-//         let point = &spine_points[i];
-//         let (last_x, last_y) = if let Some(point) = spine_points.get(i - 1) {
-//             (point.x, point.y)
-//         } else {
-//             (0.0, 0.0)
-//         };
-//         if noise <= point.x {
-//             return (point.y - last_y) * default_function((noise - last_x) / (point.x - last_x)) + last_y;
-//         }
-//     }
-//     if let Some(point) = spine_points.last() {
-//         let (last_x, last_y) = if let Some(point) = spine_points.get(spine_points.len() - 2) {
-//             (point.x, point.y)
-//         } else {
-//             (0.0, 0.0)
-//         };
-//         return (point.y - last_y) * default_function((noise - last_x) / (point.x - last_x)) + last_y;
-//     }
-//     0.0
-// }
 
 // f(x)=((2 x^(2))/(1+(2 x-1)^(2)))
 pub fn default_function(x : f64) -> f64 {
@@ -321,4 +313,21 @@ pub fn alpha(t : f64, o : i32) -> f64 {
         frequency *= 2.0;
     }
     t * frequency.powf(-h)
+}
+
+impl UserData for Generator {
+
+    fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
+        // &self, not &mut self -> use add_method, not add_method_mut
+        methods.add_method("get_terrain_height", |_lua, this, (x, y): (i32, i32)| {
+            Ok(this.get_terrain_height(x, y))
+        });
+        methods.add_method("interpolate_noise", |_lua, this, (noise, y, height, weight_bias, height_bias) : (f64, f64, f64, f64, f64)| {
+            Ok(this.interpolate_noise(noise, y, height, weight_bias, height_bias))
+        });
+        methods.add_method("get_perlin_3d", |_lua, this, (x, y, z) : (f64, f64, f64)| {
+            Ok(this.get_perlin_3d(x, y, z))
+        });
+    }
+
 }
