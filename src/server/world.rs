@@ -13,7 +13,7 @@ use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{custom_error, print_base};
 use std::collections::HashSet;
 use std::io::Error;
-use std::net::{Ipv6Addr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::ops::Mul;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -35,8 +35,8 @@ impl ServerWorld {
         let (gen_crossbeam_sx, gen_crossbeam_rx) = cb::bounded(10000);
         let data = Arc::new(ServerWorldData::new()?);
 
-        let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
-        Socket::listen(data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into(), event_sx.clone())?;
+        let ipv6_address = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+        Socket::listen(data.clone(), SocketAddr::new(ipv6_address, 25000), event_sx.clone())?;
 
         ChunkGenerator::new(gen_crossbeam_rx, event_sx, 1, data.get_registries())?;
         Ok(Self {

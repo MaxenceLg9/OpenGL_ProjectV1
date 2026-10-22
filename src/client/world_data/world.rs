@@ -19,7 +19,7 @@ use shared::print_base;
 use shared::worldgen::Generator;
 use std::collections::HashMap;
 use std::hash::RandomState;
-use std::net::Ipv6Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
@@ -66,7 +66,7 @@ impl ClientWorld {
         let registers = load_blocks()?;
         MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
 
-        ServerConnection::start(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), receiver, client_world_data.clone(), event_sx)?;
+        ServerConnection::start(std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), receiver, client_world_data.clone(), event_sx)?;
         Ok(Self {
             client_world_data,
             mesh_receiver,

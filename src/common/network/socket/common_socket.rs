@@ -49,7 +49,7 @@ impl AckState {
 }
 
 impl CommonSocket {
-    pub async fn new(socket_addr_v6: SocketAddrV6) -> Result<CommonSocket, GameError> {
+    pub async fn new(socket_addr_v6: SocketAddr) -> Result<CommonSocket, GameError> {
         let udp_socket = UdpSocket::bind(socket_addr_v6).await?;
         Ok(Self {
             udp_socket,
@@ -60,7 +60,7 @@ impl CommonSocket {
         })
     }
 
-    pub async fn connect(&self, socket_addr_v6: SocketAddrV6) -> Result<(), Error> {
+    pub async fn connect(&self, socket_addr_v6: SocketAddr) -> Result<(), Error> {
         self.udp_socket.connect(socket_addr_v6).await
     }
 

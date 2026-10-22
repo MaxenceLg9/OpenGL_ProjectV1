@@ -25,7 +25,7 @@ pub struct Socket {
 
 impl Socket {
     /// Creates a socket that listens on the IPv6 address
-    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
+    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddr, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
         print_base!("Creating thread");
         // creating a thread that will host a tokio task
         std::thread::Builder::new()
@@ -52,7 +52,7 @@ impl Socket {
             .map(|_| ())
     }
 
-    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<Socket, GameError> {
+    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddr, event_sx: cb::Sender<ServerEvent>) -> Result<Socket, GameError> {
         let (sender, receiver) = channel(1000);
         let udp_socket = CommonSocket::new(socket_addr_v6).await?;
         Ok(Self {
