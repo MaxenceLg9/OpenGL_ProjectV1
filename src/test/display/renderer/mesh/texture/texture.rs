@@ -31,24 +31,14 @@ impl Texture {
         let mut image = match ImageReader::open(filename)?.decode() {
             Ok(f) => f,
             Err(e) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Error decoding image: {}", e),
-                ));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Error decoding image: {}", e)));
             }
         };
         if image.width() != image.height() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Image dimensions do not match",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Image dimensions do not match"));
         }
         if (image.width() != TEXTURE_SIZE as u32) || (image.height() != TEXTURE_SIZE as u32) {
-            image = image.resize(
-                TEXTURE_SIZE as u32,
-                TEXTURE_SIZE as u32,
-                FilterType::Nearest,
-            );
+            image = image.resize(TEXTURE_SIZE as u32, TEXTURE_SIZE as u32, FilterType::Nearest);
         }
 
         gl::TextureParameteri(texture, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
@@ -68,23 +58,9 @@ impl Texture {
         );
 
         // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
-        gl::TexSubImage2D(
-            texture,
-            0,
-            gl::RGBA8 as i32,
-            TEXTURE_SIZE,
-            TEXTURE_SIZE,
-            0,
-            gl::RGBA,
-            gl::UNSIGNED_BYTE,
-            image.as_bytes().as_ptr() as *const _,
-        );
+        gl::TexSubImage2D(texture, 0, gl::RGBA8 as i32, TEXTURE_SIZE, TEXTURE_SIZE, 0, gl::RGBA, gl::UNSIGNED_BYTE, image.as_bytes().as_ptr() as *const _);
 
-        Result::Ok(Self {
-            t_type,
-            code,
-            texture,
-        })
+        Result::Ok(Self { t_type, code, texture })
     }
 
     pub unsafe fn use_texture(&self, shader: &Shader) {

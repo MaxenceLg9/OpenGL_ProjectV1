@@ -1,20 +1,18 @@
-use std::fmt::Display;
+use crate::common::error::err_type::GameError;
+use crate::common::network::bit_cursor::BitCursor;
+use crate::common::network::network_traits::L5PacketTrait;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
-use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{L5PacketTrait};
+use std::fmt::Display;
 #[derive(Clone)]
 pub struct GetPlayerPacket {
-    id : u16
+    id: u16,
 }
 
 impl GetPlayerPacket {
-
-    pub fn new(id : u16) -> GetPlayerPacket {
-        Self {
-            id
-        }
+    pub fn new(id: u16) -> GetPlayerPacket {
+        Self { id }
     }
 
     pub fn get_id(&self) -> u16 {
@@ -29,12 +27,12 @@ impl Display for GetPlayerPacket {
 }
 
 impl L5PacketTrait for GetPlayerPacket {
-    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
         vec.extend_from_bitslice(self.id.view_bits::<Lsb0>());
+        Ok(())
     }
 
-    fn deserialize(cursor: &mut BitCursor) -> Self {
-        GetPlayerPacket::new(cursor.read_bits::<u16>(16))
+    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
+        Ok(GetPlayerPacket::new(cursor.read_bits::<u16>(16)))
     }
-
 }

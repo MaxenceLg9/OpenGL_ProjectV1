@@ -1,31 +1,31 @@
+use crate::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
+use crate::common::world::pos::pos_trait::PosTrait;
+use bitvec::prelude::BitVec;
+use glam::IVec3;
 use std::any::Any;
 use std::ops::{Add, Deref, Div};
-use bitvec::prelude::BitVec;
-use glam::{IVec3};
-use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
-use crate::common::world::pos::pos_trait::PosTrait;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct IBlockPos {
-    pos : glam::IVec3,
+    pos: glam::IVec3,
 }
 
 /// BlockPos made of Integer, used to locate block position in the world
 impl IBlockPos {
-    pub fn from_vec3(pos : IVec3) -> Self {
+    pub fn from_vec3(pos: IVec3) -> Self {
         Self { pos }
     }
 
-    pub fn new(i1 : i32, i2 : i32, i3 : i32) -> Self {
+    pub fn new(i1: i32, i2: i32, i3: i32) -> Self {
         Self::from_vec3(IVec3::new(i1, i2, i3))
     }
 
-    pub fn from_array(pos : [i32; 3]) -> Self {
+    pub fn from_array(pos: [i32; 3]) -> Self {
         Self::from_vec3(IVec3::from(pos))
     }
 
     /// Split the IBlockPos into a relative IBlockPos within the chunk boundaries and the ChunkPos
     pub fn as_split_pos(&self) -> (IBlockPos, ChunkPos) {
-        (self.get_block_pos(),self.get_chunk_pos())
+        (self.get_block_pos(), self.get_chunk_pos())
     }
 
     /// Returns the ChunkPos where the IBlockPos points to
@@ -44,7 +44,7 @@ impl IBlockPos {
     }
 
     /// Extract IBlockPos from serialized bytes
-    pub fn deserialize(pos_bits : Vec<u8>) -> Self {
+    pub fn deserialize(pos_bits: Vec<u8>) -> Self {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[i32] = bytemuck::cast_slice(&raw_bytes);
         IBlockPos::from_vec3(glam::IVec3::from_slice(coords))
@@ -82,7 +82,7 @@ impl Deref for IBlockPos {
 
 impl Add<IVec3> for IBlockPos {
     type Output = IBlockPos;
-    
+
     fn add(self, rhs: IVec3) -> Self::Output {
         IBlockPos::from_vec3(self.pos + rhs)
     }

@@ -1,23 +1,24 @@
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 use crate::common::world::block::block::{BlockId, BlockState};
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::iblockpos::IBlockPos;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+
+pub const MIN_Y_CHUNK: i32 = -4;
+pub const MAX_Y_CHUNK: i32 = 9;
 
 pub struct ChunkMap {
-    chunks : HashMap<ChunkPos, Chunk>,
+    chunks: HashMap<ChunkPos, Chunk>,
 }
 
 impl ChunkMap {
     pub fn new() -> Self {
-        Self {
-            chunks : HashMap::new(),
-        }
+        Self { chunks: HashMap::new() }
     }
-    
+
     pub fn get_neighbours_chunks_pos(pos: ChunkPos) -> Vec<ChunkPos> {
         let mut v = Vec::new();
         for i in 0..27 {
@@ -28,13 +29,11 @@ impl ChunkMap {
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk) -> bool {
-        if chunk.get_chunk_pos().y < 0 || chunk.get_chunk_pos().y > 11 {
+        if chunk.get_chunk_pos().y < MIN_Y_CHUNK || chunk.get_chunk_pos().y > MAX_Y_CHUNK {
             return false;
         }
         match self.chunks.entry(chunk.get_chunk_pos()) {
-            Entry::Occupied(_) => {
-                false
-            }
+            Entry::Occupied(_) => false,
             Entry::Vacant(slot) => {
                 // print_base!("Inserted {} chunk", chunk.get_chunk_pos().deref());
                 slot.insert(chunk);
@@ -44,15 +43,13 @@ impl ChunkMap {
     }
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockId) -> BlockId {
-        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos,block_type);
+        self.chunks.get_mut(&iblock_pos.get_chunk_pos()).unwrap().set_block(iblock_pos, block_type);
         block_type
     }
 
-    pub fn get_block_at(&self, block_pos : IBlockPos) -> u16 {
+    pub fn get_block_at(&self, block_pos: IBlockPos) -> u16 {
         match self.get_chunk(&block_pos.get_chunk_pos()) {
-            Some(e) => {
-                e.get_block_at(block_pos.get_block_pos())
-            },
+            Some(e) => e.get_block_at(block_pos.get_block_pos()),
             None => 0,
         }
     }
@@ -71,7 +68,7 @@ impl ChunkMap {
     pub fn len(&self) -> usize {
         self.chunks.len()
     }
-    pub fn remove_chunk(&mut self, chunk_pos : &ChunkPos) {
+    pub fn remove_chunk(&mut self, chunk_pos: &ChunkPos) {
         self.chunks.remove(chunk_pos);
     }
 }

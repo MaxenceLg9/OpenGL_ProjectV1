@@ -3,14 +3,14 @@ use std::hash::Hash;
 
 #[derive(Copy)]
 pub struct PUID {
-    id : u32,
+    id: u32,
 }
 
 impl PUID {
-    pub fn new(id : u32) -> PUID {
+    pub fn new(id: u32) -> PUID {
         Self { id }
     }
-    
+
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -32,7 +32,7 @@ impl Eq for PUID {}
 
 impl Display for PUID {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"PUID : {}",self.id)
+        write!(f, "PUID : {}", self.id)
     }
 }
 

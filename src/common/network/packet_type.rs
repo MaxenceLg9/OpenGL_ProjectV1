@@ -4,7 +4,7 @@ use strum::{Display, FromRepr};
 pub enum UdpPacketType {
     Reliable,
     Simple,
-    Ack
+    Ack,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, FromRepr, Display)]

@@ -1,3 +1,4 @@
+use crate::common::error::err_type::{CustomErrorKind, GameError};
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::client::block_packet::BlockPacket;
 use crate::common::network::client::login_packet::LoginPacket;
@@ -5,19 +6,15 @@ use crate::common::network::client::player_packet::UpdatePlayerPacket;
 use crate::common::network::client::sample_packet::SamplePacket;
 use crate::common::network::network_traits::L5PacketTrait;
 use crate::common::network::packet_type::L5PacketType;
-use crate::common::network::packet_type::L5PacketType::{
-    Block, Chunk, Connect, Correction, GetPlayer, Login, Quit, TLS, UpdatePlayer,
-};
+use crate::common::network::packet_type::L5PacketType::{Block, Chunk, Connect, Correction, GetPlayer, Login, Quit, TLS, UpdatePlayer};
 use crate::common::network::server::chunk_packet::ChunkPacket;
 use crate::common::network::server::connection_packet::ConnectionPacket;
 use crate::common::network::server::quit_packet::QuitPacket;
 use crate::common::network::server::tick_packet::GetPlayerPacket;
-use crate::print_base;
+use crate::{custom_error, print_base};
 use bitvec::prelude::BitVec;
 use bitvec::prelude::Lsb0;
 use bitvec::view::BitView;
-use std::io::Error;
-use std::io::ErrorKind;
 
 macro_rules! register_packets {
     ($enum_name:ident, $enum_type:ident, { $($variant_name:ident = {$struct_type:ident, $packet_type:ident}),* $(,)? }) => {
@@ -28,19 +25,19 @@ macro_rules! register_packets {
 
         impl $enum_name {
             /// Takes the ID and the cursor, returns the specific packet variant
-            pub fn decode(vec: Vec<u8>) -> Result<Self, Error> {
+            pub fn decode(vec: Vec<u8>) -> Result<Self, GameError> {
                 let mut cursor = BitCursor::new(vec.view_bits::<Lsb0>());
                 let byte = cursor.read_bits::<u8>(8);
                 let result = $enum_type::from_repr(byte);
                 if result.is_none() {
                     print_base!("There is no ServerPacketType from value {}", byte);
-                    return Err(Error::new(ErrorKind::InvalidData, format!("There is no ServerPacketType from value {}", byte)));
+                    return Err(custom_error!(CustomErrorKind::InvalidData, format!("There is no ServerPacketType from value {}", byte)));
 
                 }
                 let packet_type = result.unwrap();
 
                 match packet_type {
-                    $( $packet_type => Ok($enum_name::$variant_name($struct_type::deserialize(&mut cursor))), )*
+                    $( $packet_type => Ok($enum_name::$variant_name($struct_type::deserialize(&mut cursor)?)), )*
                 }
             }
 

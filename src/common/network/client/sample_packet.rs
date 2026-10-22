@@ -1,25 +1,22 @@
-use std::fmt::{Display, Formatter};
+use crate::common::network::bit_cursor::BitCursor;
+use crate::common::network::network_traits::L5PacketTrait;
+use crate::common::{account::puid::PUID, error::err_type::GameError};
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
-use crate::common::account::puid::PUID;
-use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{L5PacketTrait};
+use std::fmt::{Display, Formatter};
 #[derive(Clone)]
-pub struct  SamplePacket {
+pub struct SamplePacket {
     puid: PUID,
 }
 
 impl SamplePacket {
     pub fn new() -> Self {
-        Self {
-            puid: PUID::new(0)
-        }
+        Self { puid: PUID::new(0) }
     }
 
     pub(crate) fn from_bits(bits: BitVec<u8>) -> Self {
         Self::new()
     }
-
 }
 
 impl Display for SamplePacket {
@@ -29,10 +26,10 @@ impl Display for SamplePacket {
 }
 
 impl L5PacketTrait for SamplePacket {
-    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
-        
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
+        Ok(())
     }
-    fn deserialize(cursor: &mut BitCursor) -> Self {
-        SamplePacket::new()
+    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
+        Ok(SamplePacket::new())
     }
 }

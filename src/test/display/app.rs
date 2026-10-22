@@ -1,22 +1,22 @@
+use raw_window_handle::HasWindowHandle;
 use std::error::Error;
 use std::num::NonZeroU32;
 use std::time::{Duration, Instant};
-use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
 use winit::event::{ButtonId, DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::keyboard::{KeyCode};
+use winit::keyboard::KeyCode;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes};
 
+use crate::test::display::renderer::renderer::{GlDisplayCreationState, Renderer, gl_config_picker};
 use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext, Version};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, SwapInterval::*, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
-use winit::monitor::{MonitorHandle, VideoModeHandle};
 use shared::{print_base, print_debug};
-use crate::test::display::renderer::renderer::{gl_config_picker, GlDisplayCreationState, Renderer};
+use winit::monitor::{MonitorHandle, VideoModeHandle};
 
 const FPS: u64 = 60;
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / FPS);
@@ -27,17 +27,13 @@ impl ApplicationHandler for App {
             // We just created the event loop, so initialise the display, pick the config, and
             // create the context.
             GlDisplayCreationState::Builder(display_builder) => {
-                let (window, gl_config) = match display_builder.clone().build(
-                    event_loop,
-                    self.template.clone(),
-                    gl_config_picker,
-                ) {
+                let (window, gl_config) = match display_builder.clone().build(event_loop, self.template.clone(), gl_config_picker) {
                     Ok((window, gl_config)) => (window.unwrap(), gl_config),
                     Err(err) => {
                         self.exit_state = Err(err);
                         event_loop.exit();
                         return;
-                    },
+                    }
                 };
                 // let fullscreen_mode = window_attributes().fullscreen; // Get the mode we defined
                 // window.set_fullscreen(fullscreen_mode);
@@ -50,7 +46,7 @@ impl ApplicationHandler for App {
                 // Create gl context.
                 self.gl_context = Some(create_gl_context(&window, &gl_config).treat_as_possibly_current());
                 (window, gl_config)
-            },
+            }
             GlDisplayCreationState::Init => {
                 print_base!("Recreating window in `resumed`");
                 // Pick the config which we already use for the context.
@@ -61,19 +57,27 @@ impl ApplicationHandler for App {
                         self.exit_state = Err(err.into());
                         event_loop.exit();
                         return;
-                    },
+                    }
                 }
-            },
+            }
         };
         let attrs = window.build_surface_attributes(Default::default()).expect("Failed to build surface attributes");
         let gl_surface = unsafe { gl_config.display().create_window_surface(&gl_config, &attrs).unwrap() };
         // The context needs to be current for the Renderer to set up shaders and
         // buffers. It also performs function loading, which needs a current context on
         // WGL.
-        self.gl_context.as_ref().unwrap().make_current(&gl_surface).expect("Cannot make current from context");
-        gl_surface.set_swap_interval(self.gl_context.as_ref().unwrap(), SwapInterval::DontWait).expect("Cannot define swap interval");
+        self.gl_context
+            .as_ref()
+            .unwrap()
+            .make_current(&gl_surface)
+            .expect("Cannot make current from context");
+        gl_surface
+            .set_swap_interval(self.gl_context.as_ref().unwrap(), SwapInterval::DontWait)
+            .expect("Cannot define swap interval");
 
-        unsafe { self.renderer.get_or_insert_with(|| Renderer::new(&gl_config.display())); }
+        unsafe {
+            self.renderer.get_or_insert_with(|| Renderer::new(&gl_config.display()));
+        }
 
         assert!(self.state.replace(AppState { gl_surface, window }).is_none());
     }
@@ -87,16 +91,12 @@ impl ApplicationHandler for App {
                 // reasons.
                 if let Some(AppState { gl_surface, window: _ }) = self.state.as_ref() {
                     let gl_context = self.gl_context.as_ref().unwrap();
-                    gl_surface.resize(
-                        gl_context,
-                        NonZeroU32::new(size.width).unwrap(),
-                        NonZeroU32::new(size.height).unwrap(),
-                    );
+                    gl_surface.resize(gl_context, NonZeroU32::new(size.width).unwrap(), NonZeroU32::new(size.height).unwrap());
 
                     let renderer = self.renderer.as_ref().unwrap();
                     renderer.resize(size.width as i32, size.height as i32);
                 }
-            },
+            }
             WindowEvent::RedrawRequested => {
                 // Combine all checks into one clean pattern
                 if let (Some(renderer), Some(state), Some(context)) = (&mut self.renderer, &self.state, &self.gl_context) {
@@ -111,26 +111,33 @@ impl ApplicationHandler for App {
                     // state.window.set_fullscreen(window_attributes().fullscreen);
                     self.redraw_time = Instant::now() - instant;
                 }
-            },
-            WindowEvent::KeyboardInput { device_id, event, is_synthetic} => {
+            }
+            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
                 self.renderer.as_mut().unwrap().get_world().get_player().get_keyboard().keyboard_callback(event);
-            },
+            }
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => {
                 if let Some(AppState { window, .. }) = self.state.as_ref() {
                     print_debug!("Window focused, grabbing cursor");
-                    let _ = window.set_cursor_grab(CursorGrabMode::Locked)
+                    let _ = window
+                        .set_cursor_grab(CursorGrabMode::Locked)
                         .or_else(|_| window.set_cursor_grab(CursorGrabMode::Confined));
                     window.set_cursor_visible(false);
                 }
-            },
-            WindowEvent::MouseInput {device_id, state, button} => {
-                self.renderer.as_mut().unwrap().get_world().get_player().get_keyboard().button_callback(button,state);
-            },
-            WindowEvent::MouseWheel {device_id, delta, phase} => {
+            }
+            WindowEvent::MouseInput { device_id, state, button } => {
+                self.renderer
+                    .as_mut()
+                    .unwrap()
+                    .get_world()
+                    .get_player()
+                    .get_keyboard()
+                    .button_callback(button, state);
+            }
+            WindowEvent::MouseWheel { device_id, delta, phase } => {
                 self.renderer.as_mut().unwrap().get_world().get_player().get_camera().add_fov(delta);
             }
             _ => (),
@@ -141,8 +148,14 @@ impl ApplicationHandler for App {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 // print_base!("Mouse motion delta: {:?}", delta);
-                self.renderer.as_mut().unwrap().get_world().get_player().get_camera().mouse_callback(delta.0,delta.1);
-            },
+                self.renderer
+                    .as_mut()
+                    .unwrap()
+                    .get_world()
+                    .get_player()
+                    .get_camera()
+                    .mouse_callback(delta.0, delta.1);
+            }
             _ => {}
         }
     }
@@ -171,9 +184,7 @@ impl ApplicationHandler for App {
         self.state = None;
 
         // Make context not current.
-        self.gl_context = Some(
-            self.gl_context.take().unwrap().make_not_current().unwrap().treat_as_possibly_current(),
-        );
+        self.gl_context = Some(self.gl_context.take().unwrap().make_not_current().unwrap().treat_as_possibly_current());
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
@@ -206,9 +217,7 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
 
     // Since glutin by default tries to create OpenGL core context, which may not be
     // present we should try gles.
-    let fallback_context_attributes = ContextAttributesBuilder::new()
-        .with_context_api(ContextApi::Gles(None))
-        .build(raw_window_handle);
+    let fallback_context_attributes = ContextAttributesBuilder::new().with_context_api(ContextApi::Gles(None)).build(raw_window_handle);
 
     // There are also some old devices that support neither modern OpenGL nor GLES.
     // To support these we can try and create a 2.1 context.
@@ -223,13 +232,9 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
 
     unsafe {
         gl_display.create_context(gl_config, &context_attributes).unwrap_or_else(|_| {
-            gl_display.create_context(gl_config, &fallback_context_attributes).unwrap_or_else(
-                |_| {
-                    gl_display
-                        .create_context(gl_config, &legacy_context_attributes)
-                        .expect("failed to create context")
-                },
-            )
+            gl_display
+                .create_context(gl_config, &fallback_context_attributes)
+                .unwrap_or_else(|_| gl_display.create_context(gl_config, &legacy_context_attributes).expect("failed to create context"))
         })
     }
 }
@@ -264,7 +269,7 @@ pub struct App {
     gl_display: GlDisplayCreationState,
     exit_state: Result<(), Box<dyn Error>>,
     last_frame: Instant,
-    redraw_time: Duration
+    redraw_time: Duration,
 }
 
 impl App {
@@ -277,7 +282,7 @@ impl App {
             state: None,
             redraw_time: Duration::from_secs(0),
             renderer: None,
-            last_frame: Instant::now()
+            last_frame: Instant::now(),
         }
     }
 

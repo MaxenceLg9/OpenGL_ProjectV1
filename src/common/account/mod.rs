@@ -1,2 +1,2 @@
-pub mod puid;
 pub mod login;
+pub mod puid;

@@ -1,2 +1,2 @@
-pub mod texture_array;
 pub mod texture;
+pub mod texture_array;

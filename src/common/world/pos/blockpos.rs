@@ -1,29 +1,26 @@
-use std::any::Any;
-use std::ops::{Add, AddAssign, Deref, Sub};
-use bitvec::macros::internal::funty::Fundamental;
-use bitvec::vec::BitVec;
-use glam::{IVec3, Vec3};
-use crate::common::world::pos::chunkpos::{ChunkPos, CHUNK_SIZE};
+use crate::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
+use bitvec::vec::BitVec;
+use glam::{IVec3, Vec3};
+use std::any::Any;
+use std::ops::{Add, AddAssign, Deref, Sub};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct BlockPos {
-    pos : glam::Vec3,
+    pos: glam::Vec3,
 }
 
 impl BlockPos {
-    pub fn from_vec3(pos : Vec3) -> Self {
+    pub fn from_vec3(pos: Vec3) -> Self {
         Self { pos }
     }
-    
-    pub fn new(x : f32, y : f32, z : f32) -> Self {
-        Self {
-            pos : glam::vec3(x,y,z)
-        }
+
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { pos: glam::vec3(x, y, z) }
     }
 
-    pub fn from_floats(pos : [f32; 3]) -> Self {
+    pub fn from_floats(pos: [f32; 3]) -> Self {
         Self::from_vec3(Vec3::from(pos))
     }
 
@@ -32,7 +29,10 @@ impl BlockPos {
     }
 
     pub fn get_relative_block_pos(&self) -> IBlockPos {
-        IBlockPos::from_vec3(self.as_ivec3().rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)))
+        IBlockPos::from_vec3(
+            self.as_ivec3()
+                .rem_euclid(glam::IVec3::new(CHUNK_SIZE as i32, CHUNK_SIZE as i32, CHUNK_SIZE as i32)),
+        )
     }
 
     pub fn get_absolute_iblock_pos(&self) -> IBlockPos {
@@ -40,7 +40,7 @@ impl BlockPos {
     }
 
     pub fn as_ivec3(&self) -> IVec3 {
-        let mut pos = IVec3::new(0,0,0);
+        let mut pos = IVec3::new(0, 0, 0);
         if self.x < 0.0 {
             pos.x = self.x.floor() as i32;
         } else {
@@ -59,8 +59,7 @@ impl BlockPos {
         pos
     }
 
-
-    pub fn deserialize(pos_bits : Vec<u8>) -> BlockPos {
+    pub fn deserialize(pos_bits: Vec<u8>) -> BlockPos {
         let raw_bytes = pos_bits[0..12].to_vec();
         let coords: &[f32] = bytemuck::cast_slice(&raw_bytes);
         BlockPos::from_vec3(glam::Vec3::from_slice(coords))
@@ -113,7 +112,7 @@ impl Add<glam::Vec3> for BlockPos {
     }
 }
 
-impl Sub<BlockPos> for BlockPos{
+impl Sub<BlockPos> for BlockPos {
     type Output = BlockPos;
 
     fn sub(self, rhs: BlockPos) -> Self::Output {
@@ -121,14 +120,13 @@ impl Sub<BlockPos> for BlockPos{
     }
 }
 
-impl Sub<Vec3> for BlockPos{
+impl Sub<Vec3> for BlockPos {
     type Output = Vec3;
 
     fn sub(self, rhs: Vec3) -> Self::Output {
         self.pos - rhs
     }
 }
-
 
 impl Deref for BlockPos {
     type Target = glam::Vec3;

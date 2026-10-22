@@ -21,9 +21,7 @@ impl<'a> BitCursor<'a> {
     /// Read a fixed number of bytes into a Vec
     pub fn read_bytes(&mut self, byte_count: usize) -> Vec<u8> {
         let bit_count = byte_count * 8;
-        let vec = self.bits[self.pos..self.pos + bit_count]
-            .to_bitvec()
-            .into_vec();
+        let vec = self.bits[self.pos..self.pos + bit_count].to_bitvec().into_vec();
         self.pos += bit_count;
         vec
     }

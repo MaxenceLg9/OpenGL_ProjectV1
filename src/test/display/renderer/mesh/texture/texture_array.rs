@@ -80,17 +80,11 @@ impl TextureArray {
         let mut image = match ImageReader::open(filename)?.decode() {
             Ok(f) => f,
             Err(e) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Error decoding image: {}", e),
-                ));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Error decoding image: {}", e)));
             }
         };
         if image.width() != image.height() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Image dimensions do not match",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Image dimensions do not match"));
         }
         if (image.width() != TEXTURE_SIZE as u32) || (image.height() != TEXTURE_SIZE as u32) {
             image = image.resize(TEXTURE_SIZE as u32, TEXTURE_SIZE as u32, FilterType::Nearest);
@@ -104,48 +98,17 @@ impl TextureArray {
         gl::TextureParameteri(self.texture, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
         // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
-        gl::TextureSubImage3D(
-            self.texture,
-            0,
-            0,
-            0,
-            index as i32,
-            TEXTURE_SIZE,
-            TEXTURE_SIZE,
-            1,
-            gl::RGBA,
-            gl::UNSIGNED_BYTE,
-            image.to_rgba8().as_raw().as_ptr() as *const GLvoid,
-        );
+        gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, TEXTURE_SIZE, TEXTURE_SIZE, 1, gl::RGBA, gl::UNSIGNED_BYTE, image.to_rgba8().as_raw().as_ptr() as *const GLvoid);
         Ok(())
     }
-    pub unsafe fn add_raw(
-        &self,
-        bytes: &Vec<u8>,
-        index: u16,
-        format: GLenum,
-        width: i32,
-        height: i32,
-    ) -> io::Result<()> {
+    pub unsafe fn add_raw(&self, bytes: &Vec<u8>, index: u16, format: GLenum, width: i32, height: i32) -> io::Result<()> {
         gl::TextureParameteri(self.texture, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
         gl::TextureParameteri(self.texture, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
         gl::TextureParameteri(self.texture, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
         gl::TextureParameteri(self.texture, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         // let data:  = PixelUnpackData::Slice(Some(image.as_bytes()));
-        gl::TextureSubImage3D(
-            self.texture,
-            0,
-            0,
-            0,
-            index as i32,
-            width,
-            height,
-            1,
-            format,
-            gl::UNSIGNED_BYTE,
-            bytes.as_ptr() as *const GLvoid,
-        );
+        gl::TextureSubImage3D(self.texture, 0, 0, 0, index as i32, width, height, 1, format, gl::UNSIGNED_BYTE, bytes.as_ptr() as *const GLvoid);
         Ok(())
     }
 

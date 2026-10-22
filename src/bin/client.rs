@@ -1,9 +1,5 @@
 use client::window::app::App;
-use crossbeam::epoch::Pointable;
 use glutin::config::ConfigTemplateBuilder;
-use shared::print_base;
-use std::path::Path;
-use std::time::Instant;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 #[path = "../client/mod.rs"]
@@ -28,13 +24,9 @@ pub fn main() -> Result<(), String> {
     // that, because we can query only one config at a time on it, but all
     // normal platforms will return multiple configs, so we can find the config
     // with transparency ourselves inside the `reduce`.
-    let template = ConfigTemplateBuilder::new()
-        .with_alpha_size(8)
-        .with_transparency(false);
+    let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_transparency(false);
     let mut app = App::new(template);
-    event_loop
-        .run_app(&mut app)
-        .expect("Failed to run the event loop");
+    event_loop.run_app(&mut app).expect("Failed to run the event loop");
 
     app.exit_state()
 }

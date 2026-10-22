@@ -2,10 +2,11 @@ use crate::server::network::client_connection::ClientConnection;
 use crate::server::world_data::data::ServerWorldData;
 use crate::server::world_data::event::events::ServerEvent;
 use crossbeam::channel as cb;
+use shared::common::error::err_type::{CustomErrorKind, GameError};
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::{L5PacketType, UdpPacketType};
 use shared::common::network::socket::common_socket::CommonSocket;
-use shared::print_base;
+use shared::{custom_error, print_base};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::net::{SocketAddr, SocketAddrV6};
@@ -24,7 +25,7 @@ pub struct Socket {
 
 impl Socket {
     /// Creates a socket that listens on the IPv6 address
-    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<(), Error> {
+    pub fn listen(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
         print_base!("Creating thread");
         // creating a thread that will host a tokio task
         std::thread::Builder::new()
@@ -47,10 +48,11 @@ impl Socket {
                     }
                 });
             })
+            .map_err(|e| custom_error!(CustomErrorKind::Io, e.to_string()))
             .map(|_| ())
     }
 
-    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<Socket, Error> {
+    pub async fn new(server_world_data: Arc<ServerWorldData>, socket_addr_v6: SocketAddrV6, event_sx: cb::Sender<ServerEvent>) -> Result<Socket, GameError> {
         let (sender, receiver) = channel(1000);
         let udp_socket = CommonSocket::new(socket_addr_v6).await?;
         Ok(Self {
@@ -68,7 +70,7 @@ impl Socket {
     /// Two states are possible:
     /// - Either receiving data from network
     /// - Or sending data through network
-    pub async fn poll(&mut self) -> Result<(), Error> {
+    pub async fn poll(&mut self) -> Result<(), GameError> {
         loop {
             tokio::select! {
                 // receiving packet
@@ -111,7 +113,12 @@ impl Socket {
             Ok(())
         } else {
             // if not a login packet, sending the packet to the right task through channel
-            self.map.get(&socket_addr).ok_or_else(|| Error::new(ErrorKind::NotFound, "No matching connection to process for this packet"))?.send(l5_packet.clone()).await.map_err(Error::other)
+            self.map
+                .get(&socket_addr)
+                .ok_or_else(|| Error::new(ErrorKind::NotFound, "No matching connection to process for this packet"))?
+                .send(l5_packet.clone())
+                .await
+                .map_err(Error::other)
         }
     }
 

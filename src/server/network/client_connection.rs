@@ -5,6 +5,7 @@ use crate::server::world_data::event::events::{PlayerEvent, ServerEvent};
 use crate::server::world_data::player::player::ServerPlayer;
 use crossbeam::channel as cb;
 use shared::common::account::puid::PUID;
+use shared::common::error::err_type::{CustomErrorKind, GameError};
 use shared::common::network::client::player_packet::UpdatePlayerPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
@@ -12,8 +13,9 @@ use shared::common::network::server::connection_packet::ConnectionPacket;
 use shared::common::network::server::quit_packet::QuitPacket;
 use shared::common::network::server::tick_packet::GetPlayerPacket;
 use shared::common::network::udp_packet::TIMEOUT_DURATION;
+use shared::common::world::block::block::BlockId;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::print_base;
+use shared::{custom_error, print_base};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
@@ -36,15 +38,22 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
-    pub async fn start(packet: L5Packet, socket: ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx: cb::Sender<ServerEvent>) -> Result<(), Error> {
+    pub async fn start(packet: L5Packet, socket: ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
         let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(10000);
         let L5Packet::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", socket.get_addr());
-            return Err(Error::new(ErrorKind::InvalidInput, "Got wrong packet from network"));
+            return Err(custom_error!(CustomErrorKind::InvalidData, "Got wrong packet from network"));
         };
 
         let (pos, player) = server_world_data.connect_player(con_packet.get_puid().clone(), player_sx)?;
-        socket.send(L5Packet::Connect(ConnectionPacket::new(pos)), UdpPacketType::Simple).await.unwrap();
+        let mut block_table: Vec<(String, BlockId)> = Vec::new();
+        for (name, id) in server_world_data.get_registries().get("blocks").unwrap().iter() {
+            block_table.push((name.clone(), *id));
+        }
+        socket
+            .send(L5Packet::Connect(ConnectionPacket::new(pos, block_table)), UdpPacketType::Simple)
+            .await
+            .unwrap();
 
         let mut client_connection = Self {
             chunks_loaded: HashSet::new(),
@@ -66,7 +75,7 @@ impl ClientConnection {
     ///
     /// Switching between receiving a packet from the main connection thread through the channel,
     /// or between receiving a packet to send or the interval ticking to ask for player update
-    pub async fn handle_client(&mut self) -> Result<(), Error> {
+    pub async fn handle_client(&mut self) -> Result<(), GameError> {
         // defining the interval
         let mut heartbeat_interval = tokio::time::interval(UPDATE_INTERVAL);
         let mut timeout = Instant::now() + TIMEOUT_DURATION;
@@ -116,7 +125,7 @@ impl ClientConnection {
                 player: self.player.clone(),
                 e_type: PlayerEvent::DisconnectPlayer(self.puid),
             })
-            .map_err(Error::other)
+            .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))
     }
 
     fn generate_chunks(&self) -> Result<(), Error> {

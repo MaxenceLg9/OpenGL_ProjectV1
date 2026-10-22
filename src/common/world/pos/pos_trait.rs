@@ -1,5 +1,5 @@
-use std::any::Any;
 use bitvec::vec::BitVec;
+use std::any::Any;
 
 pub trait PosTrait: Any {
     fn serialize(&self) -> BitVec<u8>;

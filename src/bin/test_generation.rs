@@ -1,21 +1,14 @@
-use std::io;
-use std::io::Cursor;
-use std::ops::{Add, Deref, Div, Mul};
-use std::sync::mpsc::{channel, Sender};
-use bitvec::macros::internal::funty::Fundamental;
-use glutin::config::ConfigTemplateBuilder;
-use image::{DynamicImage, GenericImage, ImageFormat, ImageReader, Rgba, RgbaImage};
-use mlua::Lua;
-use noise::{NoiseFn, Perlin};
-use winit::event_loop::{ControlFlow, EventLoop};
-use shared::worldgen::Generator;
-use shared::print_base;
 use crate::test::display::app::App;
+use glutin::config::ConfigTemplateBuilder;
+use std::io;
+use winit::event_loop::{ControlFlow, EventLoop};
 
-#[path="../client/mod.rs"] pub mod client;
-#[path="../test/mod.rs"] pub mod test;
-#[path="../server/mod.rs"] pub mod server;
-
+#[path = "../client/mod.rs"]
+pub mod client;
+#[path = "../server/mod.rs"]
+pub mod server;
+#[path = "../test/mod.rs"]
+pub mod test;
 
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]

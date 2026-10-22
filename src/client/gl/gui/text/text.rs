@@ -1,6 +1,5 @@
 use gl::UNSIGNED_INT;
 use gl::types::{GLsizei, GLuint};
-use shared::common::display::vertex::vertex::Vertex;
 
 pub struct MeshText {
     vao: GLuint,
@@ -13,35 +12,19 @@ pub struct MeshText {
 impl MeshText {
     pub unsafe fn new(vertices: Vec<u32>, indices: Vec<u32>) -> MeshText {
         let (vao, vbo, ebo) = (0, 0, 0);
-        Self {
-            vao,
-            vbo,
-            ebo,
-            vertices,
-            indices,
-        }
+        Self { vao, vbo, ebo, vertices, indices }
     }
 
     pub unsafe fn link(mut self) -> MeshText {
-        let (mut vao, mut vbo, mut ebo) = (0, 0, 0);
+        // let (vao, vbo, ebo) = (0, 0, 0);
         Self::setup_mesh(&mut self.vao, &mut self.vbo, &mut self.ebo);
         self.bind_data();
         self
     }
 
     unsafe fn bind_data(&mut self) {
-        gl::NamedBufferData(
-            self.vbo,
-            self.vertices.len().cast_signed() * 4,
-            self.vertices.as_ptr() as *const _,
-            gl::STATIC_DRAW,
-        );
-        gl::NamedBufferData(
-            self.ebo,
-            self.indices.len().cast_signed() * 4,
-            self.indices.as_ptr() as *const _,
-            gl::STATIC_DRAW,
-        );
+        gl::NamedBufferData(self.vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
+        gl::NamedBufferData(self.ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
     unsafe fn setup_mesh(vao: &mut GLuint, vbo: &mut GLuint, ebo: &mut GLuint) {
@@ -75,13 +58,7 @@ impl MeshText {
         // bind appropriate textures
         // draw mesh
         gl::BindVertexArray(self.vao);
-        gl::DrawElementsBaseVertex(
-            gl::TRIANGLES,
-            self.indices.len() as GLsizei,
-            gl::UNSIGNED_INT,
-            std::ptr::null(),
-            0,
-        );
+        gl::DrawElementsBaseVertex(gl::TRIANGLES, self.indices.len() as GLsizei, gl::UNSIGNED_INT, std::ptr::null(), 0);
         gl::BindVertexArray(0);
 
         // always good practice to set everything back to defaults once configured.

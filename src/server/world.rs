@@ -4,12 +4,14 @@ use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
 use crate::server::world_data::event::events::{InternalEvent, PlayerEvent, ServerEvent};
 use crossbeam::{channel as cb, channel};
+use shared::common::error::err_type::{CustomErrorKind, GameError};
 use shared::common::network::client::block_packet::BlockPacket;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
+use shared::common::world::chunk::chunkmap::{MAX_Y_CHUNK, MIN_Y_CHUNK};
 use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::print_base;
-use std::collections::{HashMap, HashSet};
+use shared::{custom_error, print_base};
+use std::collections::HashSet;
 use std::io::Error;
 use std::net::{Ipv6Addr, SocketAddrV6};
 use std::ops::Mul;
@@ -28,19 +30,13 @@ pub struct ServerWorld {
 }
 
 impl ServerWorld {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Result<Self, GameError> {
         let (event_sx, event_rx) = cb::bounded(10000);
         let (gen_crossbeam_sx, gen_crossbeam_rx) = cb::bounded(10000);
-        let data = Arc::new(ServerWorldData::new());
+        let data = Arc::new(ServerWorldData::new()?);
 
         let ipv6_address = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
         Socket::listen(data.clone(), SocketAddrV6::new(ipv6_address, 25000, 0, 0).into(), event_sx.clone())?;
-
-        // let lua = Lua::new();
-        // let env = lua.globals();
-        // let table = lua.create_table().unwrap();
-        // table.set("new", lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| Ok(BlockState::new(tier, is_solid))).unwrap());
-        // env.set("BlockState", table);
 
         ChunkGenerator::new(gen_crossbeam_rx, event_sx, 1, data.get_registries())?;
         Ok(Self {
@@ -53,19 +49,22 @@ impl ServerWorld {
         })
     }
 
-    fn generate_base_chunks(pos_register: &mut HashSet<ChunkPos>, gen_crossbeam_sx: channel::Sender<ChunkPos>) {
+    fn generate_base_chunks(pos_register: &mut HashSet<ChunkPos>, gen_crossbeam_sx: channel::Sender<ChunkPos>) -> Result<(), GameError> {
         let range: i32 = 20;
-        for i in 0..range.pow(2).mul(7) {
+        for i in 0..range.pow(2).mul(14) {
             let pos: ChunkPos = ChunkPos::from_single_value(i, range);
             pos_register.insert(pos);
-            gen_crossbeam_sx.send(pos).unwrap();
+            gen_crossbeam_sx
+                .send(pos)
+                .map_err(|e| custom_error!(CustomErrorKind::SendError, format!("{}", e)))?;
             // if let Err(e) = gen_crossbeam_sx.send(pos) {
             //     print_base!("Got error {}",e);
             // }
         }
+        Ok(())
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
+    pub fn listen(&mut self) -> Result<(), GameError> {
         Self::generate_base_chunks(&mut self.chunks_generated, self.gen_crossbeam_sx.clone());
         print_base!("Spawn generated");
         loop {
@@ -82,11 +81,11 @@ impl ServerWorld {
     pub fn get_chunk_map(&self) -> &ServerChunkMap {
         &self.chunks
     }
-    pub fn poll(&mut self) -> Result<(), Error> {
+    pub fn poll(&mut self) -> Result<(), GameError> {
         self.chunks.poll()?;
         self.handle_events()
     }
-    fn handle_events(&mut self) -> Result<(), Error> {
+    fn handle_events(&mut self) -> Result<(), GameError> {
         while let Ok(event) = self.event_rx.try_recv() {
             match event {
                 ServerEvent::InternalEvent(internal_event) => match internal_event {
@@ -101,9 +100,9 @@ impl ServerWorld {
                             let bs = self.chunks.interact_block(p.get_pos(), p.get_interaction_type());
                             player
                                 .write()
-                                .map_err(|e| Error::other(e.to_string()))?
+                                .map_err(|e| custom_error!(CustomErrorKind::InvalidData, e.to_string()))?
                                 .send_packet(L5Packet::Block(BlockPacket::new(p.get_interaction_type(), p.get_pos(), bs)), UdpPacketType::Reliable)
-                                .map_err(Error::other)?;
+                                .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                         }
                         PlayerEvent::AskChunk(vec_pos) => {
                             print_base!("Asking for {} chunks", vec_pos.len());
@@ -114,9 +113,11 @@ impl ServerWorld {
                             print_base!("Generating chunks");
                             let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(chunk_pos, 8, &self.chunks_generated);
                             for chunk_pos in array {
-                                if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= 0 && chunk_pos.y <= 11 {
+                                if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= MIN_Y_CHUNK && chunk_pos.y <= MAX_Y_CHUNK {
                                     if self.chunks_generated.insert(chunk_pos) {
-                                        self.gen_crossbeam_sx.send(chunk_pos).map_err(Error::other)?;
+                                        self.gen_crossbeam_sx
+                                            .send(chunk_pos)
+                                            .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                                     }
                                 }
                             }

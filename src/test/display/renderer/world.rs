@@ -54,12 +54,7 @@ impl ClientWorld {
         );
         env.set("BlockState", table);
         let chunk = lua
-            .load(
-                std::fs::read_to_string(
-                    "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/lua/blocks.lua",
-                )
-                .unwrap(),
-            )
+            .load(std::fs::read_to_string("src/assets/lua/blocks.lua").expect("Cannot open the blocks.lua file"))
             .set_environment(env.clone())
             .into_function()
             .unwrap();
@@ -71,21 +66,17 @@ impl ClientWorld {
                 if block == "air" {
                     continue;
                 }
-                blocks_textures.add_texture(format!("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/textures/blocks/{}.png",block).as_str(), id.to_owned()).expect(format!("Cannot add texture for block {}", k).as_str());
+                blocks_textures
+                    .add_texture(format!("src/assets/textures/blocks/{}.png", block).as_str(), id.to_owned())
+                    .expect(format!("Cannot add texture for block {}", k).as_str());
             }
         }
         Self {
             puid: PUID::new(0),
             blocks_textures,
-            chunk_shader: Shader::new(
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/vertex.vert",
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/chunk/fragment.frag",
-            ),
+            chunk_shader: Shader::new("src/assets/shaders/chunk/vertex.vert", "src/assets/shaders/chunk/fragment.frag"),
             text_textures: TextureArray::new_raw("characters".to_string(), gl::R8, 32, 32),
-            meshtext_shader: Shader::new(
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/vertex.vert",
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/debug_mesh/fragment.frag",
-            ),
+            meshtext_shader: Shader::new("src/assets/shaders/debug_mesh/vertex.vert", "src/assets/shaders/debug_mesh/fragment.frag"),
             generator: Generator::new(0, registries.clone()),
             text: Text::new(),
             sender: sx,
@@ -96,10 +87,7 @@ impl ClientWorld {
             last_frame: Instant::now(),
             characters: HashMap::new(),
             player: ClientPlayer::new(0.0, 0.0, 0.0),
-            text_shader: Shader::new(
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert",
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag",
-            ),
+            text_shader: Shader::new("src/assets/shaders/text/vertex.vert", "src/assets/shaders/text/fragment.frag"),
         }
     }
 
@@ -118,10 +106,7 @@ impl ClientWorld {
                 for z in -7..7 {
                     for y in -2..7 {
                         sender
-                            .send((
-                                ChunkPos::new(x, y, z),
-                                ServerChunk::generate_chunk(generator.clone(), ChunkPos::new(x, y, z)).get_blocks(),
-                            ))
+                            .send((ChunkPos::new(x, y, z), ServerChunk::generate_chunk(generator.clone(), ChunkPos::new(x, y, z)).get_blocks()))
                             .unwrap();
                     }
                 }
@@ -141,11 +126,9 @@ impl ClientWorld {
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
         }
 
-        let font_data =
-            std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
+        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
 
-        let font =
-            fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
+        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
 
         let px_size = 32.0;
 
@@ -156,8 +139,7 @@ impl ClientWorld {
             let (metrics, bitmap) = font.rasterize(chr, px_size);
 
             // 2. Generate Texture
-            self.text_textures
-                .add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32);
+            self.text_textures.add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32);
         }
         // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
         // Keep this! OpenGL needs it for 1-byte (RED) alignment
@@ -165,11 +147,9 @@ impl ClientWorld {
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
         }
 
-        let font_data =
-            std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
+        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
 
-        let font =
-            fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
+        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
 
         let px_size = 32.0;
 
@@ -185,17 +165,7 @@ impl ClientWorld {
             unsafe {
                 gl::GenTextures(1, &mut texture_id);
                 gl::BindTexture(gl::TEXTURE_2D, texture_id);
-                gl::TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RED as i32,
-                    metrics.width as i32,
-                    metrics.height as i32,
-                    0,
-                    gl::RED,
-                    gl::UNSIGNED_BYTE,
-                    bitmap.as_ptr() as *const _,
-                );
+                gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RED as i32, metrics.width as i32, metrics.height as i32, 0, gl::RED, gl::UNSIGNED_BYTE, bitmap.as_ptr() as *const _);
 
                 // Texture parameters
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
@@ -204,12 +174,7 @@ impl ClientWorld {
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
             }
 
-            let character = Character::new(
-                texture_id,
-                glam::ivec2(metrics.width as i32, metrics.height as i32),
-                glam::ivec2(metrics.xmin, metrics.ymin),
-                metrics.advance_width as u32,
-            );
+            let character = Character::new(texture_id, glam::ivec2(metrics.width as i32, metrics.height as i32), glam::ivec2(metrics.xmin, metrics.ymin), metrics.advance_width as u32);
 
             self.characters.insert(chr, character);
         }
@@ -227,12 +192,7 @@ impl ClientWorld {
 
         // build view matrix
         let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
-        let projection: glam::Mat4 = glam::Mat4::perspective_lh(
-            fov.to_radians(),
-            window.inner_size().width as f32 / window.inner_size().height as f32,
-            0.01_f32,
-            1000.0_f32,
-        );
+        let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32, 0.01_f32, 1000.0_f32);
         let pro_view = projection * view;
 
         gl::DepthFunc(gl::LESS);
@@ -258,8 +218,7 @@ impl ClientWorld {
                 //    let color = light.getColor();
                 let color = glam::Vec3::new(1.0_f32, 1.0_f32, 1.0_f32); // Default colour for debugging
                 self.chunk_shader.set_vec3("color", color);
-                self.chunk_shader
-                    .set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
+                self.chunk_shader.set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
                 self.chunk_shader.set_vec3("uniformLightPos", light_pos);
                 self.chunk_shader.set_vec3("uniformViewPos", camera_pos.as_vec3());
                 self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
@@ -305,30 +264,35 @@ impl ClientWorld {
         let weight_bias = 0.3;
         let height_bias = 1.5;
         unsafe {
-            self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + E-Noise {:.5}, Peaks & Valleys {:.5} + PV-Noise {:.5}, Contientalness : {:.5}, Height {}, Block density {}", erosion, e_noise, peaks_and_valleys, pv_noise, continentalness, height as i32, self.generator.density_of(x, y, z, height, weight_bias, height_bias).unwrap() == self.registries.get("blocks").unwrap().get_by_name("minecraft:grass").unwrap()), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
             self.text.render_text(
                 &self.text_shader,
                 &format!(
-                    "Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}",
-                    camera_pos.deref(),
-                    camera_pos.get_chunk_pos().get_vec3(),
-                    direction
+                    "Erosion {:.5} + E-Noise {:.5}, Peaks & Valleys {:.5} + PV-Noise {:.5}, Contientalness : {:.5}, Height {}, Block density {}",
+                    erosion,
+                    e_noise,
+                    peaks_and_valleys,
+                    pv_noise,
+                    continentalness,
+                    height as i32,
+                    self.generator.density_of(x, y, z, height, weight_bias, height_bias).unwrap() == self.registries.get("blocks").unwrap().get_by_name("minecraft:grass").unwrap()
                 ),
+                20.0,
+                20.0,
+                0.4,
+                glam::vec3(1.0, 1.0, 1.0),
+                &self.characters,
+            );
+            self.text.render_text(
+                &self.text_shader,
+                &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}", camera_pos.deref(), camera_pos.get_chunk_pos().get_vec3(), direction),
                 20.0,
                 1060.0,
                 0.4,
                 glam::vec3(1.0, 1.0, 1.0),
                 &self.characters,
             );
-            self.text.render_text(
-                &self.text_shader,
-                &format!("{:.4} FPS", 1.0 / period.as_secs_f64()),
-                1550.0,
-                1060.0,
-                0.4,
-                glam::vec3(1.0, 1.0, 1.0),
-                &self.characters,
-            );
+            self.text
+                .render_text(&self.text_shader, &format!("{:.4} FPS", 1.0 / period.as_secs_f64()), 1550.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
             // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
         }
     }

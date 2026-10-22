@@ -1,147 +1,140 @@
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
-use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
-use std::ops::Deref;
-use std::sync::{Arc};
-use std::time::{Duration, Instant};
-use tokio::io::AsyncWriteExt;
-use tokio::time::timeout;
+use crate::client::world_data::client_data::ClientWorldData;
+use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
+use shared::common::error::err_type::{CustomErrorKind, GameError};
 use shared::common::network::client::login_packet::LoginPacket;
 use shared::common::network::client::player_packet::UpdatePlayerPacket;
-use shared::common::network::server::chunk_packet::ChunkPacket;
-use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::print_base;
-use crate::client::world_data::client_data::ClientWorldData;
-use crossbeam::channel as cb;
-use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::network::udp_packet::TIMEOUT_DURATION;
-use shared::common::world::chunk::chunk::Chunk;
-use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
+use shared::{custom_error, print_base};
+use std::io::{Error, ErrorKind};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::ops::Deref;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::time::timeout;
 
 pub struct ServerConnection {
     socket: CommonSocket,
     client_world_data: Arc<ClientWorldData>,
-    rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>,
-    start_time : Instant,
-    addr : SocketAddr,
-    event_sx : crossbeam::channel::Sender<ClientEvent>
+    rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>,
+    start_time: Instant,
+    addr: SocketAddr,
+    event_sx: crossbeam::channel::Sender<ClientEvent>,
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx : crossbeam::channel::Sender<ClientEvent>) {
+    pub fn start(ipv6addr: Ipv6Addr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), Error> {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
+                let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
                 rt.block_on(async {
-                    ServerConnection::new(ipv6addr, rx, client_world_data, event_sx).await.unwrap();
+                    if let Err(e) = ServerConnection::new(ipv6addr, rx, client_world_data, event_sx).await {
+                        print_base!("Got error on connection {} at {}", e, chrono::offset::Local::now());
+                    }
                 });
             })
-            .unwrap();
+            .map(|_| ())
     }
-    pub async fn new(ipv6addr: Ipv6Addr, rx : tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx : crossbeam::channel::Sender<ClientEvent>) -> Result<(),Error> {
+    pub async fn new(ipv6addr: Ipv6Addr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), GameError> {
         let socket = CommonSocket::new(SocketAddrV6::new(ipv6addr, 50003, 0, 0)).await?;
         socket.connect(SocketAddrV6::new(ipv6addr, 25000, 0, 0)).await?;
         let addr = socket.peer_addr()?;
         // let (psx, prx) = tokio::sync::mpsc::channel(10000);
         print_base!("ClientSocket connecting to {:?}", ipv6addr);
 
-
         let mut con = Self {
             socket,
             rx,
-            start_time : Instant::now(),
+            start_time: Instant::now(),
             client_world_data,
             event_sx,
             addr,
         };
         con.connect().await?;
-        con.handle_server().await;
+        con.handle_server().await?;
         print_base!("Closed connection from {}", addr);
         Ok(())
     }
 
-    async fn connect(&mut self) -> Result<(),Error> {
+    async fn connect(&mut self) -> Result<(), GameError> {
         self.socket.flush();
-        self.socket.send_to(L5Packet::Login(LoginPacket::new(2000, "maxence")),self.addr, UdpPacketType::Reliable).await.expect("Panic when sending connection packet");
+        self.socket
+            .send_to(L5Packet::Login(LoginPacket::new(2000, "maxence")), self.addr, UdpPacketType::Reliable)
+            .await
+            .expect("Panic when sending connection packet");
 
         let (packet, addr) = self.socket.recv_from().await?;
         let L5Packet::Connect(packet) = packet else {
             self.socket.flush();
-            return Err(Error::new(ErrorKind::InvalidData,"Expected Connect packet, got something else"));
+            return Err(custom_error!(CustomErrorKind::InvalidData, "Expected Connect packet, got something else"));
         };
-        self.client_world_data.get_player().write().unwrap().get_camera_mut().set_pos(packet.get_pos().clone());
+        self.event_sx.send(ClientEvent { client_event_type: ClientEventType::Connection(packet) });
+        // self.client_world_data
+        //     .get_player()
+        //     .write()
+        //     .unwrap()
+        //     .get_camera_mut()
+        //     .set_pos(packet.get_pos().clone());
         Ok(())
-
     }
 
-    async fn handle_server(&mut self) {
+    async fn handle_server(&mut self) -> Result<(), GameError> {
         self.start_time = Instant::now();
         loop {
             tokio::select! {
-                    frame = timeout(TIMEOUT_DURATION, self.socket.recv_from()) => {
-                        if let Err(e) = self.receive(frame).await {
-                            print_base!("Breaking due to error: {} at {}", e, chrono::offset::Local::now());
-                            break;
-                        }
-                    }
-                    Some((packet, udp_type)) = self.rx.recv() => {
-                        if let L5Packet::Block(p) = &packet {
-                            print_base!("Sending block packet")
-                        }
-                        // print_base!("Sending packet {}",packet.get_packet_type());
-                        self.socket.send_to(packet, self.addr, udp_type).await.unwrap();
-                    }
+                frame = timeout(TIMEOUT_DURATION, self.socket.recv_from()) => {
+                    self.receive(frame).await?
                 }
+                Some((packet, udp_type)) = self.rx.recv() => {
+                    if let L5Packet::Block(p) = &packet {
+                        print_base!("Sending block packet")
+                    }
+                    // print_base!("Sending packet {}",packet.get_packet_type());
+                    self.socket.send_to(packet, self.addr, udp_type).await.unwrap();
+                }
+            }
         }
     }
 
-
-    async fn receive(&mut self, frame : Result<Result<(L5Packet, SocketAddr), Error>, tokio::time::error::Elapsed>) -> Result<(), Error> {
+    async fn receive(&mut self, frame: Result<Result<(L5Packet, SocketAddr), GameError>, tokio::time::error::Elapsed>) -> Result<(), GameError> {
         match frame {
-            Ok(Ok((packet, addr))) => {
-                self.handle_packet(packet).await
-            }
-            Ok(Err(e)) => {
-                Err(e)
-            },
-            Err(e) => {
-                Err(Error::new(ErrorKind::TimedOut,e.to_string()))
-            }
+            Ok(Ok((packet, addr))) => self.handle_packet(packet).await,
+            Ok(Err(e)) => Err(e),
+            Err(e) => Err(custom_error!(CustomErrorKind::NetworkSocket, e.to_string())),
         }
     }
 
-    async fn handle_packet(&mut self, p: L5Packet) -> Result<(), Error> {
+    async fn handle_packet(&mut self, p: L5Packet) -> Result<(), GameError> {
         match p {
             L5Packet::Chunk(chunk_packet) => {
                 // print_base!("Receiving packets {}",p.get_packet_type());
-                self.event_sx.send(ClientEvent {
-                    client_event_type : ClientEventType::ChunkPacketReceived(chunk_packet)
-                }).expect("Cannot send event");
+                self.event_sx
+                    .send(ClientEvent {
+                        client_event_type: ClientEventType::ChunkPacketReceived(chunk_packet),
+                    })
+                    .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                 // self.chunk_sender.send(chunk_packet).expect("Cannot send the chunk to the map");
                 Ok(())
-            },
+            }
             L5Packet::GetPlayer(player_packet) => {
-                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_camera().get_coords(),8, player_packet.get_id()));
+                let tick_packet = L5Packet::UpdatePlayer(UpdatePlayerPacket::new(self.client_world_data.get_player().read().unwrap().get_camera().get_coords(), 8, player_packet.get_id()));
                 self.socket.send_to(tick_packet, self.addr, UdpPacketType::Simple).await?;
                 Ok(())
-            },
+            }
             L5Packet::Connect(packet) => {
                 print_base!("Spawning on the world with coords : {}", packet.get_pos().deref());
                 Ok(())
-            },
+            }
             L5Packet::Block(packet) => {
-                self.event_sx.send(ClientEvent {
-                    client_event_type : ClientEventType::BlockInteraction(packet)
-                }).expect("Cannot send event");
+                self.event_sx
+                    .send(ClientEvent {
+                        client_event_type: ClientEventType::BlockInteraction(packet),
+                    })
+                    .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                 Ok(())
             }
             _ => Ok(()),

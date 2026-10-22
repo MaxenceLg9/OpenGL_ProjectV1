@@ -32,13 +32,7 @@ impl Mesh {
         model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
         chunk_shader.set_matrix4fv("uniform_model", model);
         gl::BindVertexArray(self.vao);
-        gl::DrawElementsBaseVertex(
-            TRIANGLES,
-            self.nb_indices,
-            UNSIGNED_INT,
-            std::ptr::null(),
-            0,
-        );
+        gl::DrawElementsBaseVertex(TRIANGLES, self.nb_indices, UNSIGNED_INT, std::ptr::null(), 0);
     }
 }
 
@@ -93,33 +87,15 @@ impl ChunkMesh {
     }
 
     unsafe fn bind_data(&self, vbo: &mut GLuint, ebo: &mut GLuint) {
-        gl::NamedBufferData(
-            *vbo,
-            self.vertices.len().cast_signed() * 4,
-            self.vertices.as_ptr() as *const _,
-            gl::STATIC_DRAW,
-        );
-        gl::NamedBufferData(
-            *ebo,
-            self.indices.len().cast_signed() * 4,
-            self.indices.as_ptr() as *const _,
-            gl::STATIC_DRAW,
-        );
+        gl::NamedBufferData(*vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
+        gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
     }
 
     /// Construct the chunk mesh and text meshes from chunks
     pub fn build_mesh(blocks: Arc<Vec<u16>>, chunk_pos: ChunkPos) -> Option<(ChunkMesh, MeshText)> {
-        let mut chunk_mesh = Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            chunk_pos,
-        };
-        chunk_mesh
-            .vertices
-            .reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
-        chunk_mesh
-            .indices
-            .reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
+        let mut chunk_mesh = Self { vertices: Vec::new(), indices: Vec::new(), chunk_pos };
+        chunk_mesh.vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2); // 6 faces, 4 vertices per face
+        chunk_mesh.indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6); // 6 faces, 6 nbIndices per face
         let mut index = 0;
         let materials = [1.0, 1.0, 1.0];
         for x in 0..CHUNK_SIZE {
@@ -135,303 +111,81 @@ impl ChunkMesh {
                     let (ux, uy, uz) = (x as i32, y as i32, z as i32);
                     //front face
                     if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz + 1), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux, uy, uz + 1),
-                            Plane::Z,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz + 1), Plane::Z, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz + 1),
-                            1,
-                            3,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz + 1),
-                            1,
-                            2,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz + 1),
-                            1,
-                            0,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz + 1),
-                            1,
-                            1,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 1, 3, materials, ao[0]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 1, 2, materials, ao[1]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 1, 0, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 1, 1, materials, ao[3]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     // back face
                     if chunk_mesh.is_void(IBlockPos::new(ux, uy, uz - 1), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux, uy, uz - 1),
-                            Plane::Z,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy, uz - 1), Plane::Z, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz),
-                            4,
-                            2,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz),
-                            4,
-                            0,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz),
-                            4,
-                            1,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz),
-                            4,
-                            3,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 4, 2, materials, ao[2]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 4, 0, materials, ao[1]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 4, 1, materials, ao[0]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 4, 3, materials, ao[3]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     //top face
                     if chunk_mesh.is_void(IBlockPos::new(ux, uy + 1, uz), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux, uy + 1, uz),
-                            Plane::Y,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy + 1, uz), Plane::Y, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz),
-                            0,
-                            2,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz),
-                            0,
-                            0,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz + 1),
-                            0,
-                            1,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz + 1),
-                            0,
-                            3,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 0, 2, materials, ao[0]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 0, 0, materials, ao[1]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 0, 1, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 0, 3, materials, ao[3]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
                     // bottom face
                     if chunk_mesh.is_void(IBlockPos::new(ux, uy - 1, uz), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux, uy - 1, uz),
-                            Plane::Y,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux, uy - 1, uz), Plane::Y, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz),
-                            5,
-                            1,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz + 1),
-                            5,
-                            3,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz + 1),
-                            5,
-                            2,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz),
-                            5,
-                            0,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 5, 1, materials, ao[0]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 5, 3, materials, ao[3]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 5, 2, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 5, 0, materials, ao[1]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
 
                     // right face
                     if chunk_mesh.is_void(IBlockPos::new(ux + 1, uy, uz), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux + 1, uy, uz),
-                            Plane::X,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux + 1, uy, uz), Plane::X, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz),
-                            2,
-                            1,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy, uz + 1),
-                            2,
-                            3,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz + 1),
-                            2,
-                            2,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux + 1, uy + 1, uz),
-                            2,
-                            0,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz), 2, 1, materials, ao[0]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy, uz + 1), 2, 3, materials, ao[3]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz + 1), 2, 2, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux + 1, uy + 1, uz), 2, 0, materials, ao[1]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
 
                     // left face
                     if chunk_mesh.is_void(IBlockPos::new(ux - 1, uy, uz), &blocks, chunk_pos)? {
-                        ao = chunk_mesh.get_ao(
-                            IBlockPos::new(ux - 1, uy, uz),
-                            Plane::X,
-                            &blocks,
-                            chunk_pos,
-                        )?;
+                        ao = chunk_mesh.get_ao(IBlockPos::new(ux - 1, uy, uz), Plane::X, &blocks, chunk_pos)?;
 
                         flip_id = ao[1] + ao[3] > ao[0] + ao[2];
 
-                        v[0] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz),
-                            3,
-                            3,
-                            materials,
-                            ao[0],
-                        )
-                        .unwrap();
-                        v[1] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz),
-                            3,
-                            2,
-                            materials,
-                            ao[1],
-                        )
-                        .unwrap();
-                        v[2] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy + 1, uz + 1),
-                            3,
-                            0,
-                            materials,
-                            ao[2],
-                        )
-                        .unwrap();
-                        v[3] = Self::pack_data(
-                            voxel_id,
-                            glam::IVec3::new(ux, uy, uz + 1),
-                            3,
-                            1,
-                            materials,
-                            ao[3],
-                        )
-                        .unwrap();
+                        v[0] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz), 3, 3, materials, ao[0]).unwrap();
+                        v[1] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz), 3, 2, materials, ao[1]).unwrap();
+                        v[2] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy + 1, uz + 1), 3, 0, materials, ao[2]).unwrap();
+                        v[3] = Self::pack_data(voxel_id, glam::IVec3::new(ux, uy, uz + 1), 3, 1, materials, ao[3]).unwrap();
 
                         index = chunk_mesh.add_data(v, index, flip_id);
                     }
@@ -442,32 +196,15 @@ impl ChunkMesh {
             return None;
         };
         print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
-        let mesh_text =
-            unsafe { MeshText::new(chunk_mesh.vertices.clone(), chunk_mesh.indices.clone()) };
+        let mesh_text = unsafe { MeshText::new(chunk_mesh.vertices.clone(), chunk_mesh.indices.clone()) };
         Some((chunk_mesh, mesh_text))
     }
 
-    fn is_void(
-        &self,
-        block_pos: IBlockPos,
-        blocks: &Vec<u16>,
-        chunk_pos: ChunkPos,
-    ) -> Option<bool> {
-        if block_pos.x < 0
-            || block_pos.x >= CHUNK_SIZE as i32
-            || block_pos.y < 0
-            || block_pos.y >= CHUNK_SIZE as i32
-            || block_pos.z < 0
-            || block_pos.z >= CHUNK_SIZE as i32
-        {
+    fn is_void(&self, block_pos: IBlockPos, blocks: &Vec<u16>, chunk_pos: ChunkPos) -> Option<bool> {
+        if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 || block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 || block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
             return Some(true);
         }
-        Some(
-            blocks[block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE
-                + block_pos.y as usize * CHUNK_SIZE
-                + block_pos.z as usize]
-                == 0,
-        )
+        Some(blocks[block_pos.x as usize * CHUNK_SIZE * CHUNK_SIZE + block_pos.y as usize * CHUNK_SIZE + block_pos.z as usize] == 0)
     }
 
     /// Push the packed and serialized data into the buffers and update the indices
@@ -495,48 +232,26 @@ impl ChunkMesh {
         index + 4
     }
 
-    fn get_ao(
-        &self,
-        pos: IBlockPos,
-        plane: Plane,
-        blocks: &Vec<u16>,
-        chunk_pos: ChunkPos,
-    ) -> Option<[u8; 4]> {
+    fn get_ao(&self, pos: IBlockPos, plane: Plane, blocks: &Vec<u16>, chunk_pos: ChunkPos) -> Option<[u8; 4]> {
         let (a, b, c, d, e, f, g, h) = match plane {
             Plane::X => {
                 (
                     // back
                     self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunk_pos)?,
                     // back bottom
-                    self.is_void(
-                        IBlockPos::new(pos.x, pos.y - 1, pos.z - 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z - 1), blocks, chunk_pos)?,
                     // bottom
                     self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunk_pos)?,
                     // bottom front
-                    self.is_void(
-                        IBlockPos::new(pos.x, pos.y - 1, pos.z + 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z + 1), blocks, chunk_pos)?,
                     // front
                     self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunk_pos)?,
                     // front top
-                    self.is_void(
-                        IBlockPos::new(pos.x, pos.y + 1, pos.z + 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z + 1), blocks, chunk_pos)?,
                     // top
                     self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunk_pos)?,
                     // back top
-                    self.is_void(
-                        IBlockPos::new(pos.x, pos.y + 1, pos.z - 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z - 1), blocks, chunk_pos)?,
                 )
             }
             Plane::Y => {
@@ -544,35 +259,19 @@ impl ChunkMesh {
                     // back
                     self.is_void(IBlockPos::new(pos.x, pos.y, pos.z - 1), blocks, chunk_pos)?,
                     // back left
-                    self.is_void(
-                        IBlockPos::new(pos.x - 1, pos.y, pos.z - 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z - 1), blocks, chunk_pos)?,
                     // left
                     self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunk_pos)?,
                     // front left
-                    self.is_void(
-                        IBlockPos::new(pos.x - 1, pos.y, pos.z + 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z + 1), blocks, chunk_pos)?,
                     // front
                     self.is_void(IBlockPos::new(pos.x, pos.y, pos.z + 1), blocks, chunk_pos)?,
                     // right front
-                    self.is_void(
-                        IBlockPos::new(pos.x + 1, pos.y, pos.z + 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z + 1), blocks, chunk_pos)?,
                     // right
                     self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunk_pos)?,
                     // right back
-                    self.is_void(
-                        IBlockPos::new(pos.x + 1, pos.y, pos.z - 1),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z - 1), blocks, chunk_pos)?,
                 )
             }
             Plane::Z => {
@@ -580,73 +279,36 @@ impl ChunkMesh {
                     // left
                     self.is_void(IBlockPos::new(pos.x - 1, pos.y, pos.z), blocks, chunk_pos)?,
                     // left bottom
-                    self.is_void(
-                        IBlockPos::new(pos.x - 1, pos.y - 1, pos.z),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y - 1, pos.z), blocks, chunk_pos)?,
                     // bottom
                     self.is_void(IBlockPos::new(pos.x, pos.y - 1, pos.z), blocks, chunk_pos)?,
                     // right bottom
-                    self.is_void(
-                        IBlockPos::new(pos.x + 1, pos.y - 1, pos.z),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y - 1, pos.z), blocks, chunk_pos)?,
                     // right
                     self.is_void(IBlockPos::new(pos.x + 1, pos.y, pos.z), blocks, chunk_pos)?,
                     // right top
-                    self.is_void(
-                        IBlockPos::new(pos.x + 1, pos.y + 1, pos.z),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x + 1, pos.y + 1, pos.z), blocks, chunk_pos)?,
                     // top
                     self.is_void(IBlockPos::new(pos.x, pos.y + 1, pos.z), blocks, chunk_pos)?,
                     // left top
-                    self.is_void(
-                        IBlockPos::new(pos.x - 1, pos.y + 1, pos.z),
-                        blocks,
-                        chunk_pos,
-                    )?,
+                    self.is_void(IBlockPos::new(pos.x - 1, pos.y + 1, pos.z), blocks, chunk_pos)?,
                 )
             }
         };
 
-        Some([
-            a as u8 + b as u8 + c as u8,
-            g as u8 + h as u8 + a as u8,
-            e as u8 + f as u8 + g as u8,
-            c as u8 + d as u8 + e as u8,
-        ])
+        Some([a as u8 + b as u8 + c as u8, g as u8 + h as u8 + a as u8, e as u8 + f as u8 + g as u8, c as u8 + d as u8 + e as u8])
     }
 
-    fn pack_data(
-        id: u16,
-        pos: glam::IVec3,
-        face_id: u32,
-        tex_coords: u8,
-        material: [f32; 3],
-        ao: u8,
-    ) -> io::Result<u64> {
+    fn pack_data(id: u16, pos: glam::IVec3, face_id: u32, tex_coords: u8, material: [f32; 3], ao: u8) -> io::Result<u64> {
         // println!("Input : {}, {}, {}",pos, face_id, tex_coords);
         if id as u32 >= 2_u32.pow(18) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Self ID exceeds maximum value of 2^18 - 1".to_string(),
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Self ID exceeds maximum value of 2^18 - 1".to_string()));
         }
         if pos.x >= 2_i32.pow(7) || pos.y >= 2_i32.pow(7) || pos.z >= 2_i32.pow(7) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Self position exceeds maximum value of 2^7 - 1".to_string(),
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Self position exceeds maximum value of 2^7 - 1".to_string()));
         }
         if face_id > 5 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Face id has to be between 0 and 5".to_string(),
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Face id has to be between 0 and 5".to_string()));
         }
         let mut packed: u64 = 0;
         packed |= (id as u64 & 0x3FFFF) << 46; // ID (18 bits)

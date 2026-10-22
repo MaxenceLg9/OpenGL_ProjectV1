@@ -1,3 +1,3 @@
-pub mod pos;
 pub mod block;
 pub mod chunk;
+pub mod pos;

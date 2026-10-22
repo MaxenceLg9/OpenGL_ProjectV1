@@ -10,14 +10,15 @@ use crate::client::world_data::event::event::{ClientEvent, ClientEventType};
 use crate::client::world_data::mesh_map::MeshMap;
 use crate::client::world_data::player::player::ClientPlayer;
 use mlua::Lua;
-use noise::{NoiseFn, Perlin};
 use shared::common::account::puid::PUID;
+use shared::common::error::err_type::GameError;
+use shared::common::file::path::AssetsReader;
 use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
+use shared::print_base;
 use shared::worldgen::Generator;
-use shared::{print_base, print_debug};
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
+use std::hash::RandomState;
 use std::net::Ipv6Addr;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
@@ -39,8 +40,22 @@ pub struct ClientWorld {
     event_rx: crossbeam::channel::Receiver<ClientEvent>,
 }
 
+fn load_blocks() -> Result<Arc<HashMap<String, BlocksRegistries, RandomState>>, GameError> {
+    let lua = Lua::new();
+    let env = lua.globals();
+    let table = lua.create_table()?;
+    table.set("new", lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| Ok(BlockState::new(tier, is_solid)))?)?;
+    env.set("BlockState", table)?;
+    let chunk = lua
+        .load(std::fs::read_to_string("src/assets/lua/blocks.lua").expect("Cannot read blocks.lua file"))
+        .set_environment(env.clone())
+        .into_function()?;
+    let map = chunk.call::<HashMap<String, HashMap<String, BlockState>>>(())?;
+    Ok(Arc::new(HashMap::from([("blocks".to_owned(), BlocksRegistries::from_map(map))])))
+}
+
 impl ClientWorld {
-    pub unsafe fn new() -> Result<ClientWorld, Error> {
+    pub unsafe fn new() -> Result<ClientWorld, GameError> {
         let (mesh_sender, mesh_receiver) = crossbeam::channel::unbounded();
         let (sender_to_mesh, receiver_to_mesh) = crossbeam::channel::unbounded();
         let (event_sx, event_rx) = crossbeam::channel::bounded(100);
@@ -48,36 +63,10 @@ impl ClientWorld {
 
         let chunk_map = ClientChunkMap::new(sender_to_mesh);
         let client_world_data = Arc::new(ClientWorldData::new(sender, mesh_sender.clone()));
-        let lua = Lua::new();
-        let env = lua.globals();
-        let table = lua.create_table().map_err(Error::other)?;
-        table
-            .set(
-                "new",
-                lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| {
-                    Ok(BlockState::new(tier, is_solid))
-                })
-                .map_err(Error::other)?,
-            )
-            .map_err(Error::other)?;
-        env.set("BlockState", table).map_err(Error::other)?;
-        let chunk = lua.load(std::fs::read_to_string("/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/lua/blocks.lua")?).set_environment(env.clone()).into_function().map_err(Error::other)?;
-        let map = chunk
-            .call::<HashMap<String, HashMap<String, BlockState>>>(())
-            .map_err(Error::other)?;
-        let registers = Arc::new(HashMap::from([(
-            "blocks".to_owned(),
-            BlocksRegistries::from_map(map),
-        )]));
-
+        let registers = load_blocks()?;
         MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
 
-        ServerConnection::start(
-            Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
-            receiver,
-            client_world_data.clone(),
-            event_sx,
-        );
+        ServerConnection::start(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), receiver, client_world_data.clone(), event_sx)?;
         Ok(Self {
             client_world_data,
             mesh_receiver,
@@ -89,10 +78,7 @@ impl ClientWorld {
             last_frame: Instant::now(),
             characters: HashMap::new(),
             event_rx,
-            text_shader: Shader::new(
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/vertex.vert",
-                "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/text/fragment.frag",
-            )?,
+            text_shader: Shader::new(AssetsReader::new("shaders/text/vertex.vert"), AssetsReader::new("shaders/text/fragment.frag"))?,
         })
     }
 
@@ -102,12 +88,7 @@ impl ClientWorld {
             .get_player()
             .write()
             .unwrap()
-            .poll_keys(
-                time,
-                self.client_world_data.clone(),
-                &mut self.meshes,
-                &self.chunks,
-            );
+            .poll_keys(time, self.client_world_data.clone(), &mut self.meshes, &self.chunks);
     }
 
     /// Load bitmap character into VRAM by creating buffer
@@ -119,11 +100,9 @@ impl ClientWorld {
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
         }
 
-        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf")
-            .expect("Failed to read font");
+        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
 
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default())
-            .expect("Failed to parse font");
+        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
 
         let px_size = 32.0;
 
@@ -139,17 +118,7 @@ impl ClientWorld {
             unsafe {
                 gl::GenTextures(1, &mut texture_id);
                 gl::BindTexture(gl::TEXTURE_2D, texture_id);
-                gl::TexImage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RED as i32,
-                    metrics.width as i32,
-                    metrics.height as i32,
-                    0,
-                    gl::RED,
-                    gl::UNSIGNED_BYTE,
-                    bitmap.as_ptr() as *const _,
-                );
+                gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RED as i32, metrics.width as i32, metrics.height as i32, 0, gl::RED, gl::UNSIGNED_BYTE, bitmap.as_ptr() as *const _);
 
                 // Texture parameters
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
@@ -158,12 +127,7 @@ impl ClientWorld {
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
             }
 
-            let character = Character::new(
-                texture_id,
-                glam::ivec2(metrics.width as i32, metrics.height as i32),
-                glam::ivec2(metrics.xmin, metrics.ymin),
-                metrics.advance_width as u32,
-            );
+            let character = Character::new(texture_id, glam::ivec2(metrics.width as i32, metrics.height as i32), glam::ivec2(metrics.xmin, metrics.ymin), metrics.advance_width as u32);
 
             self.characters.insert(chr, character);
         }
@@ -179,22 +143,11 @@ impl ClientWorld {
     pub unsafe fn render(&mut self, window: &Window, redraw_time: Duration) {
         let period = Instant::now() - self.last_frame;
         self.last_frame = Instant::now();
-        let (camera_pos, direction, up, fov) = self
-            .get_player()
-            .read()
-            .unwrap()
-            .get_camera()
-            .get_pos_info();
+        let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_camera().get_pos_info();
 
-        let n = self.meshes.render(
-            camera_pos,
-            up,
-            direction,
-            fov,
-            window,
-            self.client_world_data.debug.load(Ordering::Relaxed),
-            &mut self.chunks,
-        );
+        let n = self
+            .meshes
+            .render(camera_pos, up, direction, fov, window, self.client_world_data.debug.load(Ordering::Relaxed), &mut self.chunks);
 
         // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
         // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
@@ -205,26 +158,39 @@ impl ClientWorld {
         let continentalness = self.generator.get_continentalness(c_noise);
 
         let e_noise = self.generator.get_e_noise(x, z);
-        let erosion = self
-            .generator
-            .get_erosion(e_noise, c_noise, continentalness);
+        let erosion = self.generator.get_erosion(e_noise, c_noise, continentalness);
 
         let pv_noise = self.generator.get_pv_noise(x, z);
-        let peaks_and_valleys =
-            self.generator
-                .get_peaks_and_valleys(pv_noise, c_noise, continentalness);
+        let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
         let height = self.generator.get_terrain_height(x as i32, z as i32) as i32;
-        self.text.render_text(&self.text_shader, &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height), 20.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
-        self.text.render_text(&self.text_shader, &format!("Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}", camera_pos.deref(),  camera_pos.get_chunk_pos().get_vec3(), direction, self.chunks.get_chunk(&camera_pos.get_chunk_pos()).is_some() ,self.chunks.get_block_at(camera_pos.get_absolute_iblock_pos())), 20.0, 1060.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        self.text.render_text(
+            &self.text_shader,
+            &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height),
+            20.0,
+            20.0,
+            0.4,
+            glam::vec3(1.0, 1.0, 1.0),
+            &self.characters,
+        );
         self.text.render_text(
             &self.text_shader,
             &format!(
-                "{:.4} FPS, Rendering {}/{}/{} chunk meshes",
-                1.0 / period.as_secs_f64(),
-                n,
-                self.meshes.len(),
-                self.chunks.len()
+                "Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}",
+                camera_pos.deref(),
+                camera_pos.get_chunk_pos().get_vec3(),
+                direction,
+                self.chunks.get_chunk(&camera_pos.get_chunk_pos()).is_some(),
+                self.chunks.get_block_at(camera_pos.get_absolute_iblock_pos())
             ),
+            20.0,
+            1060.0,
+            0.4,
+            glam::vec3(1.0, 1.0, 1.0),
+            &self.characters,
+        );
+        self.text.render_text(
+            &self.text_shader,
+            &format!("{:.4} FPS, Rendering {}/{}/{} chunk meshes", 1.0 / period.as_secs_f64(), n, self.meshes.len(), self.chunks.len()),
             1550.0,
             1060.0,
             0.4,
@@ -234,7 +200,7 @@ impl ClientWorld {
         // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> Result<(), GameError> {
         let instant = Instant::now();
         unsafe {
             while !self.mesh_receiver.is_empty()
@@ -251,9 +217,7 @@ impl ClientWorld {
                 }
                 ClientEventType::BlockInteraction(packet) => {
                     let meshes = match packet.get_interaction_type() {
-                        BlockInteraction::RIGHT => self
-                            .chunks
-                            .set_block(packet.get_pos(), packet.get_block_type()),
+                        BlockInteraction::RIGHT => self.chunks.set_block(packet.get_pos(), packet.get_block_type()),
                         BlockInteraction::LEFT => self.chunks.set_block(packet.get_pos(), 0),
                     };
                     for mesh in meshes {
@@ -263,14 +227,18 @@ impl ClientWorld {
                         }
                     }
                 }
+                ClientEventType::Connection(packet) => {
+                    self.client_world_data
+                        .get_player()
+                        .write()
+                        .unwrap()
+                        .get_camera_mut()
+                        .set_pos(packet.get_pos().clone());
+                    unsafe { self.meshes.load_textures(packet.get_table())? };
+                }
             }
         }
-        self.chunks.tick(
-            self.get_player()
-                .read()
-                .unwrap()
-                .get_camera()
-                .get_chunk_pos(),
-        );
+        self.chunks.tick(self.get_player().read().unwrap().get_camera().get_chunk_pos());
+        Ok(())
     }
 }

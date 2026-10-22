@@ -1,10 +1,10 @@
-use std::fmt::{Display, Formatter};
+use crate::common::network::bit_cursor::BitCursor;
+use crate::common::network::network_traits::L5PacketTrait;
+use crate::common::{account::puid::PUID, error::err_type::GameError};
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 use bitvec::view::BitView;
-use crate::common::account::puid::PUID;
-use crate::common::network::bit_cursor::BitCursor;
-use crate::common::network::network_traits::{L5PacketTrait};
+use std::fmt::{Display, Formatter};
 #[derive(Clone)]
 pub struct LoginPacket {
     puid: PUID,
@@ -13,10 +13,7 @@ pub struct LoginPacket {
 
 impl LoginPacket {
     pub fn new(id: u32, password: &str) -> Self {
-        Self {
-            puid: PUID::new(id),
-            password : password.to_string(),
-        }
+        Self { puid: PUID::new(id), password: password.to_string() }
     }
 
     pub fn get_puid(&self) -> &PUID {
@@ -30,25 +27,24 @@ impl LoginPacket {
 
 impl Display for LoginPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"{}, Password: \"{}\"",self.puid, self.password)
+        write!(f, "{}, Password: \"{}\"", self.puid, self.password)
     }
 }
 
 impl L5PacketTrait for LoginPacket {
-    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) {
+    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
         vec.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
         let pass_bytes = self.password.as_bytes();
         vec.extend_from_bitslice(&(pass_bytes.len() as u32).view_bits::<Lsb0>());
         vec.extend_from_bitslice(pass_bytes.view_bits::<Lsb0>());
+        Ok(())
     }
 
-
-    fn deserialize(cursor: &mut BitCursor) -> Self {
+    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
         let puid = cursor.read_bits::<u32>(32);
         let pass_len = cursor.read_bits::<u32>(32) as usize;
         let password = String::from_utf8(cursor.read_bytes(pass_len)).unwrap();
 
-        Self { puid: PUID::new(puid), password }
+        Ok(Self { puid: PUID::new(puid), password })
     }
-
 }

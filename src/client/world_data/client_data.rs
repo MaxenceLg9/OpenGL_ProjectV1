@@ -17,10 +17,7 @@ pub struct ClientWorldData {
 }
 
 impl ClientWorldData {
-    pub fn new(
-        sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
-        mesh_sender: crossbeam::channel::Sender<(ChunkMesh, MeshText)>,
-    ) -> ClientWorldData {
+    pub fn new(sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, mesh_sender: crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
         let bool = AtomicBool::new(false);
         bool.store(false, Ordering::Relaxed);
         Self {
@@ -33,8 +30,7 @@ impl ClientWorldData {
     }
 
     pub fn toggle_debug(&self) {
-        self.debug
-            .store(!self.debug.load(Ordering::Relaxed), Ordering::Relaxed);
+        self.debug.store(!self.debug.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 
     pub fn send(&self, l5packet: L5Packet, udp_packet_type: UdpPacketType) {

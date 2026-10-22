@@ -1,6 +1,4 @@
-use bitvec::macros::internal::funty::Fundamental;
 use gl::types::{GLsizei, GLsizeiptr, GLuint};
-use shared::print_base;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::ptr::null;
@@ -44,36 +42,15 @@ impl Text {
             gl::GenBuffers(1, &mut vbo);
             gl::BindVertexArray(vao);
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (size_of::<f32>() * 6 * 4) as GLsizeiptr,
-                null(),
-                gl::DYNAMIC_DRAW,
-            );
+            gl::BufferData(gl::ARRAY_BUFFER, (size_of::<f32>() * 6 * 4) as GLsizeiptr, null(), gl::DYNAMIC_DRAW);
             gl::EnableVertexAttribArray(0);
-            gl::VertexAttribPointer(
-                0,
-                4,
-                gl::FLOAT,
-                gl::FALSE,
-                4 * size_of::<f32>() as GLsizei,
-                null(),
-            );
+            gl::VertexAttribPointer(0, 4, gl::FLOAT, gl::FALSE, 4 * size_of::<f32>() as GLsizei, null());
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             gl::BindVertexArray(0);
         }
         Self { vao, vbo }
     }
-    pub unsafe fn render_text(
-        &self,
-        s: &Shader,
-        text: &str,
-        mut x: f32,
-        y: f32,
-        scale: f32,
-        color: glam::Vec3,
-        characters: &HashMap<char, Character>,
-    ) {
+    pub unsafe fn render_text(&self, s: &Shader, text: &str, mut x: f32, y: f32, scale: f32, color: glam::Vec3, characters: &HashMap<char, Character>) {
         // activate corresponding render state
         // print_base!("Before");
 
@@ -82,15 +59,7 @@ impl Text {
 
             let projection = glam::Mat4::orthographic_rh_gl(0.0, 1920.0, 0.0, 1080.0, -1.0, 1.0);
             s.set_matrix4fv("projection", projection);
-            gl::Uniform3f(
-                gl::GetUniformLocation(
-                    s.program,
-                    CString::new("textColor").unwrap().as_bytes().as_ptr() as *const i8,
-                ),
-                color.x,
-                color.y,
-                color.z,
-            );
+            gl::Uniform3f(gl::GetUniformLocation(s.program, CString::new("textColor").unwrap().as_bytes().as_ptr() as *const i8), color.x, color.y, color.z);
 
             // print_base!("After");
             gl::DepthFunc(gl::ALWAYS);
@@ -124,12 +93,7 @@ impl Text {
             unsafe {
                 gl::BindTexture(gl::TEXTURE_2D, ch.texture_id);
                 gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-                gl::BufferSubData(
-                    gl::ARRAY_BUFFER,
-                    0,
-                    (vertices.len() * 16) as isize,
-                    vertices.as_ptr() as *const _,
-                );
+                gl::BufferSubData(gl::ARRAY_BUFFER, 0, (vertices.len() * 16) as isize, vertices.as_ptr() as *const _);
 
                 gl::DrawArrays(gl::TRIANGLES, 0, 6);
             }

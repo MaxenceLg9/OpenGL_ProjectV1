@@ -3,3 +3,10 @@ max_width = 300
 fn_call_width_threshold = 300
 
 fn_single_line = true
+
+indent_style = "Block"
+array_width = 200
+attr_fn_like_width = 200
+binop_separator = "Back"
+chain_width = 100
+force_multiline_blocks = true

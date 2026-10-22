@@ -1,8 +1,9 @@
 use raw_window_handle::HasWindowHandle;
-use std::error::Error;
+use std::io::{Error, ErrorKind};
 use std::num::NonZeroU32;
 use std::time::{Duration, Instant};
 use winit::application::ApplicationHandler;
+use winit::dpi::PhysicalSize;
 use winit::event::{ButtonId, DeviceEvent, DeviceId, ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::KeyCode;
@@ -10,10 +11,7 @@ use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes};
 
 use crate::client::gl::renderer::{GlDisplayCreationState, Renderer, gl_config_picker};
 use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
-use glutin::context::{
-    ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext,
-    Version,
-};
+use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext, Version};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, SwapInterval::*, WindowSurface};
@@ -29,11 +27,7 @@ impl ApplicationHandler for App {
             // We just created the event loop, so initialise the display, pick the config, and
             // create the context.
             GlDisplayCreationState::Builder(display_builder) => {
-                let (window, gl_config) = match display_builder.clone().build(
-                    event_loop,
-                    self.template.clone(),
-                    gl_config_picker,
-                ) {
+                let (window, gl_config) = match display_builder.clone().build(event_loop, self.template.clone(), gl_config_picker) {
                     Ok((window, gl_config)) => (window.unwrap(), gl_config),
                     Err(err) => {
                         self.exit_state = Err(err);
@@ -50,19 +44,14 @@ impl ApplicationHandler for App {
                 self.gl_display = GlDisplayCreationState::Init;
 
                 // Create gl context.
-                self.gl_context =
-                    Some(create_gl_context(&window, &gl_config).treat_as_possibly_current());
+                self.gl_context = Some(create_gl_context(&window, &gl_config).treat_as_possibly_current());
                 (window, gl_config)
             }
             GlDisplayCreationState::Init => {
                 print_base!("Recreating window in `resumed`");
                 // Pick the config which we already use for the context.
                 let gl_config = self.gl_context.as_ref().unwrap().config();
-                match glutin_winit::finalize_window(
-                    event_loop,
-                    window_attributes(Some(&self.state.as_ref().unwrap().window)),
-                    &gl_config,
-                ) {
+                match glutin_winit::finalize_window(event_loop, window_attributes(Some(&self.state.as_ref().unwrap().window)), &gl_config) {
                     Ok(window) => (window, gl_config),
                     Err(err) => {
                         self.exit_state = Err(err.into());
@@ -72,15 +61,8 @@ impl ApplicationHandler for App {
                 }
             }
         };
-        let attrs = window
-            .build_surface_attributes(Default::default())
-            .expect("Failed to build surface attributes");
-        let gl_surface = unsafe {
-            gl_config
-                .display()
-                .create_window_surface(&gl_config, &attrs)
-                .unwrap()
-        };
+        let attrs = window.build_surface_attributes(Default::default()).expect("Failed to build surface attributes");
+        let gl_surface = unsafe { gl_config.display().create_window_surface(&gl_config, &attrs).unwrap() };
         // The context needs to be current for the Renderer to set up shaders and
         // buffers. It also performs function loading, which needs a current context on
         // WGL.
@@ -93,78 +75,54 @@ impl ApplicationHandler for App {
             .set_swap_interval(self.gl_context.as_ref().unwrap(), SwapInterval::DontWait)
             .expect("Cannot define swap interval");
 
-        unsafe {
-            match Renderer::new(&gl_config.display()) {
-                Ok(r) => {
-                    self.renderer = Some(r);
-                }
-                Err(e) => {
-                    print_base!("Got error {}", e);
-                    self.window_event(event_loop, window.id(), WindowEvent::CloseRequested);
-                }
-            };
+        match Renderer::new(&gl_config.display()) {
+            Ok(r) => {
+                self.renderer = Some(r);
+            }
+            Err(e) => {
+                print_base!("Got error while trying to create the renderer : {}", e);
+                event_loop.exit();
+            }
         };
 
-        assert!(
-            self.state
-                .replace(AppState { gl_surface, window })
-                .is_none()
-        );
+        assert!(self.state.replace(AppState { gl_surface, window }).is_none());
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _id: winit::window::WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: winit::window::WindowId, event: WindowEvent) {
         match event {
             WindowEvent::Resized(size) if size.width != 0 && size.height != 0 => {
                 // Some platforms like EGL require resizing GL surface to update the size
                 // Notable platforms here are Wayland and macOS, other don't require it
                 // and the function is no-op, but it's wise to resize it for portability
                 // reasons.
-                if let Some(AppState {
-                    gl_surface,
-                    window: _,
-                }) = self.state.as_ref()
-                {
-                    let gl_context = self.gl_context.as_ref().unwrap();
-                    gl_surface.resize(
-                        gl_context,
-                        NonZeroU32::new(size.width).unwrap(),
-                        NonZeroU32::new(size.height).unwrap(),
-                    );
-
-                    let renderer = self.renderer.as_ref().unwrap();
-                    renderer.resize(size.width as i32, size.height as i32);
-                }
+                if let Err(e) = window_resized(&self.renderer, &size, &self.state, &self.gl_context) {
+                    print_base!("Got error while processing WindowEvent::Resized {}", e);
+                    event_loop.exit();
+                };
+                //                 if let Some(AppState { gl_surface, window: _ }) = self.state.as_ref() {
+                //                     let gl_context = self.gl_context.as_ref().unwrap();
+                //                     gl_surface.resize(gl_context, NonZeroU32::new(size.width).unwrap(), NonZeroU32::new(size.height).unwrap());
+                //
+                //                     let renderer = self.renderer.as_ref()?;
+                //                     renderer.resize(size.width as i32, size.height as i32);
+                //                 }
             }
             WindowEvent::RedrawRequested => {
                 // Combine all checks into one clean pattern
-                if let (Some(renderer), Some(state), Some(context)) =
-                    (&mut self.renderer, &self.state, &self.gl_context)
-                {
+                if let (Some(renderer), Some(state), Some(context)) = (&mut self.renderer, &self.state, &self.gl_context) {
                     let instant = Instant::now();
                     // Draw logic
                     renderer.draw(&state.window, self.redraw_time); // Encapsulate the clear/draw inside the renderer!
 
                     // Swap buffers
-                    state
-                        .gl_surface
-                        .swap_buffers(context)
-                        .expect("Failed to swap buffers");
+                    state.gl_surface.swap_buffers(context).expect("Failed to swap buffers");
 
                     // Tell winit to loop immediately (for 60+ FPS)
                     // state.window.set_fullscreen(window_attributes().fullscreen);
                     self.redraw_time = Instant::now() - instant;
                 }
             }
-            WindowEvent::KeyboardInput {
-                device_id,
-                event,
-                is_synthetic,
-            } => {
+            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
@@ -188,11 +146,7 @@ impl ApplicationHandler for App {
                     window.set_cursor_visible(false);
                 }
             }
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-            } => {
+            WindowEvent::MouseInput { device_id, state, button } => {
                 self.renderer
                     .as_mut()
                     .unwrap()
@@ -203,11 +157,7 @@ impl ApplicationHandler for App {
                     .get_keyboard()
                     .button_callback(button, state);
             }
-            WindowEvent::MouseWheel {
-                device_id,
-                delta,
-                phase,
-            } => {
+            WindowEvent::MouseWheel { device_id, delta, phase } => {
                 self.renderer
                     .as_mut()
                     .unwrap()
@@ -222,12 +172,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn device_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: DeviceId,
-        event: DeviceEvent,
-    ) {
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 // print_base!("Mouse motion delta: {:?}", delta);
@@ -269,14 +214,7 @@ impl ApplicationHandler for App {
         self.state = None;
 
         // Make context not current.
-        self.gl_context = Some(
-            self.gl_context
-                .take()
-                .unwrap()
-                .make_not_current()
-                .unwrap()
-                .treat_as_possibly_current(),
-        );
+        self.gl_context = Some(self.gl_context.take().unwrap().make_not_current().unwrap().treat_as_possibly_current());
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
@@ -309,9 +247,7 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
 
     // Since glutin by default tries to create OpenGL core context, which may not be
     // present we should try gles.
-    let fallback_context_attributes = ContextAttributesBuilder::new()
-        .with_context_api(ContextApi::Gles(None))
-        .build(raw_window_handle);
+    let fallback_context_attributes = ContextAttributesBuilder::new().with_context_api(ContextApi::Gles(None)).build(raw_window_handle);
 
     // There are also some old devices that support neither modern OpenGL nor GLES.
     // To support these we can try and create a 2.1 context.
@@ -325,17 +261,11 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
     let gl_display = gl_config.display();
 
     unsafe {
-        gl_display
-            .create_context(gl_config, &context_attributes)
-            .unwrap_or_else(|_| {
-                gl_display
-                    .create_context(gl_config, &fallback_context_attributes)
-                    .unwrap_or_else(|_| {
-                        gl_display
-                            .create_context(gl_config, &legacy_context_attributes)
-                            .expect("failed to create context")
-                    })
-            })
+        gl_display.create_context(gl_config, &context_attributes).unwrap_or_else(|_| {
+            gl_display
+                .create_context(gl_config, &fallback_context_attributes)
+                .unwrap_or_else(|_| gl_display.create_context(gl_config, &legacy_context_attributes).expect("failed to create context"))
+        })
     }
 }
 
@@ -369,7 +299,7 @@ pub struct App {
     state: Option<AppState>,
     gl_context: Option<PossiblyCurrentContext>,
     gl_display: GlDisplayCreationState,
-    exit_state: Result<(), Box<dyn Error>>,
+    exit_state: Result<(), Box<dyn std::error::Error>>,
     last_frame: Instant,
     redraw_time: Duration,
 }
@@ -378,9 +308,7 @@ impl App {
     pub fn new(template: ConfigTemplateBuilder) -> Self {
         Self {
             template,
-            gl_display: GlDisplayCreationState::Builder(Box::new(
-                DisplayBuilder::new().with_window_attributes(Some(window_attributes(None))),
-            )),
+            gl_display: GlDisplayCreationState::Builder(Box::new(DisplayBuilder::new().with_window_attributes(Some(window_attributes(None))))),
             exit_state: Ok(()),
             gl_context: None,
             state: None,
@@ -391,10 +319,7 @@ impl App {
     }
 
     pub fn exit_state(&self) -> Result<(), String> {
-        (&self.exit_state)
-            .as_ref()
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        (&self.exit_state).as_ref().map(|_| ()).map_err(|e| e.to_string())
     }
 }
 
@@ -403,4 +328,24 @@ struct AppState {
     // NOTE: Window should be dropped after all resources created using its
     // raw-window-handle.
     window: Window,
+}
+
+pub fn window_resized(renderer: &Option<Renderer>, size: &PhysicalSize<u32>, state: &Option<AppState>, gl_context: &Option<PossiblyCurrentContext>) -> Result<(), Error> {
+    // Some platforms like EGL require resizing GL surface to update the size
+    // Notable platforms here are Wayland and macOS, other don't require it
+    // and the function is no-op, but it's wise to resize it for portability
+    // reasons.
+    if let Some(AppState { gl_surface, window: _ }) = state.as_ref() {
+        let gl_context = gl_context.as_ref().unwrap();
+
+        gl_surface.resize(
+            gl_context,
+            NonZeroU32::new(size.width).ok_or_else(|| Error::new(ErrorKind::InvalidData, "Width of the window is 0"))?,
+            NonZeroU32::new(size.height).ok_or_else(|| Error::new(ErrorKind::InvalidData, "Height of the window is 0"))?,
+        );
+
+        let renderer = renderer.as_ref().ok_or_else(|| Error::new(ErrorKind::InvalidData, "Cannot get renderer"))?;
+        renderer.resize(size.width as i32, size.height as i32);
+    }
+    Ok(())
 }

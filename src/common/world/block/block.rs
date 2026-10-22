@@ -1,39 +1,30 @@
+use mlua::{FromLua, Lua, ObjectLike, UserData, UserDataMethods, Value};
 use std::collections::hash_map::{Entry, Iter};
 use std::fmt::{Display, Formatter, Write};
-use mlua::{FromLua, Lua, ObjectLike, UserData, UserDataMethods, Value};
 
 #[derive(Clone)]
 pub struct BlockState {
-    tier : BlockTier
+    tier: BlockTier,
 }
 
 pub type BlockTier = u8;
 
 impl BlockState {
-    pub fn new(tier : BlockTier, is_solid : bool) -> Self {
-        Self {
-            tier,
-        }
+    pub fn new(tier: BlockTier, is_solid: bool) -> Self {
+        Self { tier }
     }
-
 }
 impl UserData for BlockState {
-
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         // &self, not &mut self -> use add_method, not add_method_mut
-        methods.add_function("new", |_lua, (tier, is_solid): (BlockTier, bool)| {
-            Ok(BlockState::new(tier, is_solid))
-        });
+        methods.add_function("new", |_lua, (tier, is_solid): (BlockTier, bool)| Ok(BlockState::new(tier, is_solid)));
     }
-
 }
 
 impl FromLua for BlockState {
     fn from_lua(value: Value, lua: &Lua) -> mlua::Result<Self> {
         match value {
-            Value::UserData(ud) => {
-                Ok(ud.take::<BlockState>()?)
-            },
+            Value::UserData(ud) => Ok(ud.take::<BlockState>()?),
             other => Err(mlua::Error::FromLuaConversionError {
                 from: other.type_name(),
                 to: "BlockState".to_string(),
@@ -49,21 +40,19 @@ use std::sync::{Arc, Mutex};
 pub type BlockId = u16;
 
 pub struct BlocksRegistry {
-    map : HashMap<String, BlockId>
+    map: HashMap<String, BlockId>,
 }
 
 impl BlocksRegistry {
     pub fn new() -> BlocksRegistry {
-        Self {
-            map : HashMap::new()
-        }
+        Self { map: HashMap::new() }
     }
 
-    pub fn get(&self, name : &str) -> Option<BlockId> {
+    pub fn get(&self, name: &str) -> Option<BlockId> {
         self.map.get(name).copied()
     }
 
-    pub fn register(&mut self, name : &str, id : BlockId) {
+    pub fn register(&mut self, name: &str, id: BlockId) {
         self.map.insert(name.to_string(), id);
     }
 
@@ -72,8 +61,8 @@ impl BlocksRegistry {
     }
 }
 pub struct BlocksRegistries {
-    list: Vec<BlockState>,              // index = BlockId
-    map: HashMap<String, BlocksRegistry>,
+    list: Vec<BlockState>, // index = BlockId
+    map: HashMap<String, u16>,
 }
 
 impl BlocksRegistries {
@@ -81,18 +70,9 @@ impl BlocksRegistries {
         Self { list: Vec::new(), map: HashMap::new() }
     }
 
-    fn register(&mut self, register : &str, state: BlockState, name : &str) -> BlockId {
+    fn register(&mut self, register: &str, state: BlockState, name: &str) -> BlockId {
         let id = self.list.len() as BlockId;
-        match self.map.entry(register.to_owned()) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().register(name, id);
-            }
-            Entry::Vacant(e) => {
-                let mut registry = BlocksRegistry::new();
-                registry.register(name, id);
-                e.insert(registry);
-            }
-        };
+        self.map.insert(format!("{}:{}", register, name), id);
         self.list.push(state);
         id
     }
@@ -102,15 +82,7 @@ impl BlocksRegistries {
     }
 
     pub fn get_by_name(&self, name: &str) -> Option<BlockId> {
-        let splits = name.split(':').collect::<Vec<&str>>();
-        match splits.len() {
-            2 => {
-                self.map.get(splits[0])?.get(splits[1])
-            },
-            _ => {
-                None
-            }
-        }
+        self.map.get(name).copied()
     }
 
     // pub fn get_list(&self) -> HashMap<String, BlockId> {
@@ -128,11 +100,11 @@ impl BlocksRegistries {
         }
         registry
     }
-    pub fn iter(&self) -> Iter<'_, String, BlocksRegistry> {
+    pub fn iter(&self) -> Iter<'_, String, u16> {
         self.map.iter()
     }
 }
-pub struct Registry<T,U,V> {
-    list : Vec<T>,
-    map : HashMap<U,V>
+pub struct Registry<T, U, V> {
+    list: Vec<T>,
+    map: HashMap<U, V>,
 }

@@ -1,5 +1,5 @@
-pub mod renderer;
-pub mod mesh;
 pub mod gui;
-pub mod world;
+pub mod mesh;
 pub mod player;
+pub mod renderer;
+pub mod world;

@@ -36,12 +36,6 @@ impl Mesh {
         model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
         chunk_shader.set_matrix4fv("uniform_model", model);
         gl::BindVertexArray(self.vao);
-        gl::DrawElementsBaseVertex(
-            TRIANGLES,
-            self.nb_indices,
-            UNSIGNED_INT,
-            std::ptr::null(),
-            0,
-        );
+        gl::DrawElementsBaseVertex(TRIANGLES, self.nb_indices, UNSIGNED_INT, std::ptr::null(), 0);
     }
 }

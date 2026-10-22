@@ -1,2 +1,2 @@
-pub mod chunkmap;
 pub mod chunk;
+pub mod chunkmap;

@@ -1,6 +1,6 @@
 use std::io::Error;
 
-use shared::common::display::vertex::vertex::Vertex;
+use shared::common::{display::vertex::vertex::Vertex, error::err_type::GameError, file::path::AssetsReader};
 use winit::window::Window;
 
 use crate::client::gl::mesh::{mesh::Mesh, shader::shader::Shader};
@@ -11,60 +11,27 @@ pub struct Cursor {
 }
 
 impl Cursor {
-    pub unsafe fn new() -> Result<Cursor, Error> {
-        let shader = Shader::new(
-            "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/vertex.vert",
-            "/home/maxence/Documents/Dev/Prog/Rust/Projects/OpenGL_ProjectV1/src/assets/shaders/cursor/fragment.frag",
-        )?;
-        let mesh = Mesh::new(Cursor::vertices(), Cursor::indices(), Vec::new());
-        Ok(Self { shader, mesh })
+    pub fn new() -> Result<Cursor, GameError> {
+        unsafe {
+            let shader = Shader::new(AssetsReader::new("shaders/cursor/vertex.vert"), AssetsReader::new("shaders/cursor/fragment.frag"))?;
+            let mesh = Mesh::new(Cursor::vertices(), Cursor::indices(), Vec::new());
+            Ok(Self { shader, mesh })
+        }
     }
 
     pub fn vertices() -> Vec<Vertex> {
         let mut vertices = Vec::new();
         //vertical
-        vertices.push(Vertex::new(
-            glam::vec3(-0.003, 0.02, 0.0),
-            glam::vec3(1.0, 1.0, 1.0),
-            glam::ivec2(0, 1),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(0.003, 0.02, 0.0),
-            glam::vec3(1.0, 1.0, 1.0),
-            glam::ivec2(1, 1),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(0.003, -0.02, 0.0),
-            glam::vec3(0.0, 0.0, 0.0),
-            glam::ivec2(1, 0),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(-0.003, -0.02, 0.0),
-            glam::vec3(0.0, 0.0, 0.0),
-            glam::ivec2(0, 0),
-        ));
+        vertices.push(Vertex::new(glam::vec3(-0.003, 0.02, 0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(0, 1)));
+        vertices.push(Vertex::new(glam::vec3(0.003, 0.02, 0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 1)));
+        vertices.push(Vertex::new(glam::vec3(0.003, -0.02, 0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(1, 0)));
+        vertices.push(Vertex::new(glam::vec3(-0.003, -0.02, 0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 0)));
 
         //horizontal
-        vertices.push(Vertex::new(
-            glam::vec3(-0.02, 0.003, -0.0),
-            glam::vec3(0.0, 0.0, 0.0),
-            glam::ivec2(0, 1),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(0.02, 0.003, -0.0),
-            glam::vec3(1.0, 1.0, 1.0),
-            glam::ivec2(1, 1),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(0.02, -0.003, -0.0),
-            glam::vec3(1.0, 1.0, 1.0),
-            glam::ivec2(1, 0),
-        ));
-        vertices.push(Vertex::new(
-            glam::vec3(-0.02, -0.003, -0.0),
-            glam::vec3(0.0, 0.0, 0.0),
-            glam::ivec2(0, 0),
-        ));
+        vertices.push(Vertex::new(glam::vec3(-0.02, 0.003, -0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 1)));
+        vertices.push(Vertex::new(glam::vec3(0.02, 0.003, -0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 1)));
+        vertices.push(Vertex::new(glam::vec3(0.02, -0.003, -0.0), glam::vec3(1.0, 1.0, 1.0), glam::ivec2(1, 0)));
+        vertices.push(Vertex::new(glam::vec3(-0.02, -0.003, -0.0), glam::vec3(0.0, 0.0, 0.0), glam::ivec2(0, 0)));
 
         vertices
     }

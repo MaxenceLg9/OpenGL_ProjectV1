@@ -1,36 +1,22 @@
-use gl::types::{GLchar, GLint, GLuint};
-use std::ffi::{CString, c_char};
-use std::fs;
-use std::io::{Error, ErrorKind};
-use std::sync::Arc;
+use gl::types::{GLint, GLuint};
+use shared::common::error::err_type::{CustomErrorKind, GameError};
+use shared::common::file::path::Reader;
+use shared::common::file::reader;
+use shared::custom_error;
+use std::ffi::CString;
 
 pub struct Shader {
     pub(crate) program: GLuint,
 }
 
 impl Shader {
-    pub unsafe fn new(vertex_path: &str, fragment_path: &str) -> Result<Shader, Error> {
-        let vertex_code = fs::read_to_string(vertex_path)?;
-        let fragment_code = fs::read_to_string(fragment_path)?;
+    pub unsafe fn new<R: Reader>(vertex_path: R, fragment_path: R) -> Result<Shader, GameError> {
+        let vertex_code = reader::read_file_to_string(&vertex_path).expect(format!("Cannot read vertex file {}", vertex_path).as_str());
+        let fragment_code = reader::read_file_to_string(&fragment_path).expect(format!("Cannot read fragment file {}", fragment_path).as_str());
 
         // vertex Shader
-        let vertex: GLuint =
-            Shader::compile_shader(vertex_code, gl::VERTEX_SHADER, "GL_VERTEX_SHADER").map_err(
-                |e| {
-                    Error::new(
-                        ErrorKind::InvalidInput,
-                        format!("Cannot compile vertex shader {} : {}", vertex_path, e),
-                    )
-                },
-            )?;
-        let fragment: GLuint =
-            Shader::compile_shader(fragment_code, gl::FRAGMENT_SHADER, "GL_FRAGMENT_SHADER")
-                .map_err(|e| {
-                    Error::new(
-                        ErrorKind::InvalidInput,
-                        format!("Cannot compile fragment shader {} : {}", fragment_path, e),
-                    )
-                })?;
+        let vertex: GLuint = Shader::compile_shader(vertex_code, gl::VERTEX_SHADER, "GL_VERTEX_SHADER").expect(format!("Cannot compile shader {}", vertex_path).as_str());
+        let fragment: GLuint = Shader::compile_shader(fragment_code, gl::FRAGMENT_SHADER, "GL_FRAGMENT_SHADER").expect(format!("Cannot compile shader {}", fragment_path).as_str());
 
         // shader Program
         let program: GLuint = gl::CreateProgram();
@@ -49,43 +35,42 @@ impl Shader {
             v.set_len(log_len as usize);
 
             let message = String::from_utf8_lossy(&v);
+            return Err(custom_error!(CustomErrorKind::InvalidData, message.into_owned()));
         }
         gl::DeleteShader(vertex);
         gl::DeleteShader(fragment);
         Ok(Self { program })
     }
 
-    unsafe fn compile_shader(
-        code: String,
-        s_type: u32,
-        type_name: &str,
-    ) -> Result<u32, Box<dyn std::error::Error>> {
-        let shader = gl::CreateShader(s_type);
+    unsafe fn compile_shader(code: String, s_type: u32, type_name: &str) -> Result<u32, GameError> {
+        unsafe {
+            let shader = gl::CreateShader(s_type);
 
-        // 1. CStrings are required for OpenGL (null-terminated)
-        let c_str = std::ffi::CString::new(code.as_bytes())?;
+            // 1. CStrings are required for OpenGL (null-terminated)
+            let c_str = std::ffi::CString::new(code.as_bytes())?;
 
-        // 2. ShaderSource expects a pointer to a pointer
-        gl::ShaderSource(shader, 1, &c_str.as_ptr(), std::ptr::null());
-        gl::CompileShader(shader);
+            // 2. ShaderSource expects a pointer to a pointer
+            gl::ShaderSource(shader, 1, &c_str.as_ptr(), std::ptr::null());
+            gl::CompileShader(shader);
 
-        let mut success = 0;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+            let mut success = 0;
+            gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
 
-        if success == 0 {
-            // 0 means failure in COMPILE_STATUS
-            let mut v: Vec<u8> = Vec::with_capacity(1024);
-            let mut log_len = 0;
+            if success == 0 {
+                // 0 means failure in COMPILE_STATUS
+                let mut v: Vec<u8> = Vec::with_capacity(1024);
+                let mut log_len = 0;
 
-            // 3. Get the actual log
-            gl::GetShaderInfoLog(shader, 1024, &mut log_len, v.as_mut_ptr() as *mut i8);
-            v.set_len(log_len as usize);
+                // 3. Get the actual log
+                gl::GetShaderInfoLog(shader, 1024, &mut log_len, v.as_mut_ptr() as *mut i8);
+                v.set_len(log_len as usize);
 
-            let message = String::from_utf8_lossy(&v);
-            return Err(format!("{} Shader Error: {}", type_name, message).into());
+                let message = String::from_utf8_lossy(&v);
+                return Err(GameError::new(CustomErrorKind::InvalidData, format!("{} Shader Error: {}", type_name, message)));
+            }
+
+            Ok(shader)
         }
-
-        Ok(shader)
     }
 
     // use/activate the shader
@@ -111,14 +96,7 @@ impl Shader {
 
     unsafe fn get_location(&self, name: &str) -> GLint {
         name.as_bytes().as_ptr() as *const i8;
-        gl::GetUniformLocation(
-            self.program,
-            CString::new(name)
-                .expect(format!("Cannot unwrap {}", name).as_str())
-                .as_bytes()
-                .as_ptr() as *const i8,
-        )
-        .clone()
+        gl::GetUniformLocation(self.program, CString::new(name).expect(format!("Cannot unwrap {}", name).as_str()).as_bytes().as_ptr() as *const i8).clone()
     }
 
     pub unsafe fn set_vec4(&self, name: &str, vec4: glam::Vec4) {
@@ -130,12 +108,7 @@ impl Shader {
     // }
 
     pub unsafe fn set_matrix4fv(&self, name: &str, matrix: glam::Mat4) {
-        gl::UniformMatrix4fv(
-            self.get_location(name),
-            1,
-            gl::FALSE,
-            matrix.to_cols_array().as_ptr(),
-        );
+        gl::UniformMatrix4fv(self.get_location(name), 1, gl::FALSE, matrix.to_cols_array().as_ptr());
     }
 }
 

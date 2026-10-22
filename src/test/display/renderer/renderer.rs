@@ -29,15 +29,7 @@ impl Renderer {
     }
 }
 
-extern "system" fn message_callback(
-    source: GLenum,
-    gltype: GLenum,
-    id: GLuint,
-    severity: GLenum,
-    length: GLsizei,
-    message: *const GLchar,
-    user_param: *mut c_void,
-) {
+extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
     let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
     print_base!("GL Debug [{}]: {}", severity, msg);
 }
@@ -52,10 +44,7 @@ impl Renderer {
         gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
 
         gl::DebugMessageCallback(Some(message_callback), std::ptr::null());
-        let mut renderer = Self {
-            world: ClientWorld::new(),
-            cursor: Cursor::new(),
-        };
+        let mut renderer = Self { world: ClientWorld::new(), cursor: Cursor::new() };
         renderer.world.load_characters();
         renderer.world.generate_chunks();
         renderer
@@ -91,14 +80,9 @@ impl Renderer {
 pub fn gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Config {
     configs
         .reduce(|accum, config| {
-            let transparency_check = config.supports_transparency().unwrap_or(false)
-                & !accum.supports_transparency().unwrap_or(false);
+            let transparency_check = config.supports_transparency().unwrap_or(false) & !accum.supports_transparency().unwrap_or(false);
 
-            if transparency_check || config.num_samples() > accum.num_samples() {
-                config
-            } else {
-                accum
-            }
+            if transparency_check || config.num_samples() > accum.num_samples() { config } else { accum }
         })
         .unwrap()
 }

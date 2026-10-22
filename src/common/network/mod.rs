@@ -1,9 +1,9 @@
-pub mod client;
-pub mod server;
-pub mod packet_type;
-pub mod network_traits;
 pub mod bit_cursor;
+pub mod client;
+pub mod l5_packet;
+pub mod network_traits;
+pub mod packet_type;
+pub mod reliable_packets;
+pub mod server;
 pub mod socket;
 pub mod udp_packet;
-pub mod reliable_packets;
-pub mod l5_packet;
