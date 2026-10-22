@@ -1,5 +1,6 @@
 use crate::common::network::l5_packet::L5Packet;
 use crate::common::network::network_traits::UdpPacketTrait;
+use crate::common::network::socket::common_socket::Ack;
 use crate::common::{error::err_type::GameError, network::bit_cursor::BitCursor};
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
@@ -9,16 +10,16 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ReliablePacket {
-    ack: u32,
+    ack: Ack,
     l5_packet: L5Packet,
 }
 
 impl ReliablePacket {
-    pub fn new(ack: u32, l5_packet: L5Packet) -> ReliablePacket {
+    pub fn new(ack: Ack, l5_packet: L5Packet) -> ReliablePacket {
         Self { ack, l5_packet }
     }
 
-    pub fn get_ack(&self) -> u32 {
+    pub fn get_ack(&self) -> Ack {
         self.ack
     }
     pub fn get_l5_packet(&self) -> L5Packet {
@@ -41,7 +42,7 @@ impl UdpPacketTrait for ReliablePacket {
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
-        let ack = cursor.read_bits::<u32>(32);
+        let ack = cursor.read_bits::<Ack>(64);
         Ok(Self { ack, l5_packet: L5Packet::decode(cursor.read_all())? })
     }
 }
@@ -81,15 +82,15 @@ impl UdpPacketTrait for SimplePacket {
 
 #[derive(Clone)]
 pub struct AckPacket {
-    ack: u32,
+    ack: Ack,
 }
 
 impl AckPacket {
-    pub fn new(ack: u32) -> AckPacket {
+    pub fn new(ack: Ack) -> AckPacket {
         Self { ack }
     }
 
-    pub fn get_ack(&self) -> u32 {
+    pub fn get_ack(&self) -> Ack {
         self.ack
     }
 }
@@ -107,6 +108,6 @@ impl UdpPacketTrait for AckPacket {
     }
 
     fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
-        Ok(Self { ack: cursor.read_bits::<u32>(32) })
+        Ok(Self { ack: cursor.read_bits::<Ack>(64) })
     }
 }

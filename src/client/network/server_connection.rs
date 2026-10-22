@@ -8,11 +8,11 @@ use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::network::udp_packet::TIMEOUT_DURATION;
 use shared::{custom_error, print_base};
-use std::io::{Error, ErrorKind};
-use std::net::{IpAddr, Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::io::Error;
+use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tokio::time::timeout;
 
 pub struct ServerConnection {
@@ -25,26 +25,26 @@ pub struct ServerConnection {
 }
 
 impl ServerConnection {
-    pub fn start(ipv6addr: IpAddr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), Error> {
+    pub fn start(ipaddr: IpAddr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), Error> {
         std::thread::Builder::new()
             .name("network_thread".to_string())
             .spawn(move || {
                 let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
 
                 rt.block_on(async {
-                    if let Err(e) = ServerConnection::new(ipv6addr, rx, client_world_data, event_sx).await {
+                    if let Err(e) = ServerConnection::new(ipaddr, rx, client_world_data, event_sx).await {
                         print_base!("Got error on connection {} at {}", e, chrono::offset::Local::now());
                     }
                 });
             })
             .map(|_| ())
     }
-    pub async fn new(ipv6addr: IpAddr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), GameError> {
-        let socket = CommonSocket::new(SocketAddr::new(ipv6addr, 50003)).await?;
-        socket.connect(SocketAddr::new(ipv6addr, 25000)).await?;
+    pub async fn new(ipaddr: IpAddr, rx: tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>, client_world_data: Arc<ClientWorldData>, event_sx: crossbeam::channel::Sender<ClientEvent>) -> Result<(), GameError> {
+        let socket = CommonSocket::new(SocketAddr::new(ipaddr, 50003)).await?;
+        socket.connect(SocketAddr::new(ipaddr, 25000)).await?;
         let addr = socket.peer_addr()?;
         // let (psx, prx) = tokio::sync::mpsc::channel(10000);
-        print_base!("ClientSocket connecting to {:?}", ipv6addr);
+        print_base!("ClientSocket connecting to {:?}", ipaddr);
 
         let mut con = Self {
             socket,

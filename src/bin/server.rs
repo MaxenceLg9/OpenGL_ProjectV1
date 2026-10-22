@@ -13,6 +13,6 @@ pub fn main() -> Result<(), GameError> {
     // let _profiler = dhat::Profiler::new_heap();
     print_base!("Starting server at {}", chrono::offset::Local::now());
     let mut server = ServerWorld::new()?;
-    print_base!("Listening server at {}", chrono::offset::Local::now());
+    print_base!("Server ready at {}", chrono::offset::Local::now());
     server.listen()
 }

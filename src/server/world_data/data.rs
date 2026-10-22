@@ -69,7 +69,6 @@ impl ServerWorldData {
                 Entry::Occupied(_) => Err(Error::new(ErrorKind::InvalidInput, format!("Player {} already exist", puid))),
                 Entry::Vacant(e) => {
                     let pos = BlockPos::from_vec3(Vec3::new(32.0, 160.0, 32.0));
-                    print_base!("Created player with {}", puid);
                     let player = Arc::new(RwLock::new(ServerPlayer::new(pos, sx, puid)));
                     e.insert(player.clone());
                     Ok((pos, player))

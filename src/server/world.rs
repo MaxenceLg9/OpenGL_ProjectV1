@@ -94,7 +94,7 @@ impl ServerWorld {
                     }
                 },
                 ServerEvent::PlayerEvent { e_type, player } => {
-                    print_base!("Player event is {}", e_type);
+                    // print_base!("Player event is {}", e_type);
                     match e_type {
                         PlayerEvent::BlockInteraction(p) => {
                             let bs = self.chunks.interact_block(p.get_pos(), p.get_interaction_type());
@@ -105,12 +105,9 @@ impl ServerWorld {
                                 .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                         }
                         PlayerEvent::AskChunk(vec_pos) => {
-                            print_base!("Asking for {} chunks", vec_pos.len());
                             self.chunks.ask_for_chunks(vec_pos, player.clone());
-                            print_base!("Finishing to ask for chunks");
                         }
                         PlayerEvent::GenerateChunk(chunk_pos) => {
-                            print_base!("Generating chunks");
                             let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(chunk_pos, 8, &self.chunks_generated);
                             for chunk_pos in array {
                                 if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= MIN_Y_CHUNK && chunk_pos.y <= MAX_Y_CHUNK {

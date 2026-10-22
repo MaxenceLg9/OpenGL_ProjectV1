@@ -30,7 +30,6 @@ impl ServerPlayer {
     }
 
     pub fn new(pos: BlockPos, sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, puid: PUID) -> Self {
-        print_base!("Creating player at {},{},{}", pos.x, pos.y, pos.z);
         Self { pos, last_pos: pos, puid, sender }
     }
 

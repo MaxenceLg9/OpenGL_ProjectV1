@@ -10,7 +10,6 @@ pub struct ClientPlayer {
 
 impl ClientPlayer {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
-        print_base!("Creating player at {},{},{}", x, y, z);
         Self { inputs: Inputs::new(), camera: Camera::new(x, y, z) }
     }
     pub fn get_keyboard(&mut self) -> &mut Inputs {

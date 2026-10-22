@@ -61,15 +61,12 @@ impl ClientWorld {
         let map = chunk.call::<HashMap<String, HashMap<String, BlockState>>>(()).unwrap();
         let registries = Arc::new(HashMap::from([("blocks".to_owned(), BlocksRegistries::from_map(map))]));
         for (k, v) in registries.get("blocks").unwrap().iter() {
-            for (block, id) in v.iter() {
-                print_base!("{}, {}", block, id);
-                if block == "air" {
-                    continue;
-                }
-                blocks_textures
-                    .add_texture(format!("src/assets/textures/blocks/{}.png", block).as_str(), id.to_owned())
-                    .expect(format!("Cannot add texture for block {}", k).as_str());
+            if k == "minecraft:air" {
+                continue;
             }
+            blocks_textures
+                .add_texture(format!("src/assets/textures/blocks/{}.png", k).as_str(), v.to_owned())
+                .expect(format!("Cannot add texture for block {}", k).as_str());
         }
         Self {
             puid: PUID::new(0),

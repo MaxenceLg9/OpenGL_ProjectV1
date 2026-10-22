@@ -18,6 +18,7 @@ use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{custom_error, print_base};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
+use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc as tchannel;
@@ -54,6 +55,8 @@ impl ClientConnection {
             .send(L5Packet::Connect(ConnectionPacket::new(pos, block_table)), UdpPacketType::Simple)
             .await
             .unwrap();
+
+        print_base!("Creating player in the world with PUID:{} at {}", con_packet.get_puid().id(), pos.deref());
 
         let mut client_connection = Self {
             chunks_loaded: HashSet::new(),

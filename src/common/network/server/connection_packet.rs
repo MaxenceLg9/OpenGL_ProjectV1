@@ -47,7 +47,7 @@ impl ConnectionPacket {
         let mut vec = Vec::new();
         loop {
             let len = reader.read_bits::<u8>(8);
-            let string = String::from_utf8_lossy_owned(reader.read_bytes(len as usize));
+            let string = String::from_utf8(reader.read_bytes(len as usize)).unwrap();
             let index = reader.read_bits::<u16>(16);
             print_base!("Got {}:{}", string, index);
             vec.push((string, index));

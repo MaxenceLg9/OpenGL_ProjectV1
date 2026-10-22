@@ -91,10 +91,9 @@ impl Socket {
     ///
     /// If its type is Login, creating a new connection.
     /// Otherwise, redirecting it to the correct tokio task through channel
-    async fn handle_packet(&mut self, l5_packet: L5Packet, socket_addr: SocketAddr) -> Result<(), Error> {
+    async fn handle_packet(&mut self, l5_packet: L5Packet, socket_addr: SocketAddr) -> Result<(), GameError> {
         // if type is login
         if l5_packet.get_packet_type() == L5PacketType::Login {
-            print_base!("Got Connection from {}", socket_addr);
             // creating channel
             let (sender, receiver) = tokio::sync::mpsc::channel(1000);
             let event_sx_clone = self.event_sx.clone();
@@ -104,10 +103,11 @@ impl Socket {
             let world_ref = self.server_world_data.clone();
             //
             let clone: ServerConnection = self.get_child(socket_addr, receiver);
+            let ack = self.socket.init_con(socket_addr);
+            print_base!("Starting connection for {} with ack {}", socket_addr, ack);
             tokio::spawn(async move {
-                match ClientConnection::start(l5_packet.clone(), clone, world_ref, event_sx_clone).await {
-                    Ok(()) => print_base!("Connection {} finished", socket_addr),
-                    Err(e) => print_base!("Connection {} finished with error {}", socket_addr, e),
+                if let Err(e) = ClientConnection::start(l5_packet.clone(), clone, world_ref, event_sx_clone).await {
+                    print_base!("Connection {} finished with error {}", socket_addr, e);
                 }
             });
             Ok(())
@@ -118,12 +118,12 @@ impl Socket {
                 .ok_or_else(|| Error::new(ErrorKind::NotFound, "No matching connection to process for this packet"))?
                 .send(l5_packet.clone())
                 .await
-                .map_err(Error::other)
+                .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))
         }
     }
 
     /// Extracting l5 packet from Result struct
-    async fn handle_frame(&mut self, frame: (L5Packet, SocketAddr)) -> Result<(), Error> {
+    async fn handle_frame(&mut self, frame: (L5Packet, SocketAddr)) -> Result<(), GameError> {
         let (packet, addr): (L5Packet, SocketAddr) = frame;
         // handling it if extraction was successful
         self.handle_packet(packet, addr).await

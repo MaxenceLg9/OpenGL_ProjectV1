@@ -153,9 +153,9 @@ impl Generator {
             }
         } else {
             if y >= height {
-                self.registries.get("blocks")?.get_by_name("minecraft:stone")
-            } else {
                 self.registries.get("blocks")?.get_by_name("minecraft:grass")
+            } else {
+                self.registries.get("blocks")?.get_by_name("minecraft:stone")
             }
         }
     }
