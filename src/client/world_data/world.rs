@@ -66,7 +66,7 @@ impl ClientWorld {
         let registers = load_blocks()?;
         MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
 
-        ServerConnection::start(std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), receiver, client_world_data.clone(), event_sx)?;
+        ServerConnection::start(std::net::IpAddr::V4(Ipv4Addr::new(10, 0, 41, 187)), receiver, client_world_data.clone(), event_sx)?;
         Ok(Self {
             client_world_data,
             mesh_receiver,
