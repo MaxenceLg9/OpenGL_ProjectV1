@@ -8,7 +8,7 @@ use shared::worldgen::Generator;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-#[path = "../client/mod.rs"]
+#[path = "../direct-client/mod.rs"]
 pub mod client;
 #[path = "../server/mod.rs"]
 pub mod server;

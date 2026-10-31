@@ -3,7 +3,7 @@ use glutin::config::ConfigTemplateBuilder;
 use std::io;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-#[path = "../client/mod.rs"]
+#[path = "../direct-client/mod.rs"]
 pub mod client;
 #[path = "../server/mod.rs"]
 pub mod server;

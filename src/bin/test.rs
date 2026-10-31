@@ -1,4 +1,4 @@
-#[path = "../client/mod.rs"]
+#[path = "../direct-client/mod.rs"]
 pub mod client;
 #[path = "../server/mod.rs"]
 pub mod server;
