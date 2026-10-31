@@ -117,7 +117,7 @@ impl ClientConnection {
                     }
                     // sending the packet to query the information of the player
                     let packet = L5Packet::GetPlayer(GetPlayerPacket::new(id));
-                    id += 1 % (2_u16.pow(16) - 1);
+                    id += 1;
                     self.socket_receiver.send(packet, UdpPacketType::Simple).await.unwrap();
                 }
             }

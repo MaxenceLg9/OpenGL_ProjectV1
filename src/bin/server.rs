@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use crate::server::world::ServerWorld;
 use shared::{common::error::err_type::GameError, print_base};
 

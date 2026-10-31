@@ -35,7 +35,7 @@ pub struct CommonSocket {
 }
 
 impl GameSocket {
-    pub async fn send_raw(&self, udp_packet: UdpPacket, socket_addr: SocketAddr) -> Result<usize, GameError> {
+    pub async fn send_raw(&self, udp_packet: UdpPacket, socket_addr: &SocketAddr) -> Result<usize, GameError> {
         self.udp_socket
             .send_to(udp_packet.encode()?.as_raw_slice(), socket_addr)
             .await
@@ -113,7 +113,7 @@ impl ReliabilityManager {
             Some((packet, _instant, addr, ack)) => {
                 // re-sending the packet
                 game_socket
-                    .send_raw(packet.clone(), addr)
+                    .send_raw(packet.clone(), &addr)
                     .await
                     .map_err(|_| custom_error!(CustomErrorKind::NetworkSocket, "Cannot re-send network packet"))?;
 
@@ -192,7 +192,7 @@ impl CommonSocket {
                     let (packet, addr) = self.parse(frame).await?;
                     return match packet {
                         UdpPacket::Reliable(packet) => {
-                            self.game_socket.send_raw(UdpPacket::Ack(AckPacket::new(packet.get_ack())), addr).await.map_err(|e| custom_error!(CustomErrorKind::NetworkSocket, e.to_string()))?;
+                            self.game_socket.send_raw(UdpPacket::Ack(AckPacket::new(packet.get_ack())), &addr).await.map_err(|e| custom_error!(CustomErrorKind::NetworkSocket, e.to_string()))?;
                             Ok((packet.get_l5_packet(), addr))
                         }
                         UdpPacket::Simple(packet) => {
@@ -229,12 +229,12 @@ impl CommonSocket {
     }
 
     /// public function to send a packet L5Packet (Layer 5) to an Address, with the associated packaging provided by the UdpPacketType
-    pub async fn send_to(&mut self, packet: L5Packet, addr: SocketAddr, udp_packet_type: UdpPacketType) -> Result<usize, GameError> {
+    pub async fn send_to(&mut self, packet: L5Packet, addr: &SocketAddr, udp_packet_type: UdpPacketType) -> Result<usize, GameError> {
         if packet.get_packet_type() == Quit {
             self.close_connection(addr);
         }
         match udp_packet_type {
-            UdpPacketType::Reliable => self.game_socket.send_raw(self.acks.prepare_packet(addr, packet), addr).await,
+            UdpPacketType::Reliable => self.game_socket.send_raw(self.acks.prepare_packet(*addr, packet), addr).await,
             UdpPacketType::Simple => {
                 let udp_packet = UdpPacket::Simple(SimplePacket::new(packet));
                 self.game_socket.send_raw(udp_packet, addr).await
@@ -243,8 +243,8 @@ impl CommonSocket {
         }
     }
 
-    pub fn close_connection(&mut self, socket_addr: SocketAddr) {
-        self.resend_queue.retain(|e| (*e).2 != socket_addr);
+    pub fn close_connection(&mut self, socket_addr: &SocketAddr) {
+        self.resend_queue.retain(|e| (*e).2 != *socket_addr);
         self.acks.remove(&socket_addr);
     }
 }

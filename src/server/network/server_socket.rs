@@ -80,7 +80,7 @@ impl Socket {
                 // packet to send
                 p = self.receiver.recv() => {
                     if let Some((packet, addr, udp_packet_type)) = p {
-                        self.socket.send_to(packet,addr, udp_packet_type).await?;
+                        self.socket.send_to(packet,&addr, udp_packet_type).await?;
                     }
                 }
             }
