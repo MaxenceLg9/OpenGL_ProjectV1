@@ -7,9 +7,11 @@ flat out int ao;
 
 uniform mat4 uniform_projection_view;
 uniform mat4 uniform_model;
+uniform vec3 uniformViewPos;
 
 out vec2 TexCoord;
 out vec3 fragPos;
+out vec3 relativeFragPos;
 out float shading;
 flat out vec3 normalVector;
 flat out uint voxel_id;
@@ -48,9 +50,9 @@ vec3 normal[] = {
 };
 
 const float face_shading[6] = float[6](
-    1.0, 0.5,  // top bottom
-    0.5, 0.8,  // right left
-    0.5, 0.8   // front back
+    1.0, 0.5, // top bottom
+    0.5, 0.8, // right left
+    0.5, 0.8  // front back
 );
 
 const float ao_values[4] = float[4](0.1, 0.25, 0.5, 1.0);
@@ -64,6 +66,8 @@ void main() {
     fragPos = vec3(pos);
 
     shading = face_shading[faceIndex] * ao_values[ao];
+
+    relativeFragPos = pos.xyz - uniformViewPos;
 
     gl_Position = uniform_projection_view * pos;
 }

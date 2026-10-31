@@ -12,8 +12,11 @@ flat in vec3 normalVector;
 flat in float material_ambient;
 flat in float material_diffuse;
 flat in float material_specular;
-in float shading;
 flat in int ao;
+
+in float shading;
+in vec3 relativeFragPos;
+
 
 uniform sampler2DArray textures;
 uniform vec3 uniformBgColor;
@@ -22,6 +25,7 @@ uniform vec3 uniformLightColor;
 uniform vec3 uniformViewPos;
 
 out vec4 FragColor;
+out float fog_dist;
 
 void main() {
     vec3 lightDir = normalize(uniformLightPos - fragPos);
@@ -41,15 +45,18 @@ void main() {
     lightDir = normalize(uniformLightPos + vec3(0.0f,0.0f,1000.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    float fog_dist = 1.0 / gl_FragCoord.w;
+    fog_dist = min(length(relativeFragPos), 1000.0);
+
+    // float fog_dist = 1.0 / gl_FragCoord.w;
     // float fog_dist = 1.0 / gl_FragDepth;
+
     vec4 tex_col = texture(textures, vec3(TexCoord, voxel_id));
 
-    tex_col.rgb = pow(tex_col.rgb, gamma) * vec3(shading);
+    // tex_col.rgb = pow(tex_col.rgb, gamma) * vec3(shading);
     tex_col.rgb = tex_col.rgb * vec3(shading);
-    tex_col.rgb = pow(tex_col.rgb, inv_gamma);
+    // tex_col.rgb = pow(tex_col.rgb, inv_gamma);
 
-    tex_col.rgb = mix(tex_col.rgb, uniformBgColor, (1.0 - exp2(-0.00006 * fog_dist * fog_dist)));
+    tex_col.rgb = mix(tex_col.rgb, uniformBgColor, (1.0 - exp(-0.00003 * pow(fog_dist, 2.0))));
 
     FragColor = tex_col;
 }
