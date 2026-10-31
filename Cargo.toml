@@ -8,8 +8,12 @@ name = "shared"
 path = "src/lib.rs"
 
 [[bin]]
-name = "client"
-path = "src/bin/client.rs"
+name = "direct-client"
+path = "src/bin/direct-client.rs"
+
+[[bin]]
+name = "full-client"
+path = "src/bin/full-client.rs"
 
 # [[test]]
 # name = "test"
@@ -58,6 +62,8 @@ async-channel = "2.5.0"
 md4 = "0.11.0"
 fontdue = "0.9.3"
 rand = { version = "0.10.3", features = ["chacha"] }
+toml = "1.1.8"
+serde = "1.0.229"
 
 [features]
 dhat-heap = []
