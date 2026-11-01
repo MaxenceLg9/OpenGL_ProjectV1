@@ -5,7 +5,6 @@ use crate::common::{error::err_type::GameError, network::bit_cursor::BitCursor};
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
-use md4::digest::typenum::uint::GetBitOut;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
