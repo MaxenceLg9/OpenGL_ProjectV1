@@ -26,7 +26,6 @@ use tokio::sync::mpsc as tchannel;
 pub const UPDATE_INTERVAL: Duration = std::time::Duration::from_millis(50);
 pub struct ClientConnection {
     server_world_data: Arc<ServerWorldData>,
-    chunks_loaded: HashSet<ChunkPos>,
     player: Arc<RwLock<ServerPlayer>>,
     player_position: ChunkPos,
     socket_receiver: ChildSocket,
@@ -59,7 +58,6 @@ impl ClientConnection {
         print_base!("Initiating connection with {} and creating player in the world with PUID:{} at {}", socket.get_addr(), con_packet.get_puid().id(), pos.deref());
 
         let mut client_connection = Self {
-            chunks_loaded: HashSet::new(),
             player_position: pos.get_chunk_pos(),
             socket_receiver: socket,
             server_world_data,
@@ -122,10 +120,13 @@ impl ClientConnection {
                 }
             }
         }
-        self.socket_receiver.send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple).await.expect("");
+        self.socket_receiver
+            .send(L5Packet::Quit(QuitPacket::new()), UdpPacketType::Simple)
+            .await
+            .expect("Cannot send quit packet");
         self.event_sx
             .send(ServerEvent::PlayerEvent {
-                player: self.player.clone(),
+                player_sender: self.player.read().unwrap().get_sender().clone(),
                 e_type: PlayerEvent::DisconnectPlayer(self.puid),
             })
             .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))
@@ -134,7 +135,7 @@ impl ClientConnection {
     fn generate_chunks(&self) -> Result<(), Error> {
         self.event_sx
             .send(ServerEvent::PlayerEvent {
-                player: self.player.clone(),
+                player_sender: self.player.read().unwrap().get_sender().clone(),
                 e_type: PlayerEvent::GenerateChunk(self.player_position),
             })
             .map_err(Error::other)
@@ -152,8 +153,8 @@ impl ClientConnection {
         let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(last_pos, new_pos, old_view_distance, new_view_distance);
         self.event_sx
             .send(ServerEvent::PlayerEvent {
-                player: server_player.clone(),
-                e_type: PlayerEvent::AskChunk(to_load),
+                player_sender: server_player.read().unwrap().get_sender().clone(),
+                e_type: PlayerEvent::AskChunk(to_load, server_player.read().unwrap().get_puid()),
             })
             .map_err(Error::other)?;
 
@@ -175,7 +176,7 @@ impl ClientConnection {
             L5Packet::Block(p) => {
                 self.event_sx
                     .send(ServerEvent::PlayerEvent {
-                        player: self.player.clone(),
+                        player_sender: self.player.read().unwrap().get_sender().clone(),
                         e_type: PlayerEvent::BlockInteraction(p.clone()),
                     })
                     .map_err(Error::other)?;

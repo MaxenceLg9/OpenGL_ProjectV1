@@ -93,19 +93,17 @@ impl ServerWorld {
                         self.chunks.add_chunk(chunk);
                     }
                 },
-                ServerEvent::PlayerEvent { e_type, player } => {
+                ServerEvent::PlayerEvent { e_type, player_sender: player } => {
                     // print_base!("Player event is {}", e_type);
                     match e_type {
                         PlayerEvent::BlockInteraction(p) => {
                             let bs = self.chunks.interact_block(p.get_pos(), p.get_interaction_type());
                             player
-                                .write()
-                                .map_err(|e| custom_error!(CustomErrorKind::InvalidData, e.to_string()))?
-                                .send_packet(L5Packet::Block(BlockPacket::new(p.get_interaction_type(), p.get_pos(), bs)), UdpPacketType::Reliable)
-                                .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
+                                .try_send((L5Packet::Block(BlockPacket::new(p.get_interaction_type(), p.get_pos(), bs)), UdpPacketType::Reliable))
+                                .expect("Cannot send packet for block interaction");
                         }
-                        PlayerEvent::AskChunk(vec_pos) => {
-                            self.chunks.ask_for_chunks(vec_pos, player.clone());
+                        PlayerEvent::AskChunk(vec_pos, puid) => {
+                            self.chunks.ask_for_chunks(vec_pos, player, puid);
                         }
                         PlayerEvent::GenerateChunk(chunk_pos) => {
                             let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(chunk_pos, 8, &self.chunks_generated);
@@ -122,7 +120,7 @@ impl ServerWorld {
                         PlayerEvent::EntityInteraction() => {}
                         PlayerEvent::ConnectPlayer() => {}
                         PlayerEvent::DisconnectPlayer(puid) => {
-                            self.chunks.ask_remove_player(&puid);
+                            self.chunks.remove_player_from_asking(&puid);
                             self.data.disconnect_player(&puid);
                         }
                     }

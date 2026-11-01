@@ -7,6 +7,7 @@ use shared::common::error::err_type::{CustomErrorKind, GameError};
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
+use shared::common::world::player::PacketSender;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::{custom_error, print_base};
 use std::collections::hash_map::Entry;
@@ -60,7 +61,7 @@ impl ServerWorldData {
         self.registries.clone()
     }
 
-    pub fn connect_player(&self, puid: PUID, sx: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>) -> Result<(BlockPos, Arc<RwLock<ServerPlayer>>), Error> {
+    pub fn connect_player(&self, puid: PUID, sx: PacketSender) -> Result<(BlockPos, Arc<RwLock<ServerPlayer>>), Error> {
         // check if the player is new or already has data
         if false {
             Err(Error::new(ErrorKind::InvalidData, "I don't know"))
