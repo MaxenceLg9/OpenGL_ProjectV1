@@ -1,3 +1,4 @@
+use crate::client::game::world::BACKGROUND_COLOR;
 use crate::test::display::renderer::gui::Cursor;
 use crate::test::display::renderer::world::ClientWorld;
 use gl::types::{GLchar, GLenum, GLsizei, GLuint};
@@ -52,7 +53,7 @@ impl Renderer {
 
     pub fn draw(&mut self, window: &Window, redraw_time: Duration) {
         unsafe {
-            gl::ClearColor(0.0, 0.0, 0.3, 1.0);
+            gl::ClearColor(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::DEPTH_TEST);
             gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);

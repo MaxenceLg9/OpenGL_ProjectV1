@@ -25,7 +25,7 @@ uniform vec3 uniformLightColor;
 uniform vec3 uniformViewPos;
 
 out vec4 FragColor;
-out float fog_dist;
+out float depth;
 
 void main() {
     vec3 lightDir = normalize(uniformLightPos - fragPos);
@@ -45,7 +45,16 @@ void main() {
     lightDir = normalize(uniformLightPos + vec3(0.0f,0.0f,1000.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    fog_dist = min(length(relativeFragPos), 1000.0);
+    float distance = length(relativeFragPos);
+    // float distance = min(distance, 1000.0);
+    float near = 400.0;
+    if ( distance < near) {
+        depth = 0.0;
+    } else {
+        // depth = (1 - far / near) * distance + (far / near);
+        depth = (1.0 - exp(-0.01 * pow(distance - near, 2.0)));
+    }
+    // depth = 1.0f / depth;
 
     // float fog_dist = 1.0 / gl_FragCoord.w;
     // float fog_dist = 1.0 / gl_FragDepth;
@@ -56,7 +65,7 @@ void main() {
     tex_col.rgb = tex_col.rgb * vec3(shading);
     // tex_col.rgb = pow(tex_col.rgb, inv_gamma);
 
-    tex_col.rgb = mix(tex_col.rgb, uniformBgColor, (1.0 - exp(-0.00003 * pow(fog_dist, 2.0))));
+    tex_col.rgb = mix(tex_col.rgb, uniformBgColor, depth);
 
     FragColor = tex_col;
 }

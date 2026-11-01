@@ -29,6 +29,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use winit::window::Window;
 
+pub const BACKGROUND_COLOR: glam::Vec3 = glam::vec3(184.0 / 255.0, 210.0 / 255.0, 1.0);
+
 pub struct ClientWorld {
     chunks: ClientChunkMap,
     client_world_data: Arc<ClientWorldData>,

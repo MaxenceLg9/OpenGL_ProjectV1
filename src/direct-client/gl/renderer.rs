@@ -1,4 +1,5 @@
 use crate::client::game::player::player::ClientPlayer;
+use crate::client::game::world::BACKGROUND_COLOR;
 use crate::client::game::world::ClientWorld;
 use crate::client::gl::gui::Cursor;
 use gl::types::{GLchar, GLenum, GLsizei, GLuint};
@@ -63,7 +64,7 @@ impl Renderer {
 
     pub fn draw(&mut self, window: &Window, redraw_time: Duration) {
         unsafe {
-            gl::ClearColor(0.0, 0.4, 0.4, 1.0);
+            gl::ClearColor(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::DEPTH_TEST);
             gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);

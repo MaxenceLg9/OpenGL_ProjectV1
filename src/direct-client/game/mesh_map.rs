@@ -1,4 +1,5 @@
 use crate::client::game::chunks::chunk_map::ClientChunkMap;
+use crate::client::game::world::BACKGROUND_COLOR;
 use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::gl::gui::text::text::MeshText;
 use crate::client::gl::mesh::chunk_mesh::Mesh;
@@ -150,7 +151,7 @@ impl MeshMap {
             let color = glam::Vec3::new(1.0_f32, 1.0_f32, 1.0_f32); // Default colour for debugging
             self.chunk_shader.set_vec3("color", color);
             self.chunk_shader.set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
-            self.chunk_shader.set_vec3("uniformBgColor", glam::vec3(0.0, 0.4, 0.4));
+            self.chunk_shader.set_vec3("uniformBgColor", BACKGROUND_COLOR);
             self.chunk_shader.set_vec3("uniformLightPos", light_pos);
             self.chunk_shader.set_vec3("uniformViewPos", camera_pos.as_vec3());
             self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
