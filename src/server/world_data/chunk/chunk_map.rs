@@ -1,26 +1,24 @@
-use crate::server::world_data::player::player::ServerPlayer;
 use shared::common::account::puid::PUID;
 use shared::common::error::err_type::GameError;
 use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::network::l5_packet::L5Packet;
-use shared::common::network::packet_type::UdpPacketType;
 use shared::common::network::packet_type::UdpPacketType::Reliable;
 use shared::common::network::server::chunk_packet::ChunkPacket;
 use shared::common::world::block::block::BlockId;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::{ChunkMap, MAX_Y_CHUNK, MIN_Y_CHUNK};
+use shared::common::world::player::PacketSender;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc::error::TrySendError;
 
 pub struct ServerChunkMap {
     chunk_map: ChunkMap,
-    asking_for_chunks: HashMap<PUID, (Vec<ChunkPos>, tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>)>,
+    asking_for_chunks: HashMap<PUID, (Vec<ChunkPos>, PacketSender)>,
 }
 
 impl ServerChunkMap {
@@ -31,13 +29,11 @@ impl ServerChunkMap {
         }
     }
 
-    pub fn ask_remove_player(&mut self, player: &PUID) {
+    pub fn remove_player_from_asking(&mut self, player: &PUID) {
         self.asking_for_chunks.remove(player);
     }
 
-    pub fn ask_for_chunks(&mut self, vec_pos: Vec<ChunkPos>, server_player: Arc<RwLock<ServerPlayer>>) {
-        let borrow = server_player.read().unwrap();
-        let (puid, sender) = (borrow.get_puid(), borrow.get_sender().clone());
+    pub fn ask_for_chunks(&mut self, vec_pos: Vec<ChunkPos>, player_sender: PacketSender, puid: PUID) {
         match self.asking_for_chunks.entry(puid) {
             Entry::Occupied(mut e) => {
                 e.get_mut().0.extend(vec_pos);
@@ -45,7 +41,7 @@ impl ServerChunkMap {
             Entry::Vacant(e) => {
                 let mut entry = Vec::new();
                 entry.extend(vec_pos);
-                e.insert((entry, sender));
+                e.insert((entry, player_sender));
             }
         }
     }

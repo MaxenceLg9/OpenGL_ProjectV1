@@ -5,19 +5,20 @@ use crate::client::generation::mesh::chunk_mesh::ChunkMesh;
 use crate::client::gl::gui::text::text::MeshText;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
+use shared::common::world::player::PacketSender;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 pub struct ClientWorldData {
     pub player: Arc<RwLock<ClientPlayer>>,
     // meshes : Arc<RwLock<MeshMap>>,
-    pub sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
+    pub sender: PacketSender,
     pub mesh_sender: crossbeam::channel::Sender<(ChunkMesh, MeshText)>,
     pub debug: AtomicBool,
 }
 
 impl ClientWorldData {
-    pub fn new(sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, mesh_sender: crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
+    pub fn new(sender: PacketSender, mesh_sender: crossbeam::channel::Sender<(ChunkMesh, MeshText)>) -> ClientWorldData {
         let bool = AtomicBool::new(false);
         bool.store(false, Ordering::Relaxed);
         Self {

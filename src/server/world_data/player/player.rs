@@ -3,9 +3,9 @@ use shared::common::account::puid::PUID;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::chunk::chunk::Chunk;
+use shared::common::world::player::PacketSender;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
-use shared::print_base;
 use std::hash::{Hash, Hasher};
 use tokio::sync::mpsc::error::TrySendError;
 
@@ -13,7 +13,7 @@ pub struct ServerPlayer {
     last_pos: BlockPos,
     pos: BlockPos,
     puid: PUID,
-    sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>,
+    sender: PacketSender,
 }
 
 impl ServerPlayer {
@@ -21,7 +21,7 @@ impl ServerPlayer {
         self.pos.as_ivec3() / CHUNK_SIZE as i32
     }
 
-    pub fn get_sender(&self) -> &tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)> {
+    pub fn get_sender(&self) -> &PacketSender {
         &self.sender
     }
 
@@ -29,7 +29,7 @@ impl ServerPlayer {
         self.puid
     }
 
-    pub fn new(pos: BlockPos, sender: tokio::sync::mpsc::Sender<(L5Packet, UdpPacketType)>, puid: PUID) -> Self {
+    pub fn new(pos: BlockPos, sender: PacketSender, puid: PUID) -> Self {
         Self { pos, last_pos: pos, puid, sender }
     }
 
