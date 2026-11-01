@@ -17,7 +17,6 @@ flat in int ao;
 in float shading;
 in vec3 relativeFragPos;
 
-
 uniform sampler2DArray textures;
 uniform vec3 uniformBgColor;
 uniform vec3 uniformLightPos;
@@ -36,23 +35,29 @@ void main() {
 
     float diffuse = max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    lightDir = normalize(uniformLightPos + vec3(1000.0f,0.0f,0.0f) - fragPos);
+    lightDir = normalize(uniformLightPos + vec3(1000.0f, 0.0f, 0.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    lightDir = normalize(uniformLightPos + vec3(0.0f,1000.0f,0.0f) - fragPos);
+    lightDir = normalize(uniformLightPos + vec3(0.0f, 1000.0f, 0.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    lightDir = normalize(uniformLightPos + vec3(0.0f,0.0f,1000.0f) - fragPos);
+    lightDir = normalize(uniformLightPos + vec3(0.0f, 0.0f, 1000.0f) - fragPos);
     diffuse += max(dot(normalVector, lightDir), 0.0) * material_diffuse;
 
-    float distance = length(relativeFragPos);
+    float distance = abs(length(relativeFragPos.xz));
+    float y_distance = abs(relativeFragPos.y);
     // float distance = min(distance, 1000.0);
-    float near = 400.0;
-    if ( distance < near) {
-        depth = 0.0;
-    } else {
-        // depth = (1 - far / near) * distance + (far / near);
-        depth = (1.0 - exp(-0.01 * pow(distance - near, 2.0)));
+    float near = 250.0;
+    depth = 0.0;
+
+    if (distance > near) {
+        depth = (1.0 - exp(-0.001 * pow(distance - near, 2.0)));
+    }
+
+    float near_biased = near * (1.0 - depth);
+    if (y_distance > near_biased) {
+        float depth_y = (1.0 - exp(-0.001 * pow(y_distance - near_biased, 2.0)));
+        depth = max(depth, depth_y);
     }
     // depth = 1.0f / depth;
 
@@ -64,6 +69,7 @@ void main() {
     // tex_col.rgb = pow(tex_col.rgb, gamma) * vec3(shading);
     tex_col.rgb = tex_col.rgb * vec3(shading);
     // tex_col.rgb = pow(tex_col.rgb, inv_gamma);
+
 
     tex_col.rgb = mix(tex_col.rgb, uniformBgColor, depth);
 
