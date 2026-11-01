@@ -1,4 +1,4 @@
-use crate::server::network::server_socket::ServerConnection;
+use crate::server::network::server_socket::ChildSocket;
 use crate::server::world_data::chunk::chunk_map::ServerChunkMap;
 use crate::server::world_data::data::ServerWorldData;
 use crate::server::world_data::event::events::{PlayerEvent, ServerEvent};
@@ -29,7 +29,7 @@ pub struct ClientConnection {
     chunks_loaded: HashSet<ChunkPos>,
     player: Arc<RwLock<ServerPlayer>>,
     player_position: ChunkPos,
-    socket_receiver: ServerConnection,
+    socket_receiver: ChildSocket,
     player_rx: tchannel::Receiver<(L5Packet, UdpPacketType)>,
     view_distance: u8,
     event_sx: cb::Sender<ServerEvent>,
@@ -39,7 +39,7 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
-    pub async fn start(packet: L5Packet, socket: ServerConnection, server_world_data: Arc<ServerWorldData>, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
+    pub async fn start(packet: L5Packet, socket: ChildSocket, server_world_data: Arc<ServerWorldData>, event_sx: cb::Sender<ServerEvent>) -> Result<(), GameError> {
         let (player_sx, player_rx) = tchannel::channel::<(L5Packet, UdpPacketType)>(10000);
         let L5Packet::Login(con_packet) = packet else {
             print_base!("Connection {}: Wrong Packet, returning", socket.get_addr());
@@ -56,7 +56,7 @@ impl ClientConnection {
             .await
             .unwrap();
 
-        print_base!("Creating player in the world with PUID:{} at {}", con_packet.get_puid().id(), pos.deref());
+        print_base!("Initiating connection with {} and creating player in the world with PUID:{} at {}", socket.get_addr(), con_packet.get_puid().id(), pos.deref());
 
         let mut client_connection = Self {
             chunks_loaded: HashSet::new(),
@@ -143,7 +143,7 @@ impl ClientConnection {
     async fn receive(&mut self, frame: &Option<L5Packet>) -> Result<(), Error> {
         match frame {
             Some(packet) => self.handle_packet(packet).await,
-            None => Err(Error::new(ErrorKind::BrokenPipe, "The packet received is None")),
+            None => Err(Error::new(ErrorKind::BrokenPipe, "Remote client closed the connection")),
         }
     }
 

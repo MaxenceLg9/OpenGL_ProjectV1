@@ -1,16 +1,16 @@
 --     pub fn density_of(&self, x : f64, y : f64, z : f64, height : f64, weight_bias : f64, height_bias : f64) -> BlockType {
-        weight_bias = 0.4;
-        height_bias = 1.5;
+        local weight_bias = 0.4;
+        local height_bias = 1.5;
         if y > height + 100.0 then
             return AIR
         end
         if y < height - 100.0 then
             return GRASS
         end
-        noise = 0.0;
-        offset = 0.02;
-        frequency = 0.03;
-        power = 4.0 / 7.0;
+        local noise = 0.0;
+        local offset = 0.02;
+        local frequency = 0.03;
+        local power = 4.0 / 7.0;
         for i = 0,2 do
             noise = noise + generator:get_perlin_3d((x + offset) * frequency, (y + offset) * frequency, (z + offset) * frequency) * power;
             frequency = frequency * 0.2;

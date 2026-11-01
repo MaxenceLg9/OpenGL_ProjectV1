@@ -82,8 +82,8 @@ impl ServerWorld {
         &self.chunks
     }
     pub fn poll(&mut self) -> Result<(), GameError> {
-        self.chunks.poll()?;
-        self.handle_events()
+        self.handle_events()?;
+        self.chunks.poll()
     }
     fn handle_events(&mut self) -> Result<(), GameError> {
         while let Ok(event) = self.event_rx.try_recv() {

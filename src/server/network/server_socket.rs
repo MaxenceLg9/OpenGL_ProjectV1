@@ -102,9 +102,9 @@ impl Socket {
             // cloning world_data ARC
             let world_ref = self.server_world_data.clone();
             //
-            let clone: ServerConnection = self.get_child(socket_addr, receiver);
+            let clone: ChildSocket = self.get_child(socket_addr, receiver);
             let ack = self.socket.init_con(socket_addr);
-            print_base!("Starting connection for {} with ack {}", socket_addr, ack);
+            // print_base!("Starting connection for {} with ack {}", socket_addr, ack);
             tokio::spawn(async move {
                 if let Err(e) = ClientConnection::start(l5_packet.clone(), clone, world_ref, event_sx_clone).await {
                     print_base!("Connection {} finished with error {}", socket_addr, e);
@@ -131,19 +131,19 @@ impl Socket {
     }
 
     /// Slicing the socket to get the child part associated to the address
-    fn get_child(&self, socket_addr: SocketAddr, packet_receiver: Receiver<L5Packet>) -> ServerConnection {
-        ServerConnection::new(self.sender.clone(), socket_addr, packet_receiver)
+    fn get_child(&self, socket_addr: SocketAddr, packet_receiver: Receiver<L5Packet>) -> ChildSocket {
+        ChildSocket::new(self.sender.clone(), socket_addr, packet_receiver)
     }
 }
 
-pub struct ServerConnection {
+pub struct ChildSocket {
     sender: tchannel::Sender<(L5Packet, SocketAddr, UdpPacketType)>,
     socket_addr: SocketAddr,
     packet_receiver: tchannel::Receiver<L5Packet>,
 }
 
-impl ServerConnection {
-    pub fn new(sender: tchannel::Sender<(L5Packet, SocketAddr, UdpPacketType)>, socket_addr: SocketAddr, packet_receiver: tchannel::Receiver<L5Packet>) -> ServerConnection {
+impl ChildSocket {
+    pub fn new(sender: tchannel::Sender<(L5Packet, SocketAddr, UdpPacketType)>, socket_addr: SocketAddr, packet_receiver: tchannel::Receiver<L5Packet>) -> ChildSocket {
         Self { sender, socket_addr, packet_receiver }
     }
 
