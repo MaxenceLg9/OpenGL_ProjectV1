@@ -17,6 +17,8 @@ use shared::common::file;
 use shared::common::file::path::AssetsReader;
 use shared::common::network::client::block_packet::BlockInteraction;
 use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
+use shared::common::world::chunk::chunkmap::ChunkMap;
+use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::print_base;
 use shared::worldgen::Generator;
 use std::collections::HashMap;
@@ -42,6 +44,7 @@ pub struct ClientWorld {
     meshes: MeshMap,
     generator: Generator,
     event_rx: crossbeam::channel::Receiver<ClientEvent>,
+    sender_to_mesh: crossbeam::channel::Sender<(ChunkPos, HashMap<ChunkPos, Arc<Vec<u16>>>)>,
 }
 
 #[derive(Deserialize)]
@@ -77,7 +80,7 @@ impl ClientWorld {
         let (event_sx, event_rx) = crossbeam::channel::bounded(100);
         let (sender, receiver) = tokio::sync::mpsc::channel(1000);
 
-        let chunk_map = ClientChunkMap::new(sender_to_mesh);
+        let chunk_map = ClientChunkMap::new(sender_to_mesh.clone());
         let client_world_data = Arc::new(ClientWorldData::new(sender, mesh_sender.clone()));
         let registers = load_blocks()?;
         MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
@@ -92,6 +95,7 @@ impl ClientWorld {
             chunks: chunk_map,
             last_frame: Instant::now(),
             characters: HashMap::new(),
+            sender_to_mesh,
             event_rx,
             text_shader: Shader::new(AssetsReader::new("shaders/text/vertex.vert"), AssetsReader::new("shaders/text/fragment.frag"))?,
         })
@@ -228,7 +232,17 @@ impl ClientWorld {
         while let Ok(event) = self.event_rx.try_recv() {
             match event.client_event_type {
                 ClientEventType::ChunkPacketReceived(packet) => {
-                    self.chunks.add_temp_chunk(packet);
+                    let chunk_pos = packet.get_chunk_pos();
+                    if self.chunks.add_temp_chunk(packet) {
+                        for pos in ChunkMap::get_neighbours_chunks_pos(chunk_pos) {
+                            if !self.meshes.contains_key(&pos) {
+                                let mut chunks = HashMap::new();
+                                if self.chunks.add_neighbours_if_exist(pos, &mut chunks) == 27 {
+                                    self.sender_to_mesh.try_send((pos, chunks)).expect("Cannot send the data to mesh");
+                                };
+                            }
+                        }
+                    }
                 }
                 ClientEventType::BlockInteraction(packet) => {
                     let meshes = match packet.get_interaction_type() {
@@ -253,7 +267,7 @@ impl ClientWorld {
                 }
             }
         }
-        self.chunks.tick(self.get_player().read().unwrap().get_camera().get_chunk_pos());
+        // self.chunks.tick(self.get_player().read().unwrap().get_camera().get_chunk_pos());
         Ok(())
     }
 }

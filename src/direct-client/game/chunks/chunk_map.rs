@@ -5,6 +5,7 @@ use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::chunk::chunkmap::{ChunkMap, MAX_Y_CHUNK, MIN_Y_CHUNK};
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::common::world::pos::iblockpos::IBlockPos;
+use shared::print_base;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut, Sub};
@@ -33,19 +34,19 @@ impl ClientChunkMap {
 
     /// Add the slice of the Chunk contained in the packet to a temporary map
     /// If enough temporary chunks, instead instantiate the chunk and add it to the map
-    pub fn add_temp_chunk(&mut self, chunk_packet: ChunkPacket) {
-        let total = chunk_packet.get_total();
+    pub fn add_temp_chunk(&mut self, chunk_packet: ChunkPacket) -> bool {
         let chunk_pos = chunk_packet.get_chunk_pos();
         if self.chunk_map.contains_chunk(&chunk_pos) {
-            return;
+            return false;
         }
+        let total = chunk_packet.get_total();
         match self.temp_chunks.entry(chunk_packet.get_chunk_pos()) {
             Entry::Occupied(mut e) => {
-                e.get_mut().insert(chunk_packet.get_indice(), chunk_packet.clone());
+                e.get_mut().insert(chunk_packet.get_indice(), chunk_packet);
             }
             Entry::Vacant(e) => {
                 let mut submap = HashMap::new();
-                submap.insert(chunk_packet.get_indice(), chunk_packet.clone());
+                submap.insert(chunk_packet.get_indice(), chunk_packet);
                 e.insert(submap);
             }
         }
@@ -53,29 +54,30 @@ impl ClientChunkMap {
             let c = ChunkPacket::from_packets_to_chunk(self.temp_chunks.remove(&chunk_pos).expect("Error when getting"), chunk_pos);
             // self.client_world_data.get_chunks().write().unwrap().add_chunk(c.clone());
             self.add_chunk(c);
+            return true;
         }
+        false
     }
 
-    pub fn tick(&mut self, player_pos: ChunkPos) {
-        for chunk_pos in self.to_mesh.clone() {
-            let mut chunks = HashMap::new();
-            if (chunk_pos.x.sub(player_pos.x).pow(2) + chunk_pos.z.sub(player_pos.z).pow(2)).isqrt() > 10 {
-                self.to_mesh.remove(&chunk_pos);
-                continue;
-            }
+    //     pub fn tick(&mut self, player_pos: ChunkPos) {
+    //         for chunk_pos in self.to_mesh.clone() {
+    //             let mut chunks = HashMap::new();
+    //             if (chunk_pos.x.sub(player_pos.x).pow(2) + chunk_pos.z.sub(player_pos.z).pow(2)).isqrt() > 10 {
+    //                 self.to_mesh.remove(&chunk_pos);
+    //                 continue;
+    //             }
+    //
+    //             // add the neighbours in chunks
+    //             if self.add_neighbours_if_exist(chunk_pos, &mut chunks) == 27 {
+    //                 self.sender.try_send((chunk_pos, chunks)).expect("Cannot send the data to mesh");
+    //                 self.to_mesh.remove(&chunk_pos);
+    //             };
+    //         }
+    //     }
 
-            // add the neighbours in chunks
-            if self.add_neighbours_if_exist(chunk_pos, &mut chunks) == 27 {
-                self.sender.try_send((chunk_pos, chunks)).expect("Cannot send the data to mesh");
-                self.to_mesh.remove(&chunk_pos);
-            };
-        }
-    }
-
-    fn add_neighbours_if_exist(&self, chunk_pos: ChunkPos, chunks: &mut HashMap<ChunkPos, Arc<Vec<u16>>>) -> u8 {
+    pub fn add_neighbours_if_exist(&self, chunk_pos: ChunkPos, chunks: &mut HashMap<ChunkPos, Arc<Vec<u16>>>) -> u8 {
         let mut count = 0;
         let pos_vec = ChunkMap::get_neighbours_chunks_pos(chunk_pos);
-
         // checking every side of the chunk
         for p in pos_vec.iter() {
             // the position is already in the map, no need to check if it exists
@@ -87,7 +89,7 @@ impl ClientChunkMap {
                     continue;
                 }
                 // the result is some, adding it into the map
-                chunks.entry(*p).or_insert(result.unwrap().get_blocks().clone());
+                chunks.insert(*p, result.unwrap().get_blocks().clone());
             }
             count += 1;
         }
@@ -100,7 +102,7 @@ impl ClientChunkMap {
             return;
         }
         // print_base!("Sent chunk {}", c.get_chunk_pos().get_vec3());
-        self.to_mesh.insert(pos);
+        // self.to_mesh.insert(pos);
         // print_base!("Len of chunk_map is {}",self.chunk_map.len());
     }
 

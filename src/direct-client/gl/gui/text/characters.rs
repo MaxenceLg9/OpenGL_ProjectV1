@@ -50,7 +50,7 @@ impl Text {
         }
         Self { vao, vbo }
     }
-    pub unsafe fn render_text(&self, s: &Shader, text: &str, mut x: f32, y: f32, scale: f32, color: glam::Vec3, characters: &HashMap<char, Character>) {
+    pub fn render_text(&self, s: &Shader, text: &str, mut x: f32, y: f32, scale: f32, color: glam::Vec3, characters: &HashMap<char, Character>) {
         // activate corresponding render state
         // print_base!("Before");
 

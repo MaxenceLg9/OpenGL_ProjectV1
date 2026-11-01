@@ -21,9 +21,17 @@ impl ChunkMap {
 
     pub fn get_neighbours_chunks_pos(pos: ChunkPos) -> Vec<ChunkPos> {
         let mut v = Vec::new();
-        for i in 0..27 {
-            let relative_pos = ChunkPos::new(i / 9 % 3 - 1, i / 3 % 3 - 1, i % 3 - 1);
-            v.push(pos + relative_pos);
+        // for i in 0..27 {
+        //     let relative_pos = ChunkPos::new(i / 9 % 3 - 1, i / 3 % 3 - 1, i % 3 - 1);
+        //     v.push(pos + relative_pos);
+        // }
+        for x in 0..3 {
+            for y in 0..3 {
+                for z in 0..3 {
+                    let relative_pos = ChunkPos::new(pos.x + x - 1, pos.y + y - 1, pos.z + z - 1);
+                    v.push(relative_pos);
+                }
+            }
         }
         v
     }
@@ -32,14 +40,7 @@ impl ChunkMap {
         if chunk.get_chunk_pos().y < MIN_Y_CHUNK || chunk.get_chunk_pos().y > MAX_Y_CHUNK {
             return false;
         }
-        match self.chunks.entry(chunk.get_chunk_pos()) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(slot) => {
-                // print_base!("Inserted {} chunk", chunk.get_chunk_pos().deref());
-                slot.insert(chunk);
-                true
-            }
-        }
+        self.chunks.insert(chunk.get_chunk_pos(), chunk).is_some()
     }
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockId) -> BlockId {
@@ -70,5 +71,9 @@ impl ChunkMap {
     }
     pub fn remove_chunk(&mut self, chunk_pos: &ChunkPos) {
         self.chunks.remove(chunk_pos);
+    }
+
+    pub fn get_pos(&self) -> Vec<ChunkPos> {
+        self.chunks.keys().copied().collect()
     }
 }
