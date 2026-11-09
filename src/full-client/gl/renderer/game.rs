@@ -1,6 +1,7 @@
 use crate::client::game::world::BACKGROUND_COLOR;
 use crate::client::game::world::ClientWorld;
 use crate::client::gl::gui::Cursor;
+use crate::client::gl::renderer::Renderer;
 use gl::types::{GLchar, GLenum, GLsizei, GLuint};
 use glutin::display::GlDisplay;
 use shared::common::error::err_type::GameError;
@@ -10,23 +11,16 @@ use std::os::raw::c_void;
 use std::time::Duration;
 use winit::window::Window;
 
-pub struct Renderer {
+pub struct GameRender {
     world: ClientWorld,
     cursor: Cursor,
 }
 
-impl Renderer {
+impl GameRender {
     pub fn get_world(&mut self) -> &mut ClientWorld {
         &mut self.world
     }
-}
 
-extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
-    let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
-    print_base!("GL Debug [{}]: {}", severity, msg);
-}
-
-impl Renderer {
     pub fn new<D: GlDisplay>(gl_display: &D) -> Result<Self, GameError> {
         gl::load_with(|symbol| match std::ffi::CString::new(symbol) {
             Ok(symbol_cstr) => gl_display.get_proc_address(&symbol_cstr) as *const _,
@@ -45,8 +39,15 @@ impl Renderer {
             Ok(renderer)
         }
     }
+}
 
-    pub fn draw(&mut self, window: &Window, redraw_time: Duration) {
+extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
+    let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
+    print_base!("GL Debug [{}]: {}", severity, msg);
+}
+
+impl Renderer for GameRender {
+    fn draw(&mut self, window: &Window, redraw_time: Duration) {
         unsafe {
             gl::ClearColor(BACKGROUND_COLOR.x, BACKGROUND_COLOR.y, BACKGROUND_COLOR.z, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -64,7 +65,25 @@ impl Renderer {
         }
     }
 
-    pub fn resize(&self, width: i32, height: i32) {
+    fn tick(&mut self) {
+        self.world.tick();
+    }
+
+    fn keyboard_input(&self, device_id: winit::event::DeviceId, event: winit::event::KeyEvent, is_synthetic: bool) {}
+
+    fn mouse_input(&self, device_id: winit::event::DeviceId, state: winit::event::ElementState, button: winit::event::MouseButton) {
+        todo!()
+    }
+
+    fn mouse_wheel(&self, device_id: winit::event::DeviceId, delta: winit::event::MouseScrollDelta, phase: winit::event::TouchPhase) {
+        todo!()
+    }
+
+    fn mouse_motion(&self, delta: (f64, f64)) {
+        todo!()
+    }
+
+    fn resize(&self, width: i32, height: i32) {
         unsafe {
             gl::Viewport(0, 0, width, height);
         }

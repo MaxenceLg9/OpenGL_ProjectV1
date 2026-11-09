@@ -18,7 +18,7 @@ pub trait Renderer {
         }
     }
 
-    fn tick(&self);
+    fn tick(&mut self);
 
     fn keyboard_input(&self, device_id: DeviceId, event: KeyEvent, is_synthetic: bool);
 
