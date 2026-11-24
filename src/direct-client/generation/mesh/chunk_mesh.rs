@@ -330,3 +330,143 @@ impl ChunkMesh {
         min + normalized * (max - min)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::common::world::chunk::chunkmap::ChunkMap;
+
+    const C: usize = CHUNK_SIZE;
+    const FACE_INDICES: usize = 6;
+    const FACE_VERTEX_WORDS: usize = 8; // 4 vertices, each packed in 2 u32
+
+    /// 27 empty chunks around `center`, with `blocks` set (relative to `center`).
+    fn neighbourhood(center: ChunkPos, blocks: &[(usize, usize, usize, u16)]) -> HashMap<ChunkPos, Arc<Vec<u16>>> {
+        let mut map: HashMap<_, _> = ChunkMap::get_neighbours_chunks_pos(center)
+            .into_iter()
+            .map(|p| (p, Arc::new(vec![0u16; C * C * C])))
+            .collect();
+        let center_blocks = Arc::make_mut(map.get_mut(&center).unwrap());
+        for &(x, y, z, id) in blocks {
+            center_blocks[x * C * C + y * C + z] = id;
+        }
+        map
+    }
+
+    /// Builds the mesh without touching OpenGL.
+    fn build(chunks: &HashMap<ChunkPos, Arc<Vec<u16>>>, pos: ChunkPos) -> Option<ChunkMesh> {
+        let (mesh, text) = ChunkMesh::build_mesh(chunks, pos)?;
+        // `MeshText::drop` calls OpenGL, which is not loaded in tests
+        std::mem::forget(text);
+        Some(mesh)
+    }
+
+    fn faces(mesh: &ChunkMesh) -> usize {
+        assert_eq!(mesh.indices.len() % FACE_INDICES, 0);
+        assert_eq!(mesh.vertices.len() / FACE_VERTEX_WORDS, mesh.indices.len() / FACE_INDICES);
+        mesh.indices.len() / FACE_INDICES
+    }
+
+    #[test]
+    fn empty_chunk_has_no_mesh() {
+        let pos = ChunkPos::new(0, 0, 0);
+        assert!(build(&neighbourhood(pos, &[]), pos).is_none());
+    }
+
+    #[test]
+    fn lone_block_has_six_faces() {
+        let pos = ChunkPos::new(0, 0, 0);
+        let mesh = build(&neighbourhood(pos, &[(32, 32, 32, 1)]), pos).unwrap();
+        assert_eq!(faces(&mesh), 6);
+        assert_eq!(mesh.get_chunk_pos(), pos);
+    }
+
+    #[test]
+    fn touching_blocks_hide_their_shared_faces() {
+        let pos = ChunkPos::new(2, -1, 3);
+        let two = build(&neighbourhood(pos, &[(10, 10, 10, 1), (11, 10, 10, 2)]), pos).unwrap();
+        assert_eq!(faces(&two), 10);
+
+        // 2x2x2 cube: only the outer 24 faces remain
+        let cube: Vec<_> = (0..8).map(|i| (20 + (i & 1), 20 + (i >> 1 & 1), 20 + (i >> 2 & 1), 1)).collect();
+        assert_eq!(faces(&build(&neighbourhood(pos, &cube), pos).unwrap()), 24);
+    }
+
+    #[test]
+    fn faces_against_a_solid_neighbour_chunk_are_culled() {
+        let pos = ChunkPos::new(0, 0, 0);
+        let mut chunks = neighbourhood(pos, &[(C - 1, 5, 5, 1)]);
+        // fill the chunk on +x with stone
+        chunks.insert(ChunkPos::new(1, 0, 0), Arc::new(vec![1; C * C * C]));
+        assert_eq!(faces(&build(&chunks, pos).unwrap()), 5);
+    }
+
+    #[test]
+    fn border_block_without_its_neighbour_chunk_cannot_be_meshed() {
+        let pos = ChunkPos::new(0, 0, 0);
+        let mut chunks = neighbourhood(pos, &[(0, 5, 5, 1)]);
+        chunks.remove(&ChunkPos::new(-1, 0, 0));
+        assert!(build(&chunks, pos).is_none());
+    }
+
+    #[test]
+    fn chunks_outside_the_world_height_count_as_air() {
+        let pos = ChunkPos::new(0, MAX_Y_CHUNK, 0);
+        let mut chunks = neighbourhood(pos, &[(5, C - 1, 5, 1)]);
+        chunks.retain(|p, _| p.y <= MAX_Y_CHUNK);
+        assert_eq!(faces(&build(&chunks, pos).unwrap()), 6);
+    }
+
+    #[test]
+    fn ambient_occlusion_counts_solid_corner_neighbours() {
+        let pos = ChunkPos::new(0, 0, 0);
+        let lone = neighbourhood(pos, &[(10, 10, 10, 1)]);
+        let mesh = ChunkMesh {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            chunk_pos: pos,
+        };
+        let blocks = lone[&pos].clone();
+        // a lone block: every neighbour of the top face is air
+        assert_eq!(mesh.get_ao(IBlockPos::new(10, 11, 10), Plane::Y, &blocks, &lone, pos), Some([3, 3, 3, 3]));
+
+        // a wall on -x above the block darkens the two -x corners of its top face
+        let walled = neighbourhood(pos, &[(10, 10, 10, 1), (9, 11, 9, 1), (9, 11, 10, 1), (9, 11, 11, 1)]);
+        let blocks = walled[&pos].clone();
+        let ao = mesh.get_ao(IBlockPos::new(10, 11, 10), Plane::Y, &blocks, &walled, pos).unwrap();
+        assert_eq!(ao, [1, 3, 3, 1]);
+    }
+
+    #[test]
+    fn pack_data_layout() {
+        let packed = ChunkMesh::pack_data(0xABCD, glam::IVec3::new(64, 1, 127), 5, 0b11, [1.0, 0.0, 1.0], 3).unwrap();
+        assert_eq!(packed >> 46, 0xABCD, "block id");
+        assert_eq!(packed >> 39 & 0x7F, 64, "x");
+        assert_eq!(packed >> 32 & 0x7F, 1, "y");
+        assert_eq!(packed >> 25 & 0x7F, 127, "z");
+        assert_eq!(packed >> 22 & 0x7, 5, "face");
+        assert_eq!(packed >> 16 & 0x3F, 0x3F, "material r");
+        assert_eq!(packed >> 10 & 0x3F, 0, "material g");
+        assert_eq!(packed >> 4 & 0x3F, 0x3F, "material b");
+        assert_eq!(packed >> 2 & 0x3, 3, "ao");
+        assert_eq!(packed & 0x3, 0b11, "uv");
+    }
+
+    #[test]
+    fn pack_data_rejects_out_of_range_values() {
+        let ok = |id, pos, face| ChunkMesh::pack_data(id, pos, face, 0, [1.0; 3], 0).is_ok();
+        assert!(ok(1, glam::IVec3::splat(64), 0), "x/y/z = 64 is a valid vertex on a chunk border");
+        assert!(!ok(1, glam::IVec3::new(128, 0, 0), 0));
+        assert!(!ok(1, glam::IVec3::ZERO, 6));
+    }
+
+    #[test]
+    fn f32_packing_round_trips_within_precision() {
+        for value in [0.0, 0.25, 0.5, 1.0] {
+            let bits = ChunkMesh::pack_f32_to_bits(value, 0.0, 1.0, 0x3F);
+            let back = ChunkMesh::unpack_bits_to_f32(bits, 0.0, 1.0, 0x3F);
+            assert!((back - value).abs() <= 1.0 / 63.0, "{value} -> {back}");
+        }
+        assert_eq!(ChunkMesh::pack_f32_to_bits(2.0, 0.0, 1.0, 0x3F), 0x3F, "values are clamped");
+    }
+}

@@ -283,3 +283,105 @@ impl Camera {
         self.up = self.right.cross(self.direction).normalize();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::common::network::server::chunk_packet::ChunkPacket;
+    use shared::common::world::chunk::chunk::Chunk;
+    use shared::common::world::pos::chunkpos::CHUNK_SIZE;
+
+    /// A chunk map containing chunk (0, 0, 0) with the given blocks set.
+    fn world_with(blocks: &[IBlockPos]) -> ClientChunkMap {
+        let mut data = vec![0u16; CHUNK_SIZE.pow(3)];
+        for block in blocks {
+            data[block.get_index()] = 4;
+        }
+        let mut map = ClientChunkMap::new();
+        for packet in ChunkPacket::from_chunk_to_packets(&Chunk::new(ChunkPos::new(0, 0, 0), Arc::new(data))).unwrap() {
+            map.add_temp_chunk(packet);
+        }
+        map
+    }
+
+    #[test]
+    fn ray_cast_hits_the_first_block_and_returns_the_face_normal() {
+        let world = world_with(&[IBlockPos::new(34, 32, 32), IBlockPos::new(35, 32, 32)]);
+        let eye = BlockPos::new(32.5, 32.5, 32.5);
+
+        let (block, pos, normal) = Camera::ray_cast(Vec3::X, eye, &world).expect("block in front");
+        assert_eq!(block, 4);
+        assert_eq!(pos, IBlockPos::new(34, 32, 32));
+        assert_eq!(normal, glam::IVec3::new(-1, 0, 0));
+    }
+
+    #[test]
+    fn ray_cast_normal_matches_the_axis_crossed() {
+        let eye = BlockPos::new(32.5, 32.5, 32.5);
+        let cases = [
+            (IBlockPos::new(32, 30, 32), Vec3::NEG_Y, glam::IVec3::new(0, 1, 0)),
+            (IBlockPos::new(32, 34, 32), Vec3::Y, glam::IVec3::new(0, -1, 0)),
+            (IBlockPos::new(32, 32, 34), Vec3::Z, glam::IVec3::new(0, 0, -1)),
+            (IBlockPos::new(30, 32, 32), Vec3::NEG_X, glam::IVec3::new(1, 0, 0)),
+        ];
+        for (block, direction, normal) in cases {
+            let hit = Camera::ray_cast(direction, eye, &world_with(&[block]));
+            assert_eq!(hit.map(|(_, p, n)| (p, n)), Some((block, normal)), "looking {direction}");
+        }
+    }
+
+    #[test]
+    fn ray_cast_works_diagonally() {
+        let target = IBlockPos::new(34, 34, 32);
+        let eye = BlockPos::new(32.5, 32.5, 32.5);
+        let (_, pos, _) = Camera::ray_cast(Vec3::new(1.0, 1.0, 0.0).normalize(), eye, &world_with(&[target])).expect("diagonal hit");
+        assert_eq!(pos, target);
+    }
+
+    #[test]
+    fn ray_cast_ignores_blocks_out_of_reach() {
+        let eye = BlockPos::new(32.5, 32.5, 32.5);
+        assert!(Camera::ray_cast(Vec3::X, eye, &world_with(&[IBlockPos::new(37, 32, 32)])).is_none());
+        assert!(Camera::ray_cast(Vec3::X, eye, &world_with(&[])).is_none());
+    }
+
+    #[test]
+    fn placing_position_is_the_hit_block_plus_the_normal() {
+        let eye = BlockPos::new(32.5, 32.5, 32.5);
+        let (_, pos, normal) = Camera::ray_cast(Vec3::NEG_Y, eye, &world_with(&[IBlockPos::new(32, 30, 32)])).unwrap();
+        assert_eq!(pos + normal, IBlockPos::new(32, 31, 32));
+    }
+
+    #[test]
+    fn pitch_is_clamped_and_direction_stays_normalized() {
+        let mut camera = Camera::new(0.0, 0.0, 0.0);
+        camera.move_camera(0.0, -10_000.0);
+        assert!(camera.pitch <= 89.0);
+        assert!((camera.get_direction().length() - 1.0).abs() < 1e-5);
+        assert!(camera.get_direction().y > 0.99);
+
+        camera.move_camera(123.0, 20_000.0);
+        assert!(camera.pitch >= -89.0);
+        assert!((camera.get_up().length() - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn fov_is_clamped_between_30_and_140() {
+        let mut camera = Camera::new(0.0, 0.0, 0.0);
+        camera.add_fov(MouseScrollDelta::LineDelta(0.0, 1000.0));
+        assert_eq!(camera.get_fov(), 30.0);
+        camera.add_fov(MouseScrollDelta::LineDelta(0.0, -1000.0));
+        assert_eq!(camera.get_fov(), 140.0);
+    }
+
+    #[test]
+    fn speed_multipliers_stack() {
+        let mut camera = Camera::new(0.0, 0.0, 0.0);
+        assert_eq!(camera.get_speed(2.0), 2.0);
+        camera.add_speed_multiplier(0, 50.0);
+        camera.add_speed_multiplier(1, 0.5);
+        assert_eq!(camera.get_speed(2.0), 50.0);
+        camera.remove_speed_multiplier(0);
+        assert_eq!(camera.get_speed(2.0), 1.0);
+    }
+}

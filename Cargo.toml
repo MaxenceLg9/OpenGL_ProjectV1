@@ -15,13 +15,12 @@ path = "src/bin/direct-client.rs"
 name = "full-client"
 path = "src/bin/full-client.rs"
 
-# [[test]]
-# name = "test"
-# path = "src/bin/test.rs"
-
+# Debug binaries: they include the client/server modules too, so their unit tests
+# would run a second time. Tests run from the `direct-client` and `server` binaries.
 [[bin]]
 name = "generation"
 path = "src/bin/test_generation.rs"
+test = false
 
 [[bin]]
 name = "server"
@@ -30,6 +29,7 @@ path = "src/bin/server.rs"
 [[bin]]
 name = "noise"
 path = "src/bin/test_noise.rs"
+test = false
 
 [dependencies]
 glutin = "0.32.3"

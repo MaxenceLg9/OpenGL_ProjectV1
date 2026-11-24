@@ -176,3 +176,186 @@ impl Deref for ServerChunkMap {
         &self.chunk_map
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::common::network::packet_type::UdpPacketType;
+    use shared::common::world::pos::chunkpos::CHUNK_SIZE;
+    use std::sync::Arc;
+
+    const WORLD_HEIGHT: usize = (MAX_Y_CHUNK - MIN_Y_CHUNK + 1) as usize;
+
+    fn empty_chunk(pos: ChunkPos) -> Chunk {
+        Chunk::new(pos, Arc::new(vec![0; CHUNK_SIZE.pow(3)]))
+    }
+
+    /// Reference definition of the loaded area: every chunk within `vd` on x and z, all heights.
+    fn cube(center: ChunkPos, vd: i32) -> HashSet<ChunkPos> {
+        let mut set = HashSet::new();
+        for x in -vd..=vd {
+            for z in -vd..=vd {
+                for y in MIN_Y_CHUNK..=MAX_Y_CHUNK {
+                    set.insert(ChunkPos::new(center.x + x, y, center.z + z));
+                }
+            }
+        }
+        set
+    }
+
+    fn as_set(v: &[ChunkPos]) -> HashSet<ChunkPos> {
+        v.iter().copied().collect()
+    }
+
+    // ------------------------------------------------------------ chunk diff
+
+    #[test]
+    fn initial_load_sends_the_whole_view_cube() {
+        // a negative old view distance means "nothing was loaded before"
+        let center = ChunkPos::new(3, 0, -2);
+        let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(center, center, -1, 5);
+
+        assert_eq!(to_load.len(), 11 * 11 * WORLD_HEIGHT);
+        assert_eq!(as_set(&to_load), cube(center, 5));
+        assert!(to_unload.is_empty());
+    }
+
+    #[test]
+    fn initial_load_is_sorted_from_the_closest_column() {
+        let center = ChunkPos::new(0, 0, 0);
+        let (to_load, _) = ServerChunkMap::compute_chunk_diff(center, center, -1, 5);
+
+        let distance = |p: &ChunkPos| (p.x - center.x).pow(2) + (p.z - center.z).pow(2);
+        assert!(to_load.windows(2).all(|w| distance(&w[0]) <= distance(&w[1])));
+        assert_eq!(distance(&to_load[0]), 0);
+        assert!(to_load.contains(&ChunkPos::new(1, -4, 1)));
+    }
+
+    #[test]
+    fn standing_still_loads_and_unloads_nothing() {
+        let center = ChunkPos::new(10, 2, 10);
+        let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(center, center, 4, 4);
+        assert!(to_load.is_empty(), "{} chunks re-sent", to_load.len());
+        assert!(to_unload.is_empty(), "{} chunks unloaded", to_unload.len());
+    }
+
+    #[test]
+    fn moving_one_chunk_only_loads_and_unloads_one_slice() {
+        let (vd, last, new) = (2, ChunkPos::new(0, 0, 0), ChunkPos::new(1, 0, 0));
+        let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(last, new, vd, vd);
+
+        let expected_load: HashSet<_> = cube(new, vd).difference(&cube(last, vd)).copied().collect();
+        let expected_unload: HashSet<_> = cube(last, vd).difference(&cube(new, vd)).copied().collect();
+        assert_eq!(as_set(&to_load), expected_load);
+        assert_eq!(as_set(&to_unload), expected_unload);
+        assert_eq!(to_load.len(), (2 * vd as usize + 1) * WORLD_HEIGHT);
+    }
+
+    #[test]
+    fn changing_view_distance_loads_only_the_new_ring() {
+        let center = ChunkPos::new(-5, 0, 5);
+        let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(center, center, 4, 6);
+
+        let expected: HashSet<_> = cube(center, 6).difference(&cube(center, 4)).copied().collect();
+        assert_eq!(as_set(&to_load), expected);
+        assert!(to_unload.is_empty());
+
+        // and shrinking it back unloads that same ring
+        let (to_load, to_unload) = ServerChunkMap::compute_chunk_diff(center, center, 6, 4);
+        assert!(to_load.is_empty());
+        assert_eq!(as_set(&to_unload), expected);
+    }
+
+    #[test]
+    fn compute_chunks_skips_already_generated_positions() {
+        let center = ChunkPos::new(0, 0, 0);
+        let generated: HashSet<_> = cube(center, 1);
+        let to_generate = ServerChunkMap::compute_chunks(center, 2, &generated);
+
+        assert_eq!(to_generate.len(), (5 * 5 - 3 * 3) * WORLD_HEIGHT);
+        assert!(to_generate.iter().all(|p| !generated.contains(p)));
+    }
+
+    // ------------------------------------------------------- block edits
+
+    #[test]
+    fn left_click_breaks_and_right_click_places() {
+        let mut map = ServerChunkMap::new();
+        map.add_chunk(empty_chunk(ChunkPos::new(0, 0, 0)));
+        let pos = IBlockPos::new(5, 6, 7);
+
+        assert_eq!(map.interact_block(pos, BlockInteraction::RIGHT), 1);
+        assert_eq!(map.get_block_at(pos), 1);
+        assert_eq!(map.interact_block(pos, BlockInteraction::LEFT), 0);
+        assert_eq!(map.get_block_at(pos), 0);
+    }
+
+    // --------------------------------------------------- chunk streaming
+
+    fn drain(rx: &mut tokio::sync::mpsc::Receiver<(L5Packet, UdpPacketType)>) -> Vec<ChunkPos> {
+        let mut received = Vec::new();
+        while let Ok((packet, udp_type)) = rx.try_recv() {
+            assert_eq!(udp_type, Reliable, "chunks must be sent reliably");
+            let L5Packet::Chunk(chunk_packet) = packet else {
+                panic!("only chunk packets are expected");
+            };
+            received.push(chunk_packet.get_chunk_pos());
+        }
+        received
+    }
+
+    #[test]
+    fn asked_chunks_are_sent_once_available() {
+        let (sx, mut rx) = tokio::sync::mpsc::channel(1000);
+        let puid = PUID::new(1);
+        let (ready, pending) = (ChunkPos::new(0, 0, 0), ChunkPos::new(1, 0, 0));
+
+        let mut map = ServerChunkMap::new();
+        map.add_chunk(empty_chunk(ready));
+        map.ask_for_chunks(vec![ready, pending], sx, puid);
+
+        map.poll().unwrap();
+        assert_eq!(drain(&mut rx), vec![ready]);
+
+        // the pending chunk stays queued until it gets generated
+        map.poll().unwrap();
+        assert!(drain(&mut rx).is_empty());
+
+        map.add_chunk(empty_chunk(pending));
+        map.poll().unwrap();
+        assert_eq!(drain(&mut rx), vec![pending]);
+    }
+
+    #[test]
+    fn chunks_are_streamed_in_batches() {
+        let (sx, mut rx) = tokio::sync::mpsc::channel(10_000);
+        let mut map = ServerChunkMap::new();
+        let positions: Vec<ChunkPos> = (0..30).map(|x| ChunkPos::new(x, 0, 0)).collect();
+        for pos in &positions {
+            map.add_chunk(empty_chunk(*pos));
+        }
+        map.ask_for_chunks(positions.clone(), sx, PUID::new(1));
+
+        let mut received = Vec::new();
+        for _ in 0..10 {
+            map.poll().unwrap();
+            let batch = drain(&mut rx);
+            assert!(batch.len() <= 11, "a single poll sent {} chunks", batch.len());
+            received.extend(batch);
+        }
+        assert_eq!(received, positions, "every chunk is sent once, in the asked order");
+    }
+
+    #[test]
+    fn disconnected_players_are_dropped_from_the_queue() {
+        let (sx, rx) = tokio::sync::mpsc::channel(1000);
+        let puid = PUID::new(1);
+        let mut map = ServerChunkMap::new();
+        map.add_chunk(empty_chunk(ChunkPos::new(0, 0, 0)));
+        map.ask_for_chunks(vec![ChunkPos::new(0, 0, 0)], sx, puid);
+        drop(rx);
+
+        map.poll().unwrap();
+        assert!(!map.asking_for_chunks.contains_key(&puid));
+    }
+}

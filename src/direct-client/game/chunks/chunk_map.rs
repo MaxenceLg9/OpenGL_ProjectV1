@@ -127,3 +127,113 @@ impl Deref for ClientChunkMap {
         &self.chunk_map
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::common::world::chunk::chunk::Chunk;
+    use shared::common::world::pos::chunkpos::CHUNK_SIZE;
+    use std::collections::HashSet;
+
+    fn new_map() -> ClientChunkMap {
+        ClientChunkMap::new()
+    }
+
+    fn packets(pos: ChunkPos, fill: impl Fn(usize) -> u16) -> Vec<ChunkPacket> {
+        let chunk = Chunk::new(pos, Arc::new((0..CHUNK_SIZE.pow(3)).map(fill).collect()));
+        ChunkPacket::from_chunk_to_packets(&chunk).unwrap()
+    }
+
+    #[test]
+    fn chunk_is_added_only_when_every_part_arrived() {
+        let pos = ChunkPos::new(0, 0, 0);
+        // pseudo-random content (splitmix64 hash) so the chunk needs several packets
+        let mut parts = packets(pos, |i| {
+            let mut z = (i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            ((z ^ (z >> 31)) % 8) as u16
+        });
+        assert!(parts.len() > 1);
+        let last = parts.pop().unwrap();
+
+        let mut map = new_map();
+        for part in parts {
+            assert!(!map.add_temp_chunk(part));
+            assert!(!map.contains_chunk(&pos));
+        }
+        assert!(map.add_temp_chunk(last));
+        assert!(map.contains_chunk(&pos));
+        assert!(map.temp_chunks.is_empty(), "temporary parts are freed");
+    }
+
+    #[test]
+    fn packets_for_an_already_loaded_chunk_are_ignored() {
+        let pos = ChunkPos::new(1, 1, 1);
+        let mut map = new_map();
+        for part in packets(pos, |_| 1) {
+            map.add_temp_chunk(part);
+        }
+        for part in packets(pos, |_| 2) {
+            assert!(!map.add_temp_chunk(part));
+        }
+        assert_eq!(map.get_block_at(pos + IBlockPos::new(0, 0, 0)), 1);
+        assert!(map.temp_chunks.is_empty());
+    }
+
+    #[test]
+    fn neighbours_count_includes_missing_chunks_outside_the_world() {
+        let mut map = new_map();
+        let top = ChunkPos::new(0, MAX_Y_CHUNK, 0);
+        // only the 18 chunks inside the world exist; the 9 above are out of the world
+        for pos in ChunkMap::get_neighbours_chunks_pos(top).into_iter().filter(|p| p.y <= MAX_Y_CHUNK) {
+            for part in packets(pos, |_| 0) {
+                map.add_temp_chunk(part);
+            }
+        }
+        let mut chunks = HashMap::new();
+        assert_eq!(map.add_neighbours_if_exist(top, &mut chunks), 27);
+        assert_eq!(chunks.len(), 18);
+
+        map.remove_chunk(&ChunkPos::new(1, MAX_Y_CHUNK, 1));
+        let mut chunks = HashMap::new();
+        assert_eq!(map.add_neighbours_if_exist(top, &mut chunks), 26, "a missing in-world chunk blocks meshing");
+    }
+
+    #[test]
+    fn editing_a_border_block_remeshes_the_neighbour_chunks() {
+        let mut map = new_map();
+        let center = ChunkPos::new(0, 0, 0);
+        let mut area = HashSet::new();
+        for pos in ChunkMap::get_neighbours_chunks_pos(center) {
+            area.extend(ChunkMap::get_neighbours_chunks_pos(pos));
+        }
+        for pos in area {
+            for part in packets(pos, |_| 0) {
+                map.add_temp_chunk(part);
+            }
+        }
+
+        let forget = |meshes: Vec<Option<(ChunkMesh, MeshText)>>| -> Vec<Option<ChunkPos>> {
+            meshes
+                .into_iter()
+                .map(|m| {
+                    m.map(|(mesh, text)| {
+                        std::mem::forget(text); // `MeshText::drop` needs OpenGL
+                        mesh.get_chunk_pos()
+                    })
+                })
+                .collect()
+        };
+
+        // inside the chunk: only this chunk is rebuilt
+        assert_eq!(forget(map.set_block(IBlockPos::new(10, 10, 10), 1)), vec![Some(center)]);
+
+        // on the x = 0 border: the -x chunk is rebuilt too (it has nothing to draw, hence None)
+        let rebuilt = forget(map.set_block(IBlockPos::new(0, 10, 10), 1));
+        assert_eq!(rebuilt, vec![Some(center), None]);
+
+        // on a corner: 3 neighbours are concerned
+        assert_eq!(forget(map.set_block(IBlockPos::new(63, 63, 63), 1)).len(), 4);
+    }
+}
