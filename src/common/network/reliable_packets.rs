@@ -34,9 +34,9 @@ impl Display for ReliablePacket {
 
 impl UdpPacketTrait for ReliablePacket {
     fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
-        let b = Box::new(());
+        let _b = Box::new(());
         vec.extend_from_bitslice(self.ack.view_bits::<Lsb0>());
-        vec.extend(self.l5_packet.encode());
+        vec.extend(self.l5_packet.encode()?);
         Ok(())
     }
 
@@ -68,7 +68,7 @@ impl Display for SimplePacket {
 
 impl UdpPacketTrait for SimplePacket {
     fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
-        vec.extend(self.l5_packet.encode());
+        vec.extend(self.l5_packet.encode()?);
         Ok(())
     }
 

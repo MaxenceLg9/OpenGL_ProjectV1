@@ -42,13 +42,13 @@ macro_rules! register_packets {
             }
 
             /// Dispatches to the specific struct's serialize implementation
-            pub fn encode(&self) -> BitVec<u8, Lsb0> {
+            pub fn encode(&self) -> Result<BitVec<u8, Lsb0>, GameError> {
                 let mut vec = BitVec::new();
                 vec.extend_from_bitslice((self.get_packet_type() as u8).view_bits::<Lsb0>());
                 match self {
-                    $( $enum_name::$variant_name(p) => p.serialize(&mut vec), )*
+                    $( $enum_name::$variant_name(p) => p.serialize(&mut vec)?, )*
                 };
-                vec
+                Ok(vec)
             }
 
             pub fn get_packet_type(&self) -> $enum_type {

@@ -65,7 +65,7 @@ impl ServerWorld {
     }
 
     pub fn listen(&mut self) -> Result<(), GameError> {
-        Self::generate_base_chunks(&mut self.chunks_generated, self.gen_crossbeam_sx.clone());
+        Self::generate_base_chunks(&mut self.chunks_generated, self.gen_crossbeam_sx.clone())?;
         print_base!("Spawn generated");
         loop {
             let current_frame = std::time::Instant::now();
