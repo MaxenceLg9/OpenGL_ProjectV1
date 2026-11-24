@@ -40,7 +40,8 @@ impl ChunkMap {
         if chunk.get_chunk_pos().y < MIN_Y_CHUNK || chunk.get_chunk_pos().y > MAX_Y_CHUNK {
             return false;
         }
-        self.chunks.insert(chunk.get_chunk_pos(), chunk).is_some()
+        self.chunks.insert(chunk.get_chunk_pos(), chunk);
+        true
     }
 
     pub fn set_block(&mut self, iblock_pos: IBlockPos, block_type: BlockId) -> BlockId {

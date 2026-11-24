@@ -153,7 +153,7 @@ impl ServerChunkMap {
 
     /// O(1) membership test — no allocation, no iteration.
     fn in_cube(center: ChunkPos, vd: i32, p: ChunkPos) -> bool {
-        (p.x - center.x).abs() < vd && (p.z - center.z).abs() < vd
+        (p.x - center.x).abs() <= vd && (p.z - center.z).abs() <= vd
     }
 
     pub fn interact_block(&mut self, iblock_pos: IBlockPos, block_interaction: BlockInteraction) -> BlockId {
