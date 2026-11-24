@@ -67,7 +67,7 @@ void main() {
     vec4 tex_col = texture(textures, vec3(TexCoord, voxel_id));
 
     // tex_col.rgb = pow(tex_col.rgb, gamma) * vec3(shading);
-    tex_col.rgb = tex_col.rgb * vec3(shading);
+    tex_col.rgb = tex_col.rgb * vec3(shading) * uniformLightColor * 2.0f;
     // tex_col.rgb = pow(tex_col.rgb, inv_gamma);
 
 
