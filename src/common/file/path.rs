@@ -14,7 +14,7 @@ pub struct AssetsReader {
 impl AssetsReader {
     pub fn new(str: &str) -> AssetsReader {
         let mut path = PathBuf::from("src/assets/");
-        path.push(format!("{}", str));
+        path.push(str);
         AssetsReader { path }
     }
 }

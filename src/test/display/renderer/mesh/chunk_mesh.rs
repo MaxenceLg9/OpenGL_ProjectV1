@@ -20,19 +20,21 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(vao: GLuint, vbo: GLuint, ebo: GLuint, nb_indices: i32) -> Mesh {
+    pub fn new(vao: GLuint, _vbo: GLuint, _ebo: GLuint, nb_indices: i32) -> Mesh {
         Self { vao, nb_indices }
     }
 
     pub unsafe fn draw(&self, chunk_shader: &Shader, pos: &ChunkPos) {
-        if self.nb_indices == 0 {
-            return;
+        unsafe {
+            if self.nb_indices == 0 {
+                return;
+            }
+            let mut model = glam::Mat4::IDENTITY;
+            model *= glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
+            chunk_shader.set_matrix4fv("uniform_model", model);
+            gl::BindVertexArray(self.vao);
+            gl::DrawElementsBaseVertex(TRIANGLES, self.nb_indices, UNSIGNED_INT, std::ptr::null(), 0);
         }
-        let mut model = glam::Mat4::IDENTITY;
-        model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
-        chunk_shader.set_matrix4fv("uniform_model", model);
-        gl::BindVertexArray(self.vao);
-        gl::DrawElementsBaseVertex(TRIANGLES, self.nb_indices, UNSIGNED_INT, std::ptr::null(), 0);
     }
 }
 
@@ -58,37 +60,43 @@ impl ChunkMesh {
     }
 
     pub unsafe fn link(&mut self) -> Mesh {
-        let (mut vao, mut vbo, mut ebo) = (0, 0, 0);
-        Self::setup_mesh(&mut vao, &mut vbo, &mut ebo);
-        self.bind_data(&mut vbo, &mut ebo);
-        Mesh::new(vao, vbo, ebo, self.indices.len() as i32)
+        unsafe {
+            let (mut vao, mut vbo, mut ebo) = (0, 0, 0);
+            Self::setup_mesh(&mut vao, &mut vbo, &mut ebo);
+            self.bind_data(&mut vbo, &mut ebo);
+            Mesh::new(vao, vbo, ebo, self.indices.len() as i32)
+        }
     }
 
     unsafe fn setup_mesh(vao: &mut GLuint, vbo: &mut GLuint, ebo: &mut GLuint) {
-        // 1. Create the objects (DSA style)
-        gl::CreateBuffers(1, vbo);
-        gl::CreateBuffers(1, ebo);
-        gl::CreateVertexArrays(1, vao);
+        unsafe {
+            // 1. Create the objects (DSA style)
+            gl::CreateBuffers(1, vbo);
+            gl::CreateBuffers(1, ebo);
+            gl::CreateVertexArrays(1, vao);
 
-        // 2. Configure Attribute 0
-        gl::VertexArrayVertexBuffer(*vao, 0, *vbo, 0, 8);
+            // 2. Configure Attribute 0
+            gl::VertexArrayVertexBuffer(*vao, 0, *vbo, 0, 8);
 
-        gl::EnableVertexArrayAttrib(*vao, 0);
-        gl::EnableVertexArrayAttrib(*vao, 1);
+            gl::EnableVertexArrayAttrib(*vao, 0);
+            gl::EnableVertexArrayAttrib(*vao, 1);
 
-        // 3. Configure Attribute 1
-        gl::VertexArrayAttribIFormat(*vao, 0, 1, UNSIGNED_INT, 0);
-        gl::VertexArrayAttribIFormat(*vao, 1, 1, UNSIGNED_INT, 4);
+            // 3. Configure Attribute 1
+            gl::VertexArrayAttribIFormat(*vao, 0, 1, UNSIGNED_INT, 0);
+            gl::VertexArrayAttribIFormat(*vao, 1, 1, UNSIGNED_INT, 4);
 
-        gl::VertexArrayAttribBinding(*vao, 0, 0);
-        gl::VertexArrayAttribBinding(*vao, 1, 0);
+            gl::VertexArrayAttribBinding(*vao, 0, 0);
+            gl::VertexArrayAttribBinding(*vao, 1, 0);
 
-        gl::VertexArrayElementBuffer(*vao, *ebo);
+            gl::VertexArrayElementBuffer(*vao, *ebo);
+        }
     }
 
     unsafe fn bind_data(&self, vbo: &mut GLuint, ebo: &mut GLuint) {
-        gl::NamedBufferData(*vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
-        gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
+        unsafe {
+            gl::NamedBufferData(*vbo, self.vertices.len().cast_signed() * 4, self.vertices.as_ptr() as *const _, gl::STATIC_DRAW);
+            gl::NamedBufferData(*ebo, self.indices.len().cast_signed() * 4, self.indices.as_ptr() as *const _, gl::STATIC_DRAW);
+        }
     }
 
     /// Construct the chunk mesh and text meshes from chunks
@@ -192,7 +200,7 @@ impl ChunkMesh {
                 }
             }
         }
-        if chunk_mesh.indices.len() == 0 {
+        if chunk_mesh.indices.is_empty() {
             return None;
         };
         print_debug!("Created {} vertices in chunks", chunk_mesh.indices.len());
@@ -200,7 +208,7 @@ impl ChunkMesh {
         Some((chunk_mesh, mesh_text))
     }
 
-    fn is_void(&self, block_pos: IBlockPos, blocks: &Vec<u16>, chunk_pos: ChunkPos) -> Option<bool> {
+    fn is_void(&self, block_pos: IBlockPos, blocks: &[u16], _chunk_pos: ChunkPos) -> Option<bool> {
         if block_pos.x < 0 || block_pos.x >= CHUNK_SIZE as i32 || block_pos.y < 0 || block_pos.y >= CHUNK_SIZE as i32 || block_pos.z < 0 || block_pos.z >= CHUNK_SIZE as i32 {
             return Some(true);
         }
@@ -209,15 +217,15 @@ impl ChunkMesh {
 
     /// Push the packed and serialized data into the buffers and update the indices
     fn add_data(&mut self, v: [u64; 4], index: u32, flip: bool) -> u32 {
-        for i in 0..4usize {
-            self.vertices.push((v[i] >> 32) as u32); // High 32 bits
-            self.vertices.push((v[i] & 0xFFFFFFFF) as u32); // Low 32 bits
+        for vertex in v {
+            self.vertices.push((vertex >> 32) as u32); // High 32 bits
+            self.vertices.push((vertex & 0xFFFFFFFF) as u32); // Low 32 bits
         }
 
         if flip {
             self.indices.push(index + 3);
             self.indices.push(index + 1);
-            self.indices.push(index + 0);
+            self.indices.push(index);
             self.indices.push(index + 3);
             self.indices.push(index + 2);
             self.indices.push(index + 1);
@@ -232,7 +240,7 @@ impl ChunkMesh {
         index + 4
     }
 
-    fn get_ao(&self, pos: IBlockPos, plane: Plane, blocks: &Vec<u16>, chunk_pos: ChunkPos) -> Option<[u8; 4]> {
+    fn get_ao(&self, pos: IBlockPos, plane: Plane, blocks: &[u16], chunk_pos: ChunkPos) -> Option<[u8; 4]> {
         let (a, b, c, d, e, f, g, h) = match plane {
             Plane::X => {
                 (
@@ -330,10 +338,5 @@ impl ChunkMesh {
         let clamped = val.clamp(min, max);
         // Scale and round to a 0-127 integer
         (((clamped - min) / (max - min)) * bits as f32).round() as u64
-    }
-
-    fn unpack_bits_to_f32(packed: u64, min: f32, max: f32, bits: u64) -> f32 {
-        let normalized = (packed & bits) as f32 / bits as f32;
-        min + normalized * (max - min)
     }
 }

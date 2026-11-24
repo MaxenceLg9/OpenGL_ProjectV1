@@ -1,11 +1,11 @@
-use glam::{IVec2, Vec2};
+use glam::IVec2;
 use image::{ImageFormat, RgbaImage};
 use mlua::Lua;
 use shared::common::error::err_type::GameError;
 use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
 use shared::print_base;
 use shared::worldgen::Generator;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[path = "../direct-client/mod.rs"]

@@ -11,7 +11,6 @@ use crate::client::gl::mesh::shader::shader::Shader;
 use crate::client::network::server_connection::ServerConnection;
 use mlua::Lua;
 use serde::Deserialize;
-use shared::common::account::puid::PUID;
 use shared::common::error::err_type::GameError;
 use shared::common::file;
 use shared::common::file::path::AssetsReader;
@@ -23,7 +22,7 @@ use shared::print_base;
 use shared::worldgen::Generator;
 use std::collections::HashMap;
 use std::hash::RandomState;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::ops::{Deref, Div};
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
@@ -74,31 +73,33 @@ fn load_blocks() -> Result<Arc<HashMap<String, BlocksRegistries, RandomState>>, 
 
 impl ClientWorld {
     pub unsafe fn new() -> Result<ClientWorld, GameError> {
-        let config: Config = toml::from_str(&file::reader::read_file_to_string(&AssetsReader::new("config/client.toml"))?).expect("Cannot load config");
-        let (mesh_sender, mesh_receiver) = crossbeam::channel::unbounded();
-        let (sender_to_mesh, receiver_to_mesh) = crossbeam::channel::unbounded();
-        let (event_sx, event_rx) = crossbeam::channel::bounded(100);
-        let (sender, receiver) = tokio::sync::mpsc::channel(1000);
+        unsafe {
+            let config: Config = toml::from_str(&file::reader::read_file_to_string(&AssetsReader::new("config/client.toml"))?).expect("Cannot load config");
+            let (mesh_sender, mesh_receiver) = crossbeam::channel::unbounded();
+            let (sender_to_mesh, receiver_to_mesh) = crossbeam::channel::unbounded();
+            let (event_sx, event_rx) = crossbeam::channel::bounded(100);
+            let (sender, receiver) = tokio::sync::mpsc::channel(1000);
 
-        let chunk_map = ClientChunkMap::new(sender_to_mesh.clone());
-        let client_world_data = Arc::new(ClientWorldData::new(sender, mesh_sender.clone()));
-        let registers = load_blocks()?;
-        MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
+            let chunk_map = ClientChunkMap::new();
+            let client_world_data = Arc::new(ClientWorldData::new(sender, mesh_sender.clone()));
+            let registers = load_blocks()?;
+            MeshGenerator::start_build_meshes(receiver_to_mesh, mesh_sender);
 
-        ServerConnection::start(SocketAddr::new(IpAddr::from_str(&config.network.ip).unwrap(), config.network.port.unwrap_or(25000)), receiver, client_world_data.clone(), event_sx)?;
-        Ok(Self {
-            client_world_data,
-            mesh_receiver,
-            generator: Generator::new(1, registers.clone()),
-            text: Text::new(),
-            meshes: MeshMap::new(registers)?,
-            chunks: chunk_map,
-            last_frame: Instant::now(),
-            characters: HashMap::new(),
-            sender_to_mesh,
-            event_rx,
-            text_shader: Shader::new(AssetsReader::new("shaders/text/vertex.vert"), AssetsReader::new("shaders/text/fragment.frag"))?,
-        })
+            ServerConnection::start(SocketAddr::new(IpAddr::from_str(&config.network.ip).unwrap(), config.network.port.unwrap_or(25000)), receiver, client_world_data.clone(), event_sx)?;
+            Ok(Self {
+                client_world_data,
+                mesh_receiver,
+                generator: Generator::new(1, registers.clone()),
+                text: Text::new(),
+                meshes: MeshMap::new(registers)?,
+                chunks: chunk_map,
+                last_frame: Instant::now(),
+                characters: HashMap::new(),
+                sender_to_mesh,
+                event_rx,
+                text_shader: Shader::new(AssetsReader::new("shaders/text/vertex.vert"), AssetsReader::new("shaders/text/fragment.frag"))?,
+            })
+        }
     }
 
     /// Update the game with the inputs from keyboard and mouse
@@ -159,68 +160,70 @@ impl ClientWorld {
     /// Draw vertices on the screen
     ///
     /// Rendering the chunks and stuff
-    pub unsafe fn render(&mut self, window: &Window, redraw_time: Duration) {
-        let period = Instant::now() - self.last_frame;
-        self.last_frame = Instant::now();
-        let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_camera().get_pos_info();
+    pub unsafe fn render(&mut self, window: &Window, _redraw_time: Duration) {
+        unsafe {
+            let period = Instant::now() - self.last_frame;
+            self.last_frame = Instant::now();
+            let (camera_pos, direction, up, fov) = self.get_player().read().unwrap().get_camera().get_pos_info();
 
-        let n = self
-            .meshes
-            .render(camera_pos, up, direction, fov, window, self.client_world_data.debug.load(Ordering::Relaxed), &mut self.chunks);
+            let n = self
+                .meshes
+                .render(camera_pos, up, direction, fov, window, self.client_world_data.debug.load(Ordering::Relaxed), &mut self.chunks);
 
-        // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
-        // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
-        let x = camera_pos.x as f64;
-        let z = camera_pos.z as f64;
+            // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
+            // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
+            let x = camera_pos.x as f64;
+            let z = camera_pos.z as f64;
 
-        let c_noise = self.generator.get_c_noise(x, z);
-        let continentalness = self.generator.get_continentalness(c_noise);
+            let c_noise = self.generator.get_c_noise(x, z);
+            let continentalness = self.generator.get_continentalness(c_noise);
 
-        let e_noise = self.generator.get_e_noise(x, z);
-        let erosion = self.generator.get_erosion(e_noise, c_noise, continentalness);
+            let e_noise = self.generator.get_e_noise(x, z);
+            let erosion = self.generator.get_erosion(e_noise, c_noise, continentalness);
 
-        let pv_noise = self.generator.get_pv_noise(x, z);
-        let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
-        let height = self.generator.get_terrain_height(x as i32, z as i32) as i32;
-        self.text.render_text(
-            &self.text_shader,
-            &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height),
-            20.0,
-            20.0,
-            0.4,
-            glam::vec3(1.0, 1.0, 1.0),
-            &self.characters,
-        );
-        self.text.render_text(
-            &self.text_shader,
-            &format!(
-                "Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}",
-                camera_pos.deref(),
-                camera_pos.get_chunk_pos().get_vec3(),
-                direction,
-                self.chunks.get_chunk(&camera_pos.get_chunk_pos()).is_some(),
-                self.chunks.get_block_at(camera_pos.get_absolute_iblock_pos())
-            ),
-            20.0,
-            1060.0,
-            0.4,
-            glam::vec3(1.0, 1.0, 1.0),
-            &self.characters,
-        );
-        self.text.render_text(
-            &self.text_shader,
-            &format!("{:.4} FPS, Rendering {}/{}/{} chunk meshes", 1.0.div(period.as_secs_f64()) as u8, n, self.meshes.len(), self.chunks.len()),
-            1550.0,
-            1060.0,
-            0.4,
-            glam::vec3(1.0, 1.0, 1.0),
-            &self.characters,
-        );
-        // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+            let pv_noise = self.generator.get_pv_noise(x, z);
+            let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
+            let height = self.generator.get_terrain_height(x as i32, z as i32) as i32;
+            self.text.render_text(
+                &self.text_shader,
+                &format!("Erosion {:.5} + Noise {:.5}, Peaks & Valleys {:.5}, Contientalness : {:.5}, Height {}", erosion, e_noise, peaks_and_valleys, continentalness, height),
+                20.0,
+                20.0,
+                0.4,
+                glam::vec3(1.0, 1.0, 1.0),
+                &self.characters,
+            );
+            self.text.render_text(
+                &self.text_shader,
+                &format!(
+                    "Player : {:.2}, ChunkPos : {:.4}, Direction {:+.5}, Is the ChunkPos in the ChunkMap ? {} , block is {}",
+                    camera_pos.deref(),
+                    camera_pos.get_chunk_pos().get_vec3(),
+                    direction,
+                    self.chunks.get_chunk(&camera_pos.get_chunk_pos()).is_some(),
+                    self.chunks.get_block_at(camera_pos.get_absolute_iblock_pos())
+                ),
+                20.0,
+                1060.0,
+                0.4,
+                glam::vec3(1.0, 1.0, 1.0),
+                &self.characters,
+            );
+            self.text.render_text(
+                &self.text_shader,
+                &format!("{:.4} FPS, Rendering {}/{}/{} chunk meshes", 1.0.div(period.as_secs_f64()) as u8, n, self.meshes.len(), self.chunks.len()),
+                1550.0,
+                1060.0,
+                0.4,
+                glam::vec3(1.0, 1.0, 1.0),
+                &self.characters,
+            );
+            // self.text.render_text(&self.text_shader, &format!("Redraw Time : {}, Render time {}, Tick time {}", redraw_time.as_micros(), self.stats.render_time.as_micros(), self.stats.tick_time.as_micros()), 1400.0, 20.0, 0.4, glam::vec3(1.0, 1.0, 1.0), &self.characters);
+        }
     }
 
     pub fn tick(&mut self) -> Result<(), GameError> {
-        let instant = Instant::now();
+        let _instant = Instant::now();
         unsafe {
             while !self.mesh_receiver.is_empty()
                 && let Ok(cm) = self.mesh_receiver.recv()
@@ -251,18 +254,15 @@ impl ClientWorld {
                     };
                     for mesh in meshes {
                         print_base!("Receiving packet");
-                        if let Some(content) = mesh {
-                            self.client_world_data.mesh_sender.send(content);
+                        if let Some(content) = mesh
+                            && let Err(e) = self.client_world_data.mesh_sender.send(content)
+                        {
+                            print_base!("Cannot queue the rebuilt mesh: {}", e);
                         }
                     }
                 }
                 ClientEventType::Connection(packet) => {
-                    self.client_world_data
-                        .get_player()
-                        .write()
-                        .unwrap()
-                        .get_camera_mut()
-                        .set_pos(packet.get_pos().clone());
+                    self.client_world_data.get_player().write().unwrap().get_camera_mut().set_pos(*packet.get_pos());
                     unsafe { self.meshes.load_textures(packet.get_table())? };
                 }
             }

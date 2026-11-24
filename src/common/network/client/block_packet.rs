@@ -1,13 +1,11 @@
 use crate::common::error::err_type::GameError;
 use crate::common::network::bit_cursor::BitCursor;
 use crate::common::network::network_traits::L5PacketTrait;
-use crate::common::world::block::block::BlockState;
 use crate::common::world::pos::iblockpos::IBlockPos;
 use crate::common::world::pos::pos_trait::PosTrait;
 use bitvec::order::Lsb0;
 use bitvec::prelude::BitVec;
 use bitvec::view::BitView;
-use std::any::Any;
 use std::fmt::{Display, Formatter};
 use strum::{Display, FromRepr};
 
@@ -43,7 +41,7 @@ impl BlockPacket {
 }
 
 impl Display for BlockPacket {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }

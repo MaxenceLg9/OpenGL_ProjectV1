@@ -9,7 +9,7 @@ use shared::common::network::socket::common_socket::CommonSocket;
 use shared::{custom_error, print_base};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::net::{SocketAddr, SocketAddrV6};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc as tchannel;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
@@ -103,7 +103,7 @@ impl Socket {
             let world_ref = self.server_world_data.clone();
             //
             let clone: ChildSocket = self.get_child(socket_addr, receiver);
-            let ack = self.socket.init_con(socket_addr);
+            let _ack = self.socket.init_con(socket_addr);
             // print_base!("Starting connection for {} with ack {}", socket_addr, ack);
             tokio::spawn(async move {
                 if let Err(e) = ClientConnection::start(l5_packet.clone(), clone, world_ref, event_sx_clone).await {

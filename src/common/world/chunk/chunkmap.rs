@@ -1,11 +1,8 @@
-use crate::common::world::block::block::{BlockId, BlockState};
+use crate::common::world::block::block::BlockId;
 use crate::common::world::chunk::chunk::Chunk;
 use crate::common::world::pos::chunkpos::ChunkPos;
 use crate::common::world::pos::iblockpos::IBlockPos;
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 
 pub const MIN_Y_CHUNK: i32 = -4;
 pub const MAX_Y_CHUNK: i32 = 9;
@@ -70,11 +67,20 @@ impl ChunkMap {
     pub fn len(&self) -> usize {
         self.chunks.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
     pub fn remove_chunk(&mut self, chunk_pos: &ChunkPos) {
         self.chunks.remove(chunk_pos);
     }
 
     pub fn get_pos(&self) -> Vec<ChunkPos> {
         self.chunks.keys().copied().collect()
+    }
+}
+
+impl Default for ChunkMap {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,11 +1,10 @@
-use crate::common::world::block::block::{BlockId, BlockState, BlocksRegistries};
-use mlua::Value::Boolean;
+use crate::common::world::block::block::{BlockId, BlocksRegistries};
 use noise::{NoiseFn, Perlin, Worley};
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
-use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
+use mlua::{UserData, UserDataMethods};
 
 pub struct SpinePoint {
     noise: f64,
@@ -66,8 +65,7 @@ impl Generator {
         let pv_noise = self.get_pv_noise(xf, yf);
         let peaks_and_valleys = self.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
 
-        let base_height = continentalness + erosion + peaks_and_valleys;
-        base_height
+        continentalness + erosion + peaks_and_valleys
     }
 
     pub fn get_c_noise(&self, x: f64, y: f64) -> f64 {

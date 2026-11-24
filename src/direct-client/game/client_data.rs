@@ -4,6 +4,7 @@ use crate::client::gl::gui::text::text::MeshText;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::player::PacketSender;
+use shared::print_base;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -32,7 +33,9 @@ impl ClientWorldData {
     }
 
     pub fn send(&self, l5packet: L5Packet, udp_packet_type: UdpPacketType) {
-        self.sender.try_send((l5packet, udp_packet_type));
+        if let Err(e) = self.sender.try_send((l5packet, udp_packet_type)) {
+            print_base!("Cannot send packet to the network thread: {}", e);
+        }
     }
 
     pub fn get_player(&self) -> Arc<RwLock<ClientPlayer>> {

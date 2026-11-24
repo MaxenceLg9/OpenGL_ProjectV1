@@ -9,7 +9,7 @@ use shared::common::network::socket::common_socket::CommonSocket;
 use shared::common::network::udp_packet::TIMEOUT_DURATION;
 use shared::{custom_error, print_base};
 use std::io::Error;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Instant;
@@ -61,7 +61,7 @@ impl ServerConnection {
             .await
             .expect("Panic when sending connection packet");
 
-        let (packet, addr) = self.socket.recv_from().await?;
+        let (packet, _addr) = self.socket.recv_from().await?;
         let L5Packet::Connect(packet) = packet else {
             self.socket.flush();
             return Err(custom_error!(CustomErrorKind::InvalidData, "Expected Connect packet, got something else"));
@@ -85,7 +85,7 @@ impl ServerConnection {
                         print_base!("Sending block packet")
                     }
                     // print_base!("Sending packet {}",packet.get_packet_type());
-                    self.socket.send_to(packet, &sockaddr, udp_type).await.unwrap();
+                    self.socket.send_to(packet, sockaddr, udp_type).await.unwrap();
                 }
             }
         }

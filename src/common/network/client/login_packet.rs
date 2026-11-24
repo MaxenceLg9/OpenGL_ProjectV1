@@ -35,7 +35,7 @@ impl L5PacketTrait for LoginPacket {
     fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
         vec.extend_from_bitslice(self.puid.id().view_bits::<Lsb0>());
         let pass_bytes = self.password.as_bytes();
-        vec.extend_from_bitslice(&(pass_bytes.len() as u32).view_bits::<Lsb0>());
+        vec.extend_from_bitslice((pass_bytes.len() as u32).view_bits::<Lsb0>());
         vec.extend_from_bitslice(pass_bytes.view_bits::<Lsb0>());
         Ok(())
     }

@@ -1,7 +1,5 @@
 use crate::test::display::renderer::player::camera::camera::Camera;
 use crate::test::display::renderer::player::keyboard::Inputs;
-use shared::print_base;
-use std::sync::Arc;
 
 pub struct ClientPlayer {
     camera: Camera,

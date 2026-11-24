@@ -4,7 +4,7 @@ use crate::common::world::pos::pos_trait::PosTrait;
 use bitvec::vec::BitVec;
 use glam::IVec3;
 use std::any::Any;
-use std::ops::{Add, Deref, Div, Mul, Sub};
+use std::ops::{Add, Deref, Mul, Sub};
 
 pub const CHUNK_SIZE: usize = 64;
 

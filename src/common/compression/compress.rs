@@ -1,4 +1,3 @@
-use bitvec::{order::Lsb0, vec::BitVec, view::BitView};
 use zstd::compression_level_range;
 
 use crate::{

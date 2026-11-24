@@ -1,6 +1,5 @@
-use mlua::{FromLua, Lua, ObjectLike, UserData, UserDataMethods, Value};
-use std::collections::hash_map::{Entry, Iter};
-use std::fmt::{Display, Formatter, Write};
+use mlua::{FromLua, Lua, UserData, UserDataMethods, Value};
+use std::collections::hash_map::Iter;
 
 #[derive(Clone)]
 pub struct BlockState {
@@ -10,7 +9,7 @@ pub struct BlockState {
 pub type BlockTier = u8;
 
 impl BlockState {
-    pub fn new(tier: BlockTier, is_solid: bool) -> Self {
+    pub fn new(tier: BlockTier, _is_solid: bool) -> Self {
         Self { tier }
     }
 }
@@ -22,7 +21,7 @@ impl UserData for BlockState {
 }
 
 impl FromLua for BlockState {
-    fn from_lua(value: Value, lua: &Lua) -> mlua::Result<Self> {
+    fn from_lua(value: Value, _lua: &Lua) -> mlua::Result<Self> {
         match value {
             Value::UserData(ud) => Ok(ud.take::<BlockState>()?),
             other => Err(mlua::Error::FromLuaConversionError {
@@ -35,7 +34,6 @@ impl FromLua for BlockState {
 }
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 pub type BlockId = u16;
 
@@ -58,6 +56,12 @@ impl BlocksRegistry {
 
     pub fn iter(&self) -> Iter<'_, String, BlockId> {
         self.map.iter()
+    }
+}
+
+impl Default for BlocksRegistry {
+    fn default() -> Self {
+        Self::new()
     }
 }
 pub struct BlocksRegistries {

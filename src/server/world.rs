@@ -12,8 +12,7 @@ use shared::common::world::chunk::chunkmap::{MAX_Y_CHUNK, MIN_Y_CHUNK};
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{custom_error, print_base};
 use std::collections::HashSet;
-use std::io::Error;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::Mul;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -108,12 +107,10 @@ impl ServerWorld {
                         PlayerEvent::GenerateChunk(chunk_pos) => {
                             let array: Vec<ChunkPos> = ServerChunkMap::compute_chunks(chunk_pos, 8, &self.chunks_generated);
                             for chunk_pos in array {
-                                if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= MIN_Y_CHUNK && chunk_pos.y <= MAX_Y_CHUNK {
-                                    if self.chunks_generated.insert(chunk_pos) {
-                                        self.gen_crossbeam_sx
-                                            .send(chunk_pos)
-                                            .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
-                                    }
+                                if !self.chunks_generated.contains(&chunk_pos) && chunk_pos.y >= MIN_Y_CHUNK && chunk_pos.y <= MAX_Y_CHUNK && self.chunks_generated.insert(chunk_pos) {
+                                    self.gen_crossbeam_sx
+                                        .send(chunk_pos)
+                                        .map_err(|e| custom_error!(CustomErrorKind::SendError, e.to_string()))?;
                                 }
                             }
                         }

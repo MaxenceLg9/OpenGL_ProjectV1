@@ -38,6 +38,6 @@ impl Display for PUID {
 
 impl Clone for PUID {
     fn clone(&self) -> Self {
-        Self { id: self.id }
+        *self
     }
 }

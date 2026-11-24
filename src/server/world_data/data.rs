@@ -4,14 +4,12 @@ use glam::Vec3;
 use mlua::Lua;
 use shared::common::account::puid::PUID;
 use shared::common::error::err_type::{CustomErrorKind, GameError};
-use shared::common::network::l5_packet::L5Packet;
-use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
 use shared::common::world::player::PacketSender;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::{custom_error, print_base};
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, RwLock};
 

@@ -7,14 +7,14 @@ use winit::dpi::PhysicalSize;
 use winit::event::{DeviceEvent, DeviceId, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::KeyCode;
-use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes};
+use winit::window::{CursorGrabMode, Window, WindowAttributes};
 
 use crate::client::gl::renderer::{GlDisplayCreationState, Renderer, gl_config_picker};
 use glutin::config::{Config, ConfigTemplateBuilder, GetGlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentContext, PossiblyCurrentContext, Version};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
-use glutin::surface::{Surface, SwapInterval, SwapInterval::*, WindowSurface};
+use glutin::surface::{Surface, SwapInterval, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use shared::{print_base, print_debug};
 
@@ -122,7 +122,7 @@ impl ApplicationHandler for App {
                     self.redraw_time = Instant::now() - instant;
                 }
             }
-            WindowEvent::KeyboardInput { device_id, event, is_synthetic } => {
+            WindowEvent::KeyboardInput { device_id: _, event, is_synthetic: _ } => {
                 if event.physical_key == KeyCode::Escape {
                     event_loop.exit();
                 }
@@ -146,7 +146,7 @@ impl ApplicationHandler for App {
                     window.set_cursor_visible(false);
                 }
             }
-            WindowEvent::MouseInput { device_id, state, button } => {
+            WindowEvent::MouseInput { device_id: _, state, button } => {
                 self.renderer
                     .as_mut()
                     .unwrap()
@@ -157,7 +157,7 @@ impl ApplicationHandler for App {
                     .get_keyboard()
                     .button_callback(button, state);
             }
-            WindowEvent::MouseWheel { device_id, delta, phase } => {
+            WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
                 self.renderer
                     .as_mut()
                     .unwrap()
@@ -172,21 +172,18 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn device_event(&mut self, event_loop: &ActiveEventLoop, device_id: DeviceId, event: DeviceEvent) {
-        match event {
-            DeviceEvent::MouseMotion { delta } => {
-                // print_base!("Mouse motion delta: {:?}", delta);
-                self.renderer
-                    .as_mut()
-                    .unwrap()
-                    .get_world()
-                    .get_player()
-                    .write()
-                    .unwrap()
-                    .get_camera_mut()
-                    .mouse_callback(delta.0, delta.1);
-            }
-            _ => {}
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
+        if let DeviceEvent::MouseMotion { delta } = event {
+            // print_base!("Mouse motion delta: {:?}", delta);
+            self.renderer
+                .as_mut()
+                .unwrap()
+                .get_world()
+                .get_player()
+                .write()
+                .unwrap()
+                .get_camera_mut()
+                .mouse_callback(delta.0, delta.1);
         }
     }
 
@@ -196,11 +193,13 @@ impl ApplicationHandler for App {
             let delta = current_frame.duration_since(self.last_frame).as_secs_f32();
             self.renderer.as_mut().unwrap().get_world().poll_keys(delta);
             self.last_frame = current_frame;
-            if let Some(AppState { gl_surface, window }) = self.state.as_ref() {
+            if let Some(AppState { gl_surface: _, window }) = self.state.as_ref() {
                 window.request_redraw();
             }
         }
-        self.renderer.as_mut().unwrap().get_world().tick();
+        if let Err(e) = self.renderer.as_mut().unwrap().get_world().tick() {
+            print_base!("Error while ticking the world: {}", e);
+        }
         _event_loop.set_control_flow(ControlFlow::Poll);
     }
 
@@ -225,7 +224,6 @@ impl ApplicationHandler for App {
 
         // Clear the window.
         self.state = None;
-        #[cfg(egl_backend)]
         #[allow(irrefutable_let_patterns)]
         if let glutin::display::Display::Egl(display) = _gl_display {
             unsafe {
@@ -269,21 +267,7 @@ fn create_gl_context(window: &Window, gl_config: &Config) -> NotCurrentContext {
     }
 }
 
-pub fn window_attributes(option_window: Option<&Window>) -> WindowAttributes {
-    // Wayland fix: Get the first available monitor since "Primary" is usually None
-    if let Some(window) = option_window {
-        for monitor in window.available_monitors() {
-            for modes in monitor.video_modes() {
-                print_base!("Initialised window with Exclusive mode");
-                return Window::default_attributes()
-                    .with_transparent(false)
-                    .with_maximized(false)
-                    // .with_fullscreen(Some(Fullscreen::Exclusive(modes)))
-                    .with_fullscreen(None)
-                    .with_title("OpenGL HF");
-            }
-        }
-    }
+pub fn window_attributes(_option_window: Option<&Window>) -> WindowAttributes {
     Window::default_attributes()
         .with_transparent(false)
         .with_maximized(false)
@@ -319,7 +303,7 @@ impl App {
     }
 
     pub fn exit_state(&self) -> Result<(), String> {
-        (&self.exit_state).as_ref().map(|_| ()).map_err(|e| e.to_string())
+        self.exit_state.as_ref().map(|_| ()).map_err(|e| e.to_string())
     }
 }
 

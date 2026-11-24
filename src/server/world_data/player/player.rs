@@ -1,11 +1,11 @@
-use glam::{IVec3, Vec3};
+use glam::IVec3;
 use shared::common::account::puid::PUID;
 use shared::common::network::l5_packet::L5Packet;
 use shared::common::network::packet_type::UdpPacketType;
 use shared::common::world::chunk::chunk::Chunk;
 use shared::common::world::player::PacketSender;
 use shared::common::world::pos::blockpos::BlockPos;
-use shared::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
+use shared::common::world::pos::chunkpos::CHUNK_SIZE;
 use std::hash::{Hash, Hasher};
 use tokio::sync::mpsc::error::TrySendError;
 
@@ -46,7 +46,7 @@ impl ServerPlayer {
         self.pos
     }
 
-    pub fn register_chunk(&mut self, chunk: &Chunk) {}
+    pub fn register_chunk(&mut self, _chunk: &Chunk) {}
 
     pub fn set_pos(&mut self, pos: BlockPos) {
         if pos == self.pos {

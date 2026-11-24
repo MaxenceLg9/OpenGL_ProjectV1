@@ -12,6 +12,12 @@ impl QuitPacket {
     }
 }
 
+impl Default for QuitPacket {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Display for QuitPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("")
@@ -19,10 +25,10 @@ impl Display for QuitPacket {
 }
 
 impl L5PacketTrait for QuitPacket {
-    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
+    fn serialize(&self, _vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
         Ok(())
     }
-    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
+    fn deserialize(_cursor: &mut BitCursor) -> Result<Self, GameError> {
         Ok(QuitPacket::new())
     }
 }

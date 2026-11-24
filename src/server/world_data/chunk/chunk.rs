@@ -15,9 +15,8 @@ impl Drop for ServerChunk {
 
 impl ServerChunk {
     pub fn generate_chunk(generator: Arc<Generator>, chunk_pos: ChunkPos) -> Chunk {
-        let time: Instant = Instant::now();
-        let mut blocks = Vec::new();
-        blocks.resize(CHUNK_SIZE.pow(3), 0);
+        let _time: Instant = Instant::now();
+        let mut blocks = vec![0; CHUNK_SIZE.pow(3)];
         let weight_bias = 0.4;
         let height_bias = 1.5;
         for cx in 0..CHUNK_SIZE {

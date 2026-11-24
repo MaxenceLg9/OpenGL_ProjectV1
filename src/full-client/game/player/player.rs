@@ -3,7 +3,6 @@ use crate::client::game::client_data::ClientWorldData;
 use crate::client::game::mesh_map::MeshMap;
 use crate::client::game::player::camera::camera::Camera;
 use crate::client::game::player::keyboard::Inputs;
-use shared::print_base;
 use std::sync::Arc;
 
 pub struct ClientPlayer {
@@ -18,7 +17,7 @@ impl ClientPlayer {
     pub fn get_keyboard(&mut self) -> &mut Inputs {
         &mut self.inputs
     }
-    pub fn tick(&self, client_world_data: Arc<ClientWorldData>) {}
+    pub fn tick(&self, _client_world_data: Arc<ClientWorldData>) {}
     pub fn get_camera_mut(&mut self) -> &mut Camera {
         &mut self.camera
     }

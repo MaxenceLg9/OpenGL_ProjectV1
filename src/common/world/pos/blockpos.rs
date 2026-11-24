@@ -66,7 +66,7 @@ impl BlockPos {
     }
 
     pub fn as_vec3(&self) -> glam::Vec3 {
-        self.pos.clone()
+        self.pos
     }
 }
 impl PosTrait for BlockPos {

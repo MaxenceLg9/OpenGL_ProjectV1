@@ -59,11 +59,17 @@ impl Inputs {
     }
 }
 
+impl Default for Inputs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Clone for KeyState<ElementState> {
     fn clone(&self) -> KeyState<ElementState> {
         Self {
-            current_state: self.current_state.clone(),
-            last_state: self.last_state.clone(),
+            current_state: self.current_state,
+            last_state: self.last_state,
         }
     }
 }

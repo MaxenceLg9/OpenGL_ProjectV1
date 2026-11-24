@@ -10,14 +10,13 @@ use crate::test::display::renderer::player::player::ClientPlayer;
 use crossbeam::channel::{Receiver, Sender};
 use mlua::Lua;
 use shared::common::account::puid::PUID;
-use shared::common::world::block::block::{BlockId, BlockState, BlockTier, BlocksRegistries};
+use shared::common::world::block::block::{BlockState, BlockTier, BlocksRegistries};
 use shared::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
+use shared::print_base;
 use shared::worldgen::Generator;
-use shared::{print_base, print_debug};
 use std::collections::HashMap;
-use std::io::Error;
 use std::ops::{Add, Deref};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use winit::window::Window;
 
@@ -42,49 +41,53 @@ pub struct ClientWorld {
 
 impl ClientWorld {
     pub unsafe fn new() -> ClientWorld {
-        let blocks_textures = TextureArray::new("textures".to_string(), gl::RGBA8);
-        let (sx, rx) = crossbeam::channel::bounded(100);
-        let lua = Lua::new();
-        let env = lua.globals();
-        let table = lua.create_table().unwrap();
-        table.set(
-            "new",
-            lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| Ok(BlockState::new(tier, is_solid)))
-                .unwrap(),
-        );
-        env.set("BlockState", table);
-        let chunk = lua
-            .load(std::fs::read_to_string("src/assets/lua/blocks.lua").expect("Cannot open the blocks.lua file"))
-            .set_environment(env.clone())
-            .into_function()
-            .unwrap();
-        let map = chunk.call::<HashMap<String, HashMap<String, BlockState>>>(()).unwrap();
-        let registries = Arc::new(HashMap::from([("blocks".to_owned(), BlocksRegistries::from_map(map))]));
-        for (k, v) in registries.get("blocks").unwrap().iter() {
-            if k == "minecraft:air" {
-                continue;
+        unsafe {
+            let blocks_textures = TextureArray::new("textures".to_string(), gl::RGBA8);
+            let (sx, rx) = crossbeam::channel::bounded(100);
+            let lua = Lua::new();
+            let env = lua.globals();
+            let table = lua.create_table().unwrap();
+            table
+                .set(
+                    "new",
+                    lua.create_function(|_, (tier, is_solid): (BlockTier, bool)| Ok(BlockState::new(tier, is_solid)))
+                        .unwrap(),
+                )
+                .unwrap();
+            env.set("BlockState", table).unwrap();
+            let chunk = lua
+                .load(std::fs::read_to_string("src/assets/lua/blocks.lua").expect("Cannot open the blocks.lua file"))
+                .set_environment(env.clone())
+                .into_function()
+                .unwrap();
+            let map = chunk.call::<HashMap<String, HashMap<String, BlockState>>>(()).unwrap();
+            let registries = Arc::new(HashMap::from([("blocks".to_owned(), BlocksRegistries::from_map(map))]));
+            for (k, v) in registries.get("blocks").unwrap().iter() {
+                if k == "minecraft:air" {
+                    continue;
+                }
+                blocks_textures
+                    .add_texture(format!("src/assets/textures/blocks/{}.png", k).as_str(), v.to_owned())
+                    .unwrap_or_else(|_| panic!("Cannot add texture for block {}", k));
             }
-            blocks_textures
-                .add_texture(format!("src/assets/textures/blocks/{}.png", k).as_str(), v.to_owned())
-                .expect(format!("Cannot add texture for block {}", k).as_str());
-        }
-        Self {
-            puid: PUID::new(0),
-            blocks_textures,
-            chunk_shader: Shader::new("src/assets/shaders/chunk/vertex.vert", "src/assets/shaders/chunk/fragment.frag"),
-            text_textures: TextureArray::new_raw("characters".to_string(), gl::R8, 32, 32),
-            meshtext_shader: Shader::new("src/assets/shaders/debug_mesh/vertex.vert", "src/assets/shaders/debug_mesh/fragment.frag"),
-            generator: Generator::new(0, registries.clone()),
-            text: Text::new(),
-            sender: sx,
-            receiver: rx,
-            meshes: HashMap::new(),
-            debug: false,
-            registries,
-            last_frame: Instant::now(),
-            characters: HashMap::new(),
-            player: ClientPlayer::new(0.0, 0.0, 0.0),
-            text_shader: Shader::new("src/assets/shaders/text/vertex.vert", "src/assets/shaders/text/fragment.frag"),
+            Self {
+                puid: PUID::new(0),
+                blocks_textures,
+                chunk_shader: Shader::new("src/assets/shaders/chunk/vertex.vert", "src/assets/shaders/chunk/fragment.frag"),
+                text_textures: TextureArray::new_raw("characters".to_string(), gl::R8, 32, 32),
+                meshtext_shader: Shader::new("src/assets/shaders/debug_mesh/vertex.vert", "src/assets/shaders/debug_mesh/fragment.frag"),
+                generator: Generator::new(0, registries.clone()),
+                text: Text::new(),
+                sender: sx,
+                receiver: rx,
+                meshes: HashMap::new(),
+                debug: false,
+                registries,
+                last_frame: Instant::now(),
+                characters: HashMap::new(),
+                player: ClientPlayer::new(0.0, 0.0, 0.0),
+                text_shader: Shader::new("src/assets/shaders/text/vertex.vert", "src/assets/shaders/text/fragment.frag"),
+            }
         }
     }
 
@@ -96,7 +99,7 @@ impl ClientWorld {
     pub unsafe fn generate_chunks(&mut self) -> Result<(), std::io::Error> {
         let sender = self.sender.clone();
         let registry_clone = self.registries.clone();
-        let thread = std::thread::spawn(move || {
+        let _thread = std::thread::spawn(move || {
             let generator = Arc::new(Generator::new(0, registry_clone));
 
             for x in -7..7 {
@@ -121,45 +124,43 @@ impl ClientWorld {
     pub unsafe fn load_characters(&mut self) {
         unsafe {
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        }
 
-        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
+            let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
 
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
+            let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
 
-        let px_size = 32.0;
+            let px_size = 32.0;
 
-        for i in 0..10 {
-            let chr = (i as u8).add(48) as char;
+            for i in 0..10 {
+                let chr = (i as u8).add(48) as char;
 
-            // 1. Rasterize
-            let (metrics, bitmap) = font.rasterize(chr, px_size);
+                // 1. Rasterize
+                let (metrics, bitmap) = font.rasterize(chr, px_size);
 
-            // 2. Generate Texture
-            self.text_textures.add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32);
-        }
-        // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
-        // Keep this! OpenGL needs it for 1-byte (RED) alignment
-        unsafe {
+                // 2. Generate Texture
+                self.text_textures
+                    .add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32)
+                    .expect("Cannot upload the glyph");
+            }
+            // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
+            // Keep this! OpenGL needs it for 1-byte (RED) alignment
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        }
 
-        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
+            let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
 
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
+            let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
 
-        let px_size = 32.0;
+            let px_size = 32.0;
 
-        for i in 0..128u8 {
-            let chr = i as char;
+            for i in 0..128u8 {
+                let chr = i as char;
 
-            // 1. Rasterize
-            let (metrics, bitmap) = font.rasterize(chr, px_size);
+                // 1. Rasterize
+                let (metrics, bitmap) = font.rasterize(chr, px_size);
 
-            // 2. Generate Texture
-            let mut texture_id = 0;
+                // 2. Generate Texture
+                let mut texture_id = 0;
 
-            unsafe {
                 gl::GenTextures(1, &mut texture_id);
                 gl::BindTexture(gl::TEXTURE_2D, texture_id);
                 gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RED as i32, metrics.width as i32, metrics.height as i32, 0, gl::RED, gl::UNSIGNED_BYTE, bitmap.as_ptr() as *const _);
@@ -169,33 +170,33 @@ impl ClientWorld {
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
                 gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+                let character = Character::new(texture_id, glam::ivec2(metrics.width as i32, metrics.height as i32), glam::ivec2(metrics.xmin, metrics.ymin), metrics.advance_width as u32);
+
+                self.characters.insert(chr, character);
             }
-
-            let character = Character::new(texture_id, glam::ivec2(metrics.width as i32, metrics.height as i32), glam::ivec2(metrics.xmin, metrics.ymin), metrics.advance_width as u32);
-
-            self.characters.insert(chr, character);
         }
     }
 
     /// Draw vertices on the screen
     ///
     /// Rendering the chunks and stuff
-    pub unsafe fn render(&mut self, window: &Window, redraw_time: Duration) {
-        let period = Instant::now() - self.last_frame;
-        self.last_frame = Instant::now();
-        let (camera_pos, direction, up, fov) = self.player.get_camera().get_pos_info();
-
-        let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
-
-        // build view matrix
-        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
-        let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32, 0.01_f32, 1000.0_f32);
-        let pro_view = projection * view;
-
-        gl::DepthFunc(gl::LESS);
-        let light_pos = glam::vec3(100.0 + 100.0 * 10.0, 1000.0, 100.0 + 100.0 * 10.0);
-        // light.render(pro_view, player.get_coords() + let(0.0f, 100.0f, 0.0f));
+    pub unsafe fn render(&mut self, window: &Window, _redraw_time: Duration) {
         unsafe {
+            let period = Instant::now() - self.last_frame;
+            self.last_frame = Instant::now();
+            let (camera_pos, direction, up, fov) = self.player.get_camera().get_pos_info();
+
+            let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
+
+            // build view matrix
+            let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
+            let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32, 0.01_f32, 1000.0_f32);
+            let pro_view = projection * view;
+
+            gl::DepthFunc(gl::LESS);
+            let light_pos = glam::vec3(100.0 + 100.0 * 10.0, 1000.0, 100.0 + 100.0 * 10.0);
+            // light.render(pro_view, player.get_coords() + let(0.0f, 100.0f, 0.0f));
             if self.debug {
                 self.meshtext_shader.use_shader();
                 self.text_textures.use_textures(&self.meshtext_shader);
@@ -203,7 +204,7 @@ impl ClientWorld {
                 self.meshtext_shader.set_matrix4fv("uniform_projection_view", pro_view);
                 for (pos, mesh) in self.meshes.iter() {
                     let mut model = glam::Mat4::IDENTITY;
-                    model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
+                    model *= glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
                     self.meshtext_shader.set_matrix4fv("uniform_model", model);
                     mesh.1.draw();
                 }
@@ -232,35 +233,32 @@ impl ClientWorld {
                     self.meshes.get_mut(&pos).unwrap().0.draw(&self.chunk_shader, &pos);
                 }
             }
-        }
 
-        // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
-        // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
-        let x = camera_pos.x as f64;
-        let y = camera_pos.y as f64;
-        let z = camera_pos.z as f64;
+            // print_base!("Len of chunks {}", self.client_world_data.get_chunks().read().unwrap().len());
+            // print_base!("len of meshes {}", self.meshes.read().unwrap().len());
+            let x = camera_pos.x as f64;
+            let y = camera_pos.y as f64;
+            let z = camera_pos.z as f64;
 
-        let c_noise = self.generator.get_c_noise(x, z);
-        let continentalness = self.generator.get_continentalness(c_noise);
+            let c_noise = self.generator.get_c_noise(x, z);
+            let continentalness = self.generator.get_continentalness(c_noise);
 
-        let e_noise = self.generator.get_e_noise(x, z);
-        let erosion = self.generator.get_erosion(e_noise, c_noise, continentalness);
+            let e_noise = self.generator.get_e_noise(x, z);
+            let erosion = self.generator.get_erosion(e_noise, c_noise, continentalness);
 
-        let pv_noise = self.generator.get_pv_noise(x, z);
-        let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
-        let height = self.generator.get_terrain_height(x as i32, z as i32);
-        for (pos, blocks) in self.receiver.try_recv() {
-            if !self.meshes.contains_key(&pos) {
-                if let Some(mut mesh) = ChunkMesh::build_mesh(blocks, pos.clone()) {
-                    mesh.1.link();
-                    let meshes = mesh.0.link();
-                    self.meshes.insert(pos, (meshes, mesh.1));
-                }
+            let pv_noise = self.generator.get_pv_noise(x, z);
+            let peaks_and_valleys = self.generator.get_peaks_and_valleys(pv_noise, c_noise, continentalness);
+            let height = self.generator.get_terrain_height(x as i32, z as i32);
+            if let Ok((pos, blocks)) = self.receiver.try_recv()
+                && !self.meshes.contains_key(&pos)
+                && let Some(mut mesh) = ChunkMesh::build_mesh(blocks, pos)
+            {
+                mesh.1.link();
+                let meshes = mesh.0.link();
+                self.meshes.insert(pos, (meshes, mesh.1));
             }
-        }
-        let weight_bias = 0.3;
-        let height_bias = 1.5;
-        unsafe {
+            let weight_bias = 0.3;
+            let height_bias = 1.5;
             self.text.render_text(
                 &self.text_shader,
                 &format!(

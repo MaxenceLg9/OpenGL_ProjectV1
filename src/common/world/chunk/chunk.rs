@@ -1,4 +1,4 @@
-use crate::common::world::block::block::{BlockId, BlockState};
+use crate::common::world::block::block::BlockId;
 use crate::common::world::pos::chunkpos::{CHUNK_SIZE, ChunkPos};
 use crate::common::world::pos::iblockpos::IBlockPos;
 use std::sync::Arc;
@@ -37,16 +37,12 @@ impl Chunk {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        let vec = self.blocks.iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>();
-        vec
+        self.blocks.iter().flat_map(|&e| e.to_le_bytes()).collect::<Vec<u8>>()
     }
 }
 
 impl Clone for Chunk {
     fn clone(&self) -> Self {
-        Self {
-            blocks: self.blocks.clone(),
-            chunk_pos: self.chunk_pos.clone(),
-        }
+        Self { blocks: self.blocks.clone(), chunk_pos: self.chunk_pos }
     }
 }

@@ -1,5 +1,3 @@
-use std::io;
-
 pub struct Vertex {
     pub position: glam::Vec3,
     pub normal: glam::Vec3,

@@ -24,11 +24,11 @@ impl MeshGenerator {
 
     fn build_meshes(pos_to_mesh_rx: cb::Receiver<(ChunkPos, HashMap<ChunkPos, Arc<Vec<u16>>>)>, mesh_sender: cb::Sender<(ChunkMesh, MeshText)>) {
         while let Ok((chunk_pos, chunks)) = pos_to_mesh_rx.recv() {
-            if let Some(meshes) = ChunkMesh::build_mesh(&chunks, chunk_pos) {
-                if let Err(e) = mesh_sender.send(meshes) {
-                    print_base!("Error sending mesh: {:?}", e);
-                    return;
-                }
+            if let Some(meshes) = ChunkMesh::build_mesh(&chunks, chunk_pos)
+                && let Err(e) = mesh_sender.send(meshes)
+            {
+                print_base!("Error sending mesh: {:?}", e);
+                return;
             }
         }
     }

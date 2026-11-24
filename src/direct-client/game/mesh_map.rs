@@ -29,7 +29,7 @@ pub struct MeshMap {
 }
 
 impl MeshMap {
-    pub fn new(registries: Arc<HashMap<String, BlocksRegistries>>) -> Result<Self, GameError> {
+    pub fn new(_registries: Arc<HashMap<String, BlocksRegistries>>) -> Result<Self, GameError> {
         unsafe {
             let blocks_textures = TextureArray::new("textures".to_string(), gl::RGBA8);
 
@@ -48,59 +48,64 @@ impl MeshMap {
     }
 
     pub unsafe fn load_textures(&self, registries: &Vec<(String, u16)>) -> Result<(), GameError> {
-        for (k, v) in registries {
-            let name = k.split(":").collect::<Vec<&str>>()[1];
-            if name == "air" {
-                continue;
+        unsafe {
+            for (k, v) in registries {
+                let name = k.split(":").collect::<Vec<&str>>()[1];
+                if name == "air" {
+                    continue;
+                }
+                self.blocks_textures.add_texture(format!("src/assets/textures/blocks/{}.png", name).as_str(), *v)?;
             }
-            self.blocks_textures.add_texture(format!("src/assets/textures/blocks/{}.png", name).as_str(), *v)?;
+            Ok(())
         }
-        Ok(())
     }
 
     pub unsafe fn load_characters(&mut self) -> Result<(), GameError> {
         unsafe {
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+
+            let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").map_err(|_e| custom_error!(CustomErrorKind::Io, "Cannot open file src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf"))?;
+
+            let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).map_err(|e| GameError::new(CustomErrorKind::Other, "Cannot load font from bytes".to_owned() + e))?;
+
+            let px_size = 32.0;
+
+            for i in 0..10 {
+                let chr = (i as u8).add(48) as char;
+
+                // 1. Rasterize
+                let (metrics, bitmap) = font.rasterize(chr, px_size);
+
+                // 2. Generate Texture
+                self.text_textures
+                    .add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32)?;
+            }
+            Ok(())
         }
-
-        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").map_err(|e| custom_error!(CustomErrorKind::Io, "Cannot open file src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf"))?;
-
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).map_err(|e| GameError::new(CustomErrorKind::Other, "Cannot load font from bytes".to_owned() + e))?;
-
-        let px_size = 32.0;
-
-        for i in 0..10 {
-            let chr = (i as u8).add(48) as char;
-
-            // 1. Rasterize
-            let (metrics, bitmap) = font.rasterize(chr, px_size);
-
-            // 2. Generate Texture
-            self.text_textures.add_raw(&bitmap, i as u16, gl::RED, metrics.width as i32, metrics.height as i32);
-        }
-        Ok(())
     }
 
     pub unsafe fn add_mesh(&mut self, mut meshes: (ChunkMesh, MeshText)) -> bool {
-        let pos = meshes.0.get_chunk_pos();
+        unsafe {
+            let pos = meshes.0.get_chunk_pos();
 
-        match self.text_meshes.entry(pos) {
-            Entry::Occupied(mut slot) => {
-                print_base!("Reinserting mesh");
-                slot.insert(meshes.1.link());
-            }
-            Entry::Vacant(slot) => {
-                slot.insert(meshes.1.link());
-            }
-        };
-        match self.meshes.entry(pos) {
-            Entry::Occupied(mut slot) => {
-                slot.insert(meshes.0.link());
-                true
-            }
-            Entry::Vacant(slot) => {
-                slot.insert(meshes.0.link());
-                true
+            match self.text_meshes.entry(pos) {
+                Entry::Occupied(mut slot) => {
+                    print_base!("Reinserting mesh");
+                    slot.insert(meshes.1.link());
+                }
+                Entry::Vacant(slot) => {
+                    slot.insert(meshes.1.link());
+                }
+            };
+            match self.meshes.entry(pos) {
+                Entry::Occupied(mut slot) => {
+                    slot.insert(meshes.0.link());
+                    true
+                }
+                Entry::Vacant(slot) => {
+                    slot.insert(meshes.0.link());
+                    true
+                }
             }
         }
     }
@@ -119,66 +124,68 @@ impl MeshMap {
     }
 
     pub unsafe fn render(&mut self, camera_pos: BlockPos, up: Vec3, direction: Vec3, fov: f32, window: &Window, debug: bool, chunk_map: &mut ClientChunkMap) -> u16 {
-        let mut n = 0;
-        let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
+        unsafe {
+            let mut n = 0;
+            let camera_target: glam::Vec3 = camera_pos.as_vec3() + direction;
 
-        // build view matrix
-        let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
-        let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32, 0.01_f32, 1000.0_f32);
-        let pro_view = projection * view;
+            // build view matrix
+            let view: glam::Mat4 = glam::Mat4::look_at_lh(camera_pos.as_vec3(), camera_target, up);
+            let projection: glam::Mat4 = glam::Mat4::perspective_lh(fov.to_radians(), window.inner_size().width as f32 / window.inner_size().height as f32, 0.01_f32, 1000.0_f32);
+            let pro_view = projection * view;
 
-        gl::DepthFunc(gl::LESS);
-        let light_pos = glam::vec3(100.0 + 100.0 * 10.0, 1000.0, 100.0 + 100.0 * 10.0);
-        // light.render(pro_view, player.get_coords() + let(0.0f, 100.0f, 0.0f));
+            gl::DepthFunc(gl::LESS);
+            let light_pos = glam::vec3(100.0 + 100.0 * 10.0, 1000.0, 100.0 + 100.0 * 10.0);
+            // light.render(pro_view, player.get_coords() + let(0.0f, 100.0f, 0.0f));
 
-        if debug {
-            self.meshtext_shader.use_shader();
-            self.text_textures.use_textures(&self.meshtext_shader);
+            if debug {
+                self.meshtext_shader.use_shader();
+                self.text_textures.use_textures(&self.meshtext_shader);
 
-            self.meshtext_shader.set_matrix4fv("uniform_projection_view", pro_view);
-            for (pos, mesh) in self.text_meshes.iter() {
-                let mut model = glam::Mat4::IDENTITY;
-                model = model * glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
-                self.meshtext_shader.set_matrix4fv("uniform_model", model);
-                mesh.draw();
-            }
-        } else {
-            self.chunk_shader.use_shader();
-            self.blocks_textures.use_textures(&self.chunk_shader);
-            // self.text_textures.use_textures(&self.chunk_shader);
-            // camera/view transformation
-            //    let color = light.getColor();
-            let color = glam::Vec3::new(1.0_f32, 1.0_f32, 1.0_f32); // Default colour for debugging
-            self.chunk_shader.set_vec3("color", color);
-            self.chunk_shader.set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
-            self.chunk_shader.set_vec3("uniformBgColor", BACKGROUND_COLOR);
-            self.chunk_shader.set_vec3("uniformLightPos", light_pos);
-            self.chunk_shader.set_vec3("uniformViewPos", camera_pos.as_vec3());
-            self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
+                self.meshtext_shader.set_matrix4fv("uniform_projection_view", pro_view);
+                for (pos, mesh) in self.text_meshes.iter() {
+                    let mut model = glam::Mat4::IDENTITY;
+                    model *= glam::Mat4::from_translation(pos.as_vec3() * CHUNK_SIZE as f32);
+                    self.meshtext_shader.set_matrix4fv("uniform_model", model);
+                    mesh.draw();
+                }
+            } else {
+                self.chunk_shader.use_shader();
+                self.blocks_textures.use_textures(&self.chunk_shader);
+                // self.text_textures.use_textures(&self.chunk_shader);
+                // camera/view transformation
+                //    let color = light.getColor();
+                let color = glam::Vec3::new(1.0_f32, 1.0_f32, 1.0_f32); // Default colour for debugging
+                self.chunk_shader.set_vec3("color", color);
+                self.chunk_shader.set_vec3("uniformLightColor", glam::vec3(1.0, 1.0, 1.0));
+                self.chunk_shader.set_vec3("uniformBgColor", BACKGROUND_COLOR);
+                self.chunk_shader.set_vec3("uniformLightPos", light_pos);
+                self.chunk_shader.set_vec3("uniformViewPos", camera_pos.as_vec3());
+                self.chunk_shader.set_matrix4fv("uniform_projection_view", pro_view);
 
-            // let block_pos = IBlockPos::from_ints(-140,108,476);
-            // let b1 = self.client_world_data.get_chunks().write().unwrap().get_block_at(block_pos);
-            // print_base!("Block at {} is {}", block_pos.deref(), b1);
-            // let block_pos = IBlockPos::from_ints(-140,109,476);
-            // let b2 = self.client_world_data.get_chunks().write().unwrap().get_block_at(block_pos);
-            // print_base!("Block at {} is {}", block_pos.deref(), b2);
+                // let block_pos = IBlockPos::from_ints(-140,108,476);
+                // let b1 = self.client_world_data.get_chunks().write().unwrap().get_block_at(block_pos);
+                // print_base!("Block at {} is {}", block_pos.deref(), b1);
+                // let block_pos = IBlockPos::from_ints(-140,109,476);
+                // let b2 = self.client_world_data.get_chunks().write().unwrap().get_block_at(block_pos);
+                // print_base!("Block at {} is {}", block_pos.deref(), b2);
 
-            let keys = self.meshes.keys().cloned().collect::<Vec<_>>();
-            for pos in keys {
-                // small calculations for the 3d rendering
-                if self.is_visible(&pos, camera_pos.as_vec3(), direction, up, fov, window.inner_size().width as f32 / window.inner_size().height as f32) {
-                    self.meshes.get_mut(&pos).unwrap().draw(&self.chunk_shader, &pos);
-                    n += 1;
-                } else {
-                    let camera_ipos = camera_pos.get_chunk_pos();
-                    if (pos.x.sub(camera_ipos.x).pow(2) + pos.z.sub(camera_ipos.z).pow(2)).isqrt() > 10 {
-                        self.remove_mesh(&pos);
-                        chunk_map.remove_chunk(&pos);
+                let keys = self.meshes.keys().cloned().collect::<Vec<_>>();
+                for pos in keys {
+                    // small calculations for the 3d rendering
+                    if self.is_visible(&pos, camera_pos.as_vec3(), direction, up, fov, window.inner_size().width as f32 / window.inner_size().height as f32) {
+                        self.meshes.get_mut(&pos).unwrap().draw(&self.chunk_shader, &pos);
+                        n += 1;
+                    } else {
+                        let camera_ipos = camera_pos.get_chunk_pos();
+                        if (pos.x.sub(camera_ipos.x).pow(2) + pos.z.sub(camera_ipos.z).pow(2)).isqrt() > 10 {
+                            self.remove_mesh(&pos);
+                            chunk_map.remove_chunk(&pos);
+                        }
                     }
                 }
             }
+            n
         }
-        n
     }
 
     fn is_visible(&self, chunk_pos: &ChunkPos, player_pos: Vec3, direction_normalized: glam::Vec3, up: glam::Vec3, fov: f32, aspect: f32) -> bool {

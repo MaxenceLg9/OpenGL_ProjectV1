@@ -14,7 +14,13 @@ impl SamplePacket {
         Self { puid: PUID::new(0) }
     }
 
-    pub(crate) fn from_bits(bits: BitVec<u8>) -> Self {
+    pub(crate) fn from_bits(_bits: BitVec<u8>) -> Self {
+        Self::new()
+    }
+}
+
+impl Default for SamplePacket {
+    fn default() -> Self {
         Self::new()
     }
 }
@@ -26,10 +32,10 @@ impl Display for SamplePacket {
 }
 
 impl L5PacketTrait for SamplePacket {
-    fn serialize(&self, vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
+    fn serialize(&self, _vec: &mut BitVec<u8, Lsb0>) -> Result<(), GameError> {
         Ok(())
     }
-    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
+    fn deserialize(_cursor: &mut BitCursor) -> Result<Self, GameError> {
         Ok(SamplePacket::new())
     }
 }

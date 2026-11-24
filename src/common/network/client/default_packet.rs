@@ -16,7 +16,7 @@ impl L5PacketTrait for DefaultPacket {
     fn serialize(&self, _: &mut BitVec<u8>) -> Result<(), GameError> {
         Ok(())
     }
-    fn deserialize(cursor: &mut BitCursor) -> Result<Self, GameError> {
+    fn deserialize(_cursor: &mut BitCursor) -> Result<Self, GameError> {
         Ok(Self)
     }
 }

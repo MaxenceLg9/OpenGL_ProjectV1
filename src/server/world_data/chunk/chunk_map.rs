@@ -13,7 +13,7 @@ use shared::common::world::pos::iblockpos::IBlockPos;
 use shared::print_base;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use tokio::sync::mpsc::error::TrySendError;
 
 pub struct ServerChunkMap {
@@ -70,16 +70,16 @@ impl ServerChunkMap {
                     return true;
                 }
 
-                let mut in_buffer = buffer.contains_key(&chunk_pos);
+                let mut in_buffer = buffer.contains_key(chunk_pos);
                 // if not in buffer but in the map, adding it
-                if !in_buffer && self.chunk_map.contains_chunk(&chunk_pos) {
-                    buffer.insert(chunk_pos.clone(), ChunkPacket::from_chunk_to_packets(self.chunk_map.get_chunk(&chunk_pos).unwrap()).unwrap());
+                if !in_buffer && self.chunk_map.contains_chunk(chunk_pos) {
+                    buffer.insert(*chunk_pos, ChunkPacket::from_chunk_to_packets(self.chunk_map.get_chunk(chunk_pos).unwrap()).unwrap());
                     in_buffer = true;
                 }
                 // if the chunk exists (so in the buffer)
                 if in_buffer {
                     // creating packets
-                    let packets = buffer.get(&chunk_pos).expect("Cannot get the chunk packet in the buffer");
+                    let packets = buffer.get(chunk_pos).expect("Cannot get the chunk packet in the buffer");
                     // sending packets
                     for packet in packets {
                         let server_packet = L5Packet::Chunk(packet.clone());
@@ -93,7 +93,7 @@ impl ServerChunkMap {
                                     }
                                     TrySendError::Closed(_) => {
                                         print_base!("Channel is closed, removing the player : {}", e.to_string());
-                                        players_to_remove.push(player.clone());
+                                        players_to_remove.push(*player);
                                     }
                                 }
                                 return false;
@@ -119,8 +119,7 @@ impl ServerChunkMap {
     }
 
     pub fn compute_chunks(pos: ChunkPos, range: i32, chunks_generated: &HashSet<ChunkPos>) -> Vec<ChunkPos> {
-        let vec = Self::cube_range(pos, range, |p| !chunks_generated.contains(p));
-        vec
+        Self::cube_range(pos, range, |p| !chunks_generated.contains(p))
     }
 
     pub fn compute_chunk_diff(last_pos: ChunkPos, new_pos: ChunkPos, old_view_distance: i32, new_view_distance: i32) -> (Vec<ChunkPos>, Vec<ChunkPos>) {
@@ -161,6 +160,12 @@ impl ServerChunkMap {
             BlockInteraction::LEFT => self.chunk_map.set_block(iblock_pos, 0),
             BlockInteraction::RIGHT => self.chunk_map.set_block(iblock_pos, 1),
         }
+    }
+}
+
+impl Default for ServerChunkMap {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -30,6 +30,5 @@ pub fn main() -> io::Result<()> {
     let mut app = App::new(template);
     event_loop.run_app(&mut app).expect("Failed to run the event loop");
 
-    app.exit_state();
-    Ok(())
+    app.exit_state().map_err(io::Error::other)
 }

@@ -16,7 +16,6 @@ use shared::common::network::udp_packet::TIMEOUT_DURATION;
 use shared::common::world::block::block::BlockId;
 use shared::common::world::pos::chunkpos::ChunkPos;
 use shared::{custom_error, print_base};
-use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
@@ -45,7 +44,7 @@ impl ClientConnection {
             return Err(custom_error!(CustomErrorKind::InvalidData, "Got wrong packet from network"));
         };
 
-        let (pos, player) = server_world_data.connect_player(con_packet.get_puid().clone(), player_sx)?;
+        let (pos, player) = server_world_data.connect_player(*con_packet.get_puid(), player_sx)?;
         let mut block_table: Vec<(String, BlockId)> = Vec::new();
         for (name, id) in server_world_data.get_registries().get("blocks").unwrap().iter() {
             block_table.push((name.clone(), *id));
@@ -67,7 +66,7 @@ impl ClientConnection {
             ping: Instant::now(),
             ping_id: Some(0),
             view_distance: 8,
-            puid: con_packet.get_puid().clone(),
+            puid: *con_packet.get_puid(),
         };
         client_connection.handle_client().await
     }
@@ -82,7 +81,7 @@ impl ClientConnection {
         let mut timeout = Instant::now() + TIMEOUT_DURATION;
         let mut id = 0;
         self.generate_chunks()?;
-        self.load_chunks(self.player.clone(), self.player_position, self.player_position, 0, 10)?;
+        self.load_chunks(self.player.clone(), self.player_position, self.player_position, -1, 10)?;
 
         loop {
             tokio::select! {
@@ -158,7 +157,7 @@ impl ClientConnection {
             })
             .map_err(Error::other)?;
 
-        for pos in to_unload {}
+        for _pos in to_unload {}
         Ok(())
     }
 

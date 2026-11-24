@@ -1,4 +1,3 @@
-use crate::client::game::player::player::ClientPlayer;
 use crate::client::game::world::BACKGROUND_COLOR;
 use crate::client::game::world::ClientWorld;
 use crate::client::gl::gui::Cursor;
@@ -11,7 +10,6 @@ use shared::common::error::err_type::GameError;
 use shared::print_base;
 use shared::print_debug;
 use std::ffi::CStr;
-use std::io::Error;
 use std::os::raw::c_void;
 use std::time::Duration;
 use winit::window::Window;
@@ -34,7 +32,7 @@ impl Renderer {
     }
 }
 
-extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
+extern "system" fn message_callback(_source: GLenum, _gltype: GLenum, _id: GLuint, severity: GLenum, _length: GLsizei, message: *const GLchar, _user_param: *mut c_void) {
     let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
     print_base!("GL Debug [{}]: {}", severity, msg);
 }
@@ -48,6 +46,7 @@ impl Renderer {
                 std::ptr::null()
             }
         });
+        print_base!("Creating renderer");
 
         unsafe {
             let renderer = CStr::from_ptr(gl::GetString(gl::RENDERER) as *const i8);

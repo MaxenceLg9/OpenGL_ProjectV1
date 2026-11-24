@@ -30,25 +30,27 @@ impl Renderer {
     }
 }
 
-extern "system" fn message_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, user_param: *mut c_void) {
+extern "system" fn message_callback(_source: GLenum, _gltype: GLenum, _id: GLuint, severity: GLenum, _length: GLsizei, message: *const GLchar, _user_param: *mut c_void) {
     let msg = unsafe { std::ffi::CStr::from_ptr(message).to_string_lossy() };
     print_base!("GL Debug [{}]: {}", severity, msg);
 }
 
 impl Renderer {
     pub unsafe fn new<D: GlDisplay>(gl_display: &D) -> Self {
-        gl::load_with(|symbol| {
-            let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
-            gl_display.get_proc_address(&symbol_cstr) as *const _
-        });
-        gl::Enable(gl::DEBUG_OUTPUT);
-        gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
+        unsafe {
+            gl::load_with(|symbol| {
+                let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
+                gl_display.get_proc_address(&symbol_cstr) as *const _
+            });
+            gl::Enable(gl::DEBUG_OUTPUT);
+            gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
 
-        gl::DebugMessageCallback(Some(message_callback), std::ptr::null());
-        let mut renderer = Self { world: ClientWorld::new(), cursor: Cursor::new() };
-        renderer.world.load_characters();
-        renderer.world.generate_chunks();
-        renderer
+            gl::DebugMessageCallback(Some(message_callback), std::ptr::null());
+            let mut renderer = Self { world: ClientWorld::new(), cursor: Cursor::new() };
+            renderer.world.load_characters();
+            renderer.world.generate_chunks().expect("Cannot generate the chunks");
+            renderer
+        }
     }
 
     pub fn draw(&mut self, window: &Window, redraw_time: Duration) {

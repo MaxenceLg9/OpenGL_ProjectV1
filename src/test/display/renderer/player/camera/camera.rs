@@ -2,11 +2,8 @@ use crate::test::display::renderer::player::keyboard::Inputs;
 use glam::Vec3;
 use shared::common::world::pos::blockpos::BlockPos;
 use shared::common::world::pos::chunkpos::ChunkPos;
-use shared::common::world::pos::iblockpos::IBlockPos;
 use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta};
+use winit::event::{ElementState, MouseScrollDelta};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 pub struct Camera {
@@ -80,11 +77,9 @@ impl Camera {
                 },
                 ElementState::Released => match elt.0 {
                     PhysicalKey::Code(KeyCode::ShiftLeft) => self.remove_speed_multiplier(0),
-                    PhysicalKey::Code(KeyCode::F3) => {
-                        if elt.1.last_state == ElementState::Pressed {
-                            elt.1.last_state = ElementState::Released;
-                            *debug = !*debug;
-                        }
+                    PhysicalKey::Code(KeyCode::F3) if elt.1.last_state == ElementState::Pressed => {
+                        elt.1.last_state = ElementState::Released;
+                        *debug = !*debug;
                     }
                     _ => (),
                 },
@@ -173,24 +168,12 @@ impl Camera {
         self.direction
     }
 
-    fn make_roll(&mut self, angle: f32) {
-        self.roll += angle;
-        self.compute_up_angle(angle);
-    }
-
     pub fn compute_up(&mut self) {
         // Rotate the standard world_data up (0,1,0) by the roll around the current direction
         let roll_rotation = glam::Mat4::from_axis_angle(self.direction, self.roll.to_radians());
         let new_up = roll_rotation.transform_vector3(glam::Vec3::Y);
         self.up = new_up.normalize();
     }
-    fn compute_up_angle(&mut self, angle: f32) {
-        let rotation = glam::Mat4::from_axis_angle(self.direction, angle.to_radians());
-        // transform_vector3 handles the Vec4 conversion and truncation for you
-        self.up = rotation.transform_vector3(self.up).normalize();
-        //    println!("up: %f %f %f\n", self.up.x, self.up.y, self.up.z);
-    }
-
     pub fn get_up(&self) -> glam::Vec3 {
         self.up
     }
@@ -224,7 +207,7 @@ impl Camera {
     fn move_left(&mut self, delta: f32, time: f32) {
         let right: glam::Vec3 = glam::Vec3::normalize(glam::Vec3::cross(self.direction, self.up));
         // println!("Moving right: %f\n", glam::length(right));
-        self.position = self.position + right * delta * 3.5 * self.get_speed(time);
+        self.position += right * delta * 3.5 * self.get_speed(time);
         // println!("Pos : {},{},{}", self.position.x, self.position.y, self.position.z);
     }
 
@@ -246,15 +229,10 @@ impl Camera {
 
     pub fn add_fov(&mut self, mouse_scroll_delta: MouseScrollDelta) {
         let fov = match mouse_scroll_delta {
-            MouseScrollDelta::LineDelta(x, y) => y * 2.0,
+            MouseScrollDelta::LineDelta(_x, y) => y * 2.0,
             MouseScrollDelta::PixelDelta(pixels) => pixels.y as f32 * 0.1,
         };
-        self.fov -= fov;
-        if self.fov < 30.0 {
-            self.fov = 30.0;
-        } else if self.fov > 140.0 {
-            self.fov = 140.0;
-        }
+        self.fov = (self.fov - fov).clamp(30.0, 140.0);
     }
 
     pub fn get_fov(&self) -> f32 {
