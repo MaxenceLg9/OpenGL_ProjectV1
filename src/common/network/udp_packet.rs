@@ -22,7 +22,7 @@ macro_rules! register_udp_packets {
 
         impl $enum_name {
             /// Takes the ID and the cursor, returns the specific packet variant
-            pub fn decode(vec: &Vec<u8>) -> Result<Self, GameError> {
+            pub fn decode(vec: &[u8]) -> Result<Self, GameError> {
                 let mut cursor = BitCursor::new(vec.view_bits::<Lsb0>());
                 let byte = cursor.read_bits::<u8>(8);
                 let result = $enum_type::from_repr(byte);
