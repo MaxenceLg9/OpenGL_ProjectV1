@@ -197,17 +197,16 @@ impl Generator {
     }
 }
 
-pub fn spine_noise_into_points(noise: f64, spine_points: &Vec<SpinePoint>) -> f64 {
-    for i in 0..spine_points.len() {
-        let point = &spine_points[i];
-
+pub fn spine_noise_into_points(noise: f64, spine_points: &[SpinePoint]) -> f64 {
+    for (i, point) in spine_points.iter().enumerate() {
         if noise < point.noise {
-            let (last_noise, last_value) = if let Some(point) = spine_points.get(i - 1) { (point.noise, point.value) } else { (0.0, 0.0) };
+            // the first point is interpolated from (0, 0)
+            let (last_noise, last_value) = if let Some(point) = i.checked_sub(1).and_then(|j| spine_points.get(j)) { (point.noise, point.value) } else { (0.0, 0.0) };
             return (point.value - last_value) * default_function((noise - last_noise) / (point.noise - last_noise)) + last_value;
         }
     }
     if let Some(point) = spine_points.last() {
-        let (last_noise, last_value) = if let Some(point) = spine_points.get(spine_points.len() - 2) { (point.noise, point.value) } else { (0.0, 0.0) };
+        let (last_noise, last_value) = if let Some(point) = spine_points.len().checked_sub(2).and_then(|j| spine_points.get(j)) { (point.noise, point.value) } else { (0.0, 0.0) };
         return (point.value - last_value) * default_function((noise - last_noise) / (point.noise - last_noise)) + last_value;
     }
     0.0
