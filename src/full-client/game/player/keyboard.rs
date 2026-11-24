@@ -34,6 +34,14 @@ impl Inputs {
         }
     }
 
+    /// Marks every key and button as released, e.g. when the game stops receiving the inputs.
+    pub fn release_all(&mut self) {
+        for state in self.keyboard.values_mut().chain(self.mouse.values_mut()) {
+            state.last_state = ElementState::Released;
+            state.current_state = ElementState::Released;
+        }
+    }
+
     pub fn get_keyboard(&mut self) -> &mut HashMap<PhysicalKey, KeyState<ElementState>> {
         &mut self.keyboard
     }

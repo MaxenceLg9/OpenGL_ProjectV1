@@ -109,46 +109,9 @@ impl ClientWorld {
             .poll_keys(time, self.client_world_data.clone(), &mut self.meshes, &self.chunks);
     }
 
-    /// Load bitmap character into VRAM by creating buffer
-    pub unsafe fn load_characters(&mut self) {
-        // gl::UniformMatrix4fv(gl::GetUniformLocation(self.text_shader.program, CString::new("projection").unwrap().as_bytes().as_ptr() as *const i8), 1, gl::FALSE, projection.as_ref().as_ptr())
-        print_base!("Debug");
-        // Keep this! OpenGL needs it for 1-byte (RED) alignment
-        unsafe {
-            gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-        }
-
-        let font_data = std::fs::read("src/assets/fonts/IBM_Plex_Mono/IBMPlexMono-Bold.ttf").expect("Failed to read font");
-
-        let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).expect("Failed to parse font");
-
-        let px_size = 32.0;
-
-        for i in 0..128u8 {
-            let chr = i as char;
-
-            // 1. Rasterize
-            let (metrics, bitmap) = font.rasterize(chr, px_size);
-
-            // 2. Generate Texture
-            let mut texture_id = 0;
-
-            unsafe {
-                gl::GenTextures(1, &mut texture_id);
-                gl::BindTexture(gl::TEXTURE_2D, texture_id);
-                gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RED as i32, metrics.width as i32, metrics.height as i32, 0, gl::RED, gl::UNSIGNED_BYTE, bitmap.as_ptr() as *const _);
-
-                // Texture parameters
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-            }
-
-            let character = Character::new(texture_id, glam::ivec2(metrics.width as i32, metrics.height as i32), glam::ivec2(metrics.xmin, metrics.ymin), metrics.advance_width as u32);
-
-            self.characters.insert(chr, character);
-        }
+    /// Switches between the textured chunks and the debug view.
+    pub fn toggle_debug(&self) {
+        self.client_world_data.toggle_debug();
     }
 
     pub fn get_player(&self) -> Arc<RwLock<ClientPlayer>> {
